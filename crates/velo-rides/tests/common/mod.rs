@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use tempfile::TempDir;
 use velo_rides::{NewRideRecord, PublishStatus, RideLibrary};
 
