@@ -13,6 +13,7 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M2c** — Ride library (SQLite) | ✅ | [#5](https://github.com/Gitter499/cyclosim/issues/5) |
 | **M3** — Real route + terrain | ✅ | [#6](https://github.com/Gitter499/cyclosim/issues/6) |
 | **M3b** — Google 3D Tiles (spike) | ✅ | [#7](https://github.com/Gitter499/cyclosim/issues/7) |
+| **M3c** — Bike model import | 🔜 | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 

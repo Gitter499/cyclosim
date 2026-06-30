@@ -2,13 +2,13 @@
 name: quality-pass
 description: >-
   Cross-cutting VeloSim codebase quality pass: simplifications, cohesion, doc sync,
-  integration tests. Use after milestone merges or when multiple subagents may have
+  integration tests. Use after milestone merges or when parallel milestone work may have
   desynced contexts. Run on the dev branch before merging to main.
 ---
 
 # VeloSim Quality Pass
 
-Post-milestone cleanup agent. Consumes the **entire** codebase and restores cohesion after parallel or sequential subagent work.
+Post-milestone cleanup. Consumes the **entire** codebase and restores cohesion after parallel milestone work.
 
 ## When to run
 
@@ -49,7 +49,7 @@ Quality pass progress:
 
 1. **Correctness** — fix bugs or test gaps found during review
 2. **Cohesion** — one obvious way to do things; shared types live in the right crate
-3. **Reduction** — delete unused code; collapse over-abstraction from subagents
+3. **Reduction** — delete unused code; collapse over-abstraction from rushed milestone slices
 4. **Integration tests** — ride loop, FFI round-trip, FIT encode, ride DB lifecycle
 5. **Docs** — README tables match reality; milestone status current
 
