@@ -73,7 +73,7 @@ control are proven. Mesh is permanent (it's the terrain), splats are an overlay 
                         │
         ┌───────────────┴───────────────────────────────────────────────────────────────────┐
         │                                      velo-core (Rust)                                │
-        │  ride loop (fixed dt)  physics/power  route model  workout engine  HUD state         │
+        │  ride loop (fixed dt)  physics/power  route model  workout engine  scene graph         │
         │  scene graph (render-agnostic)                                                       │
         └───────────────▲───────────────────────────────────────────────────────────────────┘
                         │ scene description
@@ -90,7 +90,7 @@ control are proven. Mesh is permanent (it's the terrain), splats are an overlay 
 
 Cargo workspace. The Xcode project links the produced static lib + generated UniFFI bindings.
 
-**Current workspace (M0–M3):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
+**Current workspace (M0–M3c + M5 partial):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-cesium`, `velo-bikegen`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
 
 ```
 cyclosim/                           # repo root (git: cyclosim; product: VeloSim)
@@ -102,13 +102,13 @@ cyclosim/                           # repo root (git: cyclosim; product: VeloSim
 │   ├── velo-fit/                   # FIT activity encoder (M2b)
 │   ├── velo-rides/                 # ride library: SQLite catalog + on-disk artifact paths (FIT, PNG, clips)
 │   ├── velo-ffi/                   # UniFFI surface: exposes core+render to Swift
-│   ├── velo-cesium/                # *planned* `cxx` bridge to Cesium Native (C++): 3D Tiles streaming/LOD/glTF decode
+│   ├── velo-cesium/                # 3D Tiles streaming/LOD/glTF decode (M3b ✅)
 │   ├── velo-units/                 # newtype units (Watts, Meters, Grade, MetersPerSecond, …)
 │   ├── velo-route-import/          # GPX/TCX/FIT → RouteModel (lib + thin CLI)
 │   ├── velo-terrain/               # DEM → terrain mesh + texture (lib + CLI)
 │   ├── velo-splatbake/             # *planned* "VeloSplatBake" offline GS bake (CLI) — heaviest, slowest
 │   ├── velo-splatharness/          # *planned* training/generation harness for splat quality iteration
-│   └── velo-bikegen/               # *planned* bike import: 2D images → image-to-3D → glTF asset (lib + CLI)
+│   └── velo-bikegen/               # bike import: 2D images → image-to-3D → glTF asset (lib + CLI, M3c ✅)
 ├── shell-macos/                    # Xcode project (Swift): UI, CoreBluetooth, MusicKit, AirPods
 │   └── …
 └── assets/
@@ -596,14 +596,14 @@ Ride session recording, `velo-fit` export, framebuffer PNG, Strava OAuth/upload 
 terrain pass, grade driving SIM resistance.
 *Done when:* you ride an imported real route over satellite-textured terrain with grade-accurate resistance.
 
-**M3b — Google 3D Tiles via Cesium Native (the quick photorealism win).**
+**M3b — Google 3D Tiles via Cesium Native (the quick photorealism win).** ✅
 Integrate **Cesium Native** (`velo-cesium`, `cxx`) — implement its three interfaces, feed glTF tiles to
 the wgpu mesh pass. Stream Google Photorealistic 3D Tiles along the corridor where covered;
 **online-only, with attribution — no caching/offline (ToS).**
 *Done when:* you ride a real city route through photorealistic Google 3D Tiles streamed by Cesium Native
 — **no GPU baking involved.** Fast path to a photoreal world; most routes can stop here.
 
-**M3c — Bike model import (`velo-bikegen`).**
+**M3c — Bike model import (`velo-bikegen`).** ✅
 Image-to-3D (hosted API or self-hosted TRELLIS.2/Hunyuan3D) → normalized glTF → foreground-object pass
 draws it as the rider's bike. Decoupled — can land any time after M2.
 *Done when:* you import 1–4 photos of a bike and ride behind/on that 3D model in the sim.
@@ -617,11 +617,15 @@ alternative — upload imagery, get a GS tileset Cesium Native streams.)*
 to mesh/3D-Tiles elsewhere, within the storage budget. **Not required to ship a photorealistic product —
 Tiers A+B already deliver that.**
 
-**M5 — Workouts + Liquid Glass shell + highlight clips.**
+**M5 — Workouts + Liquid Glass shell + highlight clips.** *(partial — #10)*
 Workout builder/engine, structured-workout ERG control, full Liquid Glass setup/summary UI, and
 **highlight video clips** (replay camera + VideoToolbox encode) attached to the ride summary.
 *Done when:* you can build a structured workout, ride it with auto ERG targets, and review a saved
 summary with an auto-generated highlight clip.
+
+**Shipped so far:** `WorkoutEngine` + sample workout template, ERG auto-target during rides, FFI
+`workout_live` / `start_sample_workout`, minimal shell workout picker. **Remaining:** in-app builder,
+highlight clips, full Liquid Glass setup/summary UI.
 
 **M6 — Apple Music + AirPods (lowest priority).**
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
