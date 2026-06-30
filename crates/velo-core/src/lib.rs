@@ -6,6 +6,7 @@ pub mod ride;
 pub mod ride_session;
 pub mod route;
 pub mod workout;
+pub mod zwo;
 
 pub use app::VeloApp;
 pub use packs::{
@@ -20,3 +21,4 @@ pub use route::{haversine_m, lat_lon_to_local, RouteError, RouteMeta, RouteModel
 pub use workout::{
     Workout, WorkoutEngine, WorkoutInterval, WorkoutState, WorkoutTarget,
 };
+pub use zwo::{parse_zwo_xml, ZwoError};
