@@ -276,6 +276,7 @@ final class VeloSimModel: ObservableObject {
 
     func startRide() {
         guard !isRideRecording else { return }
+        mediaCapture.ringBuffer.reset()
         handle.startRide()
         isRideRecording = handle.isRideRecording()
         lastPublishResult = nil
@@ -285,7 +286,7 @@ final class VeloSimModel: ObservableObject {
     func stopRideAndPublish() {
         guard isRideRecording, !isFinishingRide else { return }
         isFinishingRide = true
-        rideFlowStatus = "exporting FIT + screenshot…"
+        rideFlowStatus = "exporting FIT + highlight…"
 
         Task { @MainActor in
             defer { isFinishingRide = false }
@@ -349,6 +350,14 @@ final class VeloSimModel: ObservableObject {
     func renderFrame() {
         guard rendererReady else { return }
         try? handle.renderFrame()
+        guard isRideRecording else { return }
+        guard let fb = try? handle.captureFramebufferRgba() else { return }
+        mediaCapture.ringBuffer.maybeCapture(
+            elapsedS: rideState.elapsedS,
+            width: Int(fb.width),
+            height: Int(fb.height),
+            rgba: fb.rgbaPixels
+        )
     }
 
     func handleOAuthCallback(url: URL) {
@@ -367,6 +376,18 @@ final class VeloSimModel: ObservableObject {
 
     func dismissRideSummary() {
         showRideSummarySheet = false
+    }
+
+    func openHighlightClip() {
+        guard let path = lastPublishResult?.highlightClipPath, !path.isEmpty else { return }
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func revealHighlightClipInFinder() {
+        guard let path = lastPublishResult?.highlightClipPath, !path.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     func openLastRideActivity() {

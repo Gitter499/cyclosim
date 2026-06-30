@@ -26,7 +26,7 @@ final class RideSummaryFormattingTests: XCTestCase {
     }
 
     func testPublishStatusLabelLocal() {
-        let result = PublishResultDto(activityUrl: "/tmp/ride", savedLocally: true, rideId: "abc")
+        let result = PublishResultDto(activityUrl: "/tmp/ride", savedLocally: true, rideId: "abc", highlightClipPath: nil)
         XCTAssertEqual(RideSummaryFormatting.publishStatusLabel(for: result), "Saved locally")
     }
 
@@ -34,13 +34,14 @@ final class RideSummaryFormattingTests: XCTestCase {
         let result = PublishResultDto(
             activityUrl: "https://www.strava.com/activities/123",
             savedLocally: false,
-            rideId: ""
+            rideId: "",
+            highlightClipPath: nil
         )
         XCTAssertEqual(RideSummaryFormatting.publishStatusLabel(for: result), "Published to Strava")
     }
 
     func testPublishStatusLabelError() {
-        let result = PublishResultDto(activityUrl: "error:timeout", savedLocally: true, rideId: "")
+        let result = PublishResultDto(activityUrl: "error:timeout", savedLocally: true, rideId: "", highlightClipPath: nil)
         XCTAssertEqual(RideSummaryFormatting.publishStatusLabel(for: result), "Publish failed")
     }
 
@@ -54,7 +55,8 @@ final class RideSummaryFormattingTests: XCTestCase {
         let result = PublishResultDto(
             activityUrl: "https://www.strava.com/activities/42",
             savedLocally: false,
-            rideId: ""
+            rideId: "",
+            highlightClipPath: nil
         )
         XCTAssertEqual(
             RideSummaryFormatting.activityLinkLabel(for: result),

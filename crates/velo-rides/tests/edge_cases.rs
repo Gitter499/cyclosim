@@ -24,6 +24,7 @@ fn null_optional_fields_round_trip() {
             max_power_w: None,
             fit_path: artifacts.fit_path.display().to_string(),
             screenshot_path: None,
+            highlight_clip_path: None,
             strava_activity_id: None,
             publish_status: PublishStatus::Failed,
             route_id: None,

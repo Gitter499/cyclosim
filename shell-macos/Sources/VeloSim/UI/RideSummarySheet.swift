@@ -61,22 +61,51 @@ struct RideSummarySheet: View {
                     .lineLimit(3)
                     .textSelection(.enabled)
             }
+
+            if let clipPath = publishResult?.highlightClipPath, !clipPath.isEmpty {
+                Divider()
+                Text("Highlight clip saved")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(URL(fileURLWithPath: clipPath).lastPathComponent)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var highlightActions: some View {
+        Group {
+            if let clipPath = publishResult?.highlightClipPath, !clipPath.isEmpty {
+                Button("Play highlight") {
+                    model.openHighlightClip()
+                }
+                .buttonStyle(VeloGlassSecondaryButtonStyle())
+                Button("Reveal clip") {
+                    model.revealHighlightClipInFinder()
+                }
+                .buttonStyle(VeloGlassSecondaryButtonStyle())
+            }
         }
     }
 
     private var actionBar: some View {
         VeloGlassContainer(spacing: 12) {
-            HStack(spacing: 12) {
-                if publishResult != nil {
-                    Button("Open activity") {
-                        model.openLastRideActivity()
+            VStack(spacing: 12) {
+                highlightActions
+                HStack(spacing: 12) {
+                    if publishResult != nil {
+                        Button("Open activity") {
+                            model.openLastRideActivity()
+                        }
+                        .buttonStyle(VeloGlassPrimaryButtonStyle())
                     }
-                    .buttonStyle(VeloGlassPrimaryButtonStyle())
+                    Button("Done") {
+                        model.dismissRideSummary()
+                    }
+                    .buttonStyle(VeloGlassSecondaryButtonStyle())
                 }
-                Button("Done") {
-                    model.dismissRideSummary()
-                }
-                .buttonStyle(VeloGlassSecondaryButtonStyle())
             }
         }
     }
@@ -110,12 +139,14 @@ struct RideSummarySheet_Previews: PreviewProvider {
                 sampleCount: 100,
                 avgPowerW: 210,
                 maxPowerW: 380,
-                startedAtUnix: 1_700_000_000
+                startedAtUnix: 1_700_000_000,
+                highlightClips: []
             ),
             publishResult: PublishResultDto(
                 activityUrl: "/Users/me/Documents/VeloSim/rides/abc123",
                 savedLocally: true,
-                rideId: "abc123"
+                rideId: "abc123",
+                highlightClipPath: "/Users/me/Documents/VeloSim/rides/abc123/highlight.mp4"
             )
         )
     }

@@ -41,6 +41,15 @@ fn rides_table_has_expected_columns() {
         assert!(sql.contains(col), "missing column {col}");
     }
     assert!(sql.contains("PRIMARY KEY"));
+
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(rides)")
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(1))
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
+    assert!(cols.contains(&"highlight_clip_path".to_string()));
 }
 
 #[test]
