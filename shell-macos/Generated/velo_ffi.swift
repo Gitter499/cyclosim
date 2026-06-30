@@ -1398,17 +1398,97 @@ public func FfiConverterTypeFramebufferDto_lower(_ value: FramebufferDto) -> Rus
 }
 
 
+public struct HighlightClipRequestDto {
+    public var startElapsedS: Double
+    public var durationS: Double
+    public var label: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(startElapsedS: Double, durationS: Double, label: String) {
+        self.startElapsedS = startElapsedS
+        self.durationS = durationS
+        self.label = label
+    }
+}
+
+#if compiler(>=6)
+extension HighlightClipRequestDto: Sendable {}
+#endif
+
+
+extension HighlightClipRequestDto: Equatable, Hashable {
+    public static func ==(lhs: HighlightClipRequestDto, rhs: HighlightClipRequestDto) -> Bool {
+        if lhs.startElapsedS != rhs.startElapsedS {
+            return false
+        }
+        if lhs.durationS != rhs.durationS {
+            return false
+        }
+        if lhs.label != rhs.label {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(startElapsedS)
+        hasher.combine(durationS)
+        hasher.combine(label)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHighlightClipRequestDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HighlightClipRequestDto {
+        return
+            try HighlightClipRequestDto(
+                startElapsedS: FfiConverterDouble.read(from: &buf), 
+                durationS: FfiConverterDouble.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HighlightClipRequestDto, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.startElapsedS, into: &buf)
+        FfiConverterDouble.write(value.durationS, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHighlightClipRequestDto_lift(_ buf: RustBuffer) throws -> HighlightClipRequestDto {
+    return try FfiConverterTypeHighlightClipRequestDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHighlightClipRequestDto_lower(_ value: HighlightClipRequestDto) -> RustBuffer {
+    return FfiConverterTypeHighlightClipRequestDto.lower(value)
+}
+
+
 public struct PublishResultDto {
     public var activityUrl: String
     public var savedLocally: Bool
     public var rideId: String
+    public var highlightClipPath: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(activityUrl: String, savedLocally: Bool, rideId: String) {
+    public init(activityUrl: String, savedLocally: Bool, rideId: String, highlightClipPath: String?) {
         self.activityUrl = activityUrl
         self.savedLocally = savedLocally
         self.rideId = rideId
+        self.highlightClipPath = highlightClipPath
     }
 }
 
@@ -1428,6 +1508,9 @@ extension PublishResultDto: Equatable, Hashable {
         if lhs.rideId != rhs.rideId {
             return false
         }
+        if lhs.highlightClipPath != rhs.highlightClipPath {
+            return false
+        }
         return true
     }
 
@@ -1435,6 +1518,7 @@ extension PublishResultDto: Equatable, Hashable {
         hasher.combine(activityUrl)
         hasher.combine(savedLocally)
         hasher.combine(rideId)
+        hasher.combine(highlightClipPath)
     }
 }
 
@@ -1449,7 +1533,8 @@ public struct FfiConverterTypePublishResultDto: FfiConverterRustBuffer {
             try PublishResultDto(
                 activityUrl: FfiConverterString.read(from: &buf), 
                 savedLocally: FfiConverterBool.read(from: &buf), 
-                rideId: FfiConverterString.read(from: &buf)
+                rideId: FfiConverterString.read(from: &buf), 
+                highlightClipPath: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1457,6 +1542,7 @@ public struct FfiConverterTypePublishResultDto: FfiConverterRustBuffer {
         FfiConverterString.write(value.activityUrl, into: &buf)
         FfiConverterBool.write(value.savedLocally, into: &buf)
         FfiConverterString.write(value.rideId, into: &buf)
+        FfiConverterOptionString.write(value.highlightClipPath, into: &buf)
     }
 }
 
@@ -1485,13 +1571,14 @@ public struct RideRecordDto {
     public var maxPowerW: Double?
     public var fitPath: String
     public var screenshotPath: String?
+    public var highlightClipPath: String?
     public var stravaActivityId: String?
     public var publishStatus: PublishStatus
     public var routeId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, startedAtUnix: UInt64, elapsedS: Double, distanceM: Double, avgPowerW: Double?, maxPowerW: Double?, fitPath: String, screenshotPath: String?, stravaActivityId: String?, publishStatus: PublishStatus, routeId: String?) {
+    public init(id: String, startedAtUnix: UInt64, elapsedS: Double, distanceM: Double, avgPowerW: Double?, maxPowerW: Double?, fitPath: String, screenshotPath: String?, highlightClipPath: String?, stravaActivityId: String?, publishStatus: PublishStatus, routeId: String?) {
         self.id = id
         self.startedAtUnix = startedAtUnix
         self.elapsedS = elapsedS
@@ -1500,6 +1587,7 @@ public struct RideRecordDto {
         self.maxPowerW = maxPowerW
         self.fitPath = fitPath
         self.screenshotPath = screenshotPath
+        self.highlightClipPath = highlightClipPath
         self.stravaActivityId = stravaActivityId
         self.publishStatus = publishStatus
         self.routeId = routeId
@@ -1537,6 +1625,9 @@ extension RideRecordDto: Equatable, Hashable {
         if lhs.screenshotPath != rhs.screenshotPath {
             return false
         }
+        if lhs.highlightClipPath != rhs.highlightClipPath {
+            return false
+        }
         if lhs.stravaActivityId != rhs.stravaActivityId {
             return false
         }
@@ -1558,6 +1649,7 @@ extension RideRecordDto: Equatable, Hashable {
         hasher.combine(maxPowerW)
         hasher.combine(fitPath)
         hasher.combine(screenshotPath)
+        hasher.combine(highlightClipPath)
         hasher.combine(stravaActivityId)
         hasher.combine(publishStatus)
         hasher.combine(routeId)
@@ -1581,6 +1673,7 @@ public struct FfiConverterTypeRideRecordDto: FfiConverterRustBuffer {
                 maxPowerW: FfiConverterOptionDouble.read(from: &buf), 
                 fitPath: FfiConverterString.read(from: &buf), 
                 screenshotPath: FfiConverterOptionString.read(from: &buf), 
+                highlightClipPath: FfiConverterOptionString.read(from: &buf), 
                 stravaActivityId: FfiConverterOptionString.read(from: &buf), 
                 publishStatus: FfiConverterTypePublishStatus.read(from: &buf), 
                 routeId: FfiConverterOptionString.read(from: &buf)
@@ -1596,6 +1689,7 @@ public struct FfiConverterTypeRideRecordDto: FfiConverterRustBuffer {
         FfiConverterOptionDouble.write(value.maxPowerW, into: &buf)
         FfiConverterString.write(value.fitPath, into: &buf)
         FfiConverterOptionString.write(value.screenshotPath, into: &buf)
+        FfiConverterOptionString.write(value.highlightClipPath, into: &buf)
         FfiConverterOptionString.write(value.stravaActivityId, into: &buf)
         FfiConverterTypePublishStatus.write(value.publishStatus, into: &buf)
         FfiConverterOptionString.write(value.routeId, into: &buf)
@@ -1743,16 +1837,18 @@ public struct RideSummaryDto {
     public var avgPowerW: Double?
     public var maxPowerW: Double?
     public var startedAtUnix: UInt64
+    public var highlightClips: [HighlightClipRequestDto]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(elapsedS: Double, distanceM: Double, sampleCount: UInt32, avgPowerW: Double?, maxPowerW: Double?, startedAtUnix: UInt64) {
+    public init(elapsedS: Double, distanceM: Double, sampleCount: UInt32, avgPowerW: Double?, maxPowerW: Double?, startedAtUnix: UInt64, highlightClips: [HighlightClipRequestDto]) {
         self.elapsedS = elapsedS
         self.distanceM = distanceM
         self.sampleCount = sampleCount
         self.avgPowerW = avgPowerW
         self.maxPowerW = maxPowerW
         self.startedAtUnix = startedAtUnix
+        self.highlightClips = highlightClips
     }
 }
 
@@ -1781,6 +1877,9 @@ extension RideSummaryDto: Equatable, Hashable {
         if lhs.startedAtUnix != rhs.startedAtUnix {
             return false
         }
+        if lhs.highlightClips != rhs.highlightClips {
+            return false
+        }
         return true
     }
 
@@ -1791,6 +1890,7 @@ extension RideSummaryDto: Equatable, Hashable {
         hasher.combine(avgPowerW)
         hasher.combine(maxPowerW)
         hasher.combine(startedAtUnix)
+        hasher.combine(highlightClips)
     }
 }
 
@@ -1808,7 +1908,8 @@ public struct FfiConverterTypeRideSummaryDto: FfiConverterRustBuffer {
                 sampleCount: FfiConverterUInt32.read(from: &buf), 
                 avgPowerW: FfiConverterOptionDouble.read(from: &buf), 
                 maxPowerW: FfiConverterOptionDouble.read(from: &buf), 
-                startedAtUnix: FfiConverterUInt64.read(from: &buf)
+                startedAtUnix: FfiConverterUInt64.read(from: &buf), 
+                highlightClips: FfiConverterSequenceTypeHighlightClipRequestDto.read(from: &buf)
         )
     }
 
@@ -1819,6 +1920,7 @@ public struct FfiConverterTypeRideSummaryDto: FfiConverterRustBuffer {
         FfiConverterOptionDouble.write(value.avgPowerW, into: &buf)
         FfiConverterOptionDouble.write(value.maxPowerW, into: &buf)
         FfiConverterUInt64.write(value.startedAtUnix, into: &buf)
+        FfiConverterSequenceTypeHighlightClipRequestDto.write(value.highlightClips, into: &buf)
     }
 }
 
@@ -2723,11 +2825,17 @@ public func FfiConverterCallbackInterfaceActivityPublisherCallback_lower(_ v: Ac
 
 
 /**
- * Shell encodes RGBA → PNG (VideoToolbox / CoreGraphics).
+ * Shell encodes RGBA → PNG and highlight clips (VideoToolbox H.264).
  */
 public protocol MediaCaptureCallback: AnyObject, Sendable {
     
     func encodePngRgba(width: UInt32, height: UInt32, rgbaPixels: Data)  -> Data
+    
+    /**
+     * Encode highlight reel from ring-buffer frames captured during the ride.
+     * Returns true when `output_path` contains a valid MP4.
+     */
+    func encodeHighlightClip(clips: [HighlightClipRequestDto], outputPath: String)  -> Bool
     
 }
 
@@ -2763,6 +2871,32 @@ fileprivate struct UniffiCallbackInterfaceMediaCaptureCallback {
 
             
             let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        encodeHighlightClip: { (
+            uniffiHandle: UInt64,
+            clips: RustBuffer,
+            outputPath: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<Int8>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Bool in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceMediaCaptureCallback.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.encodeHighlightClip(
+                     clips: try FfiConverterSequenceTypeHighlightClipRequestDto.lift(clips),
+                     outputPath: try FfiConverterString.lift(outputPath)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterBool.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
@@ -3299,6 +3433,31 @@ fileprivate struct FfiConverterSequenceTypeBikeInfoDto: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHighlightClipRequestDto: FfiConverterRustBuffer {
+    typealias SwiftType = [HighlightClipRequestDto]
+
+    public static func write(_ value: [HighlightClipRequestDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHighlightClipRequestDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HighlightClipRequestDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HighlightClipRequestDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHighlightClipRequestDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRideRecordDto: FfiConverterRustBuffer {
     typealias SwiftType = [RideRecordDto]
 
@@ -3577,6 +3736,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_png_rgba() != 3154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_highlight_clip() != 46356) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_sensorsourcecallback_poll_samples() != 53418) {

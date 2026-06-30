@@ -265,6 +265,13 @@ typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod0)(uint64_t, uin
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD1
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD1
+typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod1)(uint64_t, RustBuffer, RustBuffer, int8_t* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 typedef void (*UniffiCallbackInterfaceSensorSourceCallbackMethod0)(uint64_t, RustBuffer* _Nonnull, 
@@ -305,6 +312,7 @@ typedef struct UniffiVTableCallbackInterfaceActivityPublisherCallback {
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK
 typedef struct UniffiVTableCallbackInterfaceMediaCaptureCallback {
     UniffiCallbackInterfaceMediaCaptureCallbackMethod0 _Nonnull encodePngRgba;
+    UniffiCallbackInterfaceMediaCaptureCallbackMethod1 _Nonnull encodeHighlightClip;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceMediaCaptureCallback;
 
@@ -1231,6 +1239,12 @@ uint16_t uniffi_velo_ffi_checksum_method_activitypublishercallback_publish_ride(
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_png_rgba(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_HIGHLIGHT_CLIP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_HIGHLIGHT_CLIP
+uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_highlight_clip(void
     
 );
 #endif

@@ -146,6 +146,14 @@ pub struct RideSummaryDto {
     pub avg_power_w: Option<f64>,
     pub max_power_w: Option<f64>,
     pub started_at_unix: u64,
+    pub highlight_clips: Vec<HighlightClipRequestDto>,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct HighlightClipRequestDto {
+    pub start_elapsed_s: f64,
+    pub duration_s: f64,
+    pub label: String,
 }
 
 #[derive(uniffi::Record, Clone, Debug)]
@@ -160,6 +168,7 @@ pub struct PublishResultDto {
     pub activity_url: String,
     pub saved_locally: bool,
     pub ride_id: String,
+    pub highlight_clip_path: Option<String>,
 }
 
 #[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -192,6 +201,7 @@ pub struct RideRecordDto {
     pub max_power_w: Option<f64>,
     pub fit_path: String,
     pub screenshot_path: Option<String>,
+    pub highlight_clip_path: Option<String>,
     pub strava_activity_id: Option<String>,
     pub publish_status: PublishStatus,
     pub route_id: Option<String>,
@@ -209,10 +219,18 @@ pub trait TrainerControlCallback: Send + Sync {
     fn stop(&self);
 }
 
-/// Shell encodes RGBA → PNG (VideoToolbox / CoreGraphics).
+/// Shell encodes RGBA → PNG and highlight clips (VideoToolbox H.264).
 #[uniffi::export(callback_interface)]
 pub trait MediaCaptureCallback: Send + Sync {
     fn encode_png_rgba(&self, width: u32, height: u32, rgba_pixels: Vec<u8>) -> Vec<u8>;
+
+    /// Encode highlight reel from ring-buffer frames captured during the ride.
+    /// Returns true when `output_path` contains a valid MP4.
+    fn encode_highlight_clip(
+        &self,
+        clips: Vec<HighlightClipRequestDto>,
+        output_path: String,
+    ) -> bool;
 }
 
 /// Shell uploads FIT + optional screenshot (Strava OAuth) or saves locally.
@@ -242,6 +260,14 @@ fn map_ride_mode_in(mode: RideMode) -> velo_core::ride::RideMode {
     }
 }
 
+fn map_highlight_clip(c: velo_core::HighlightClipRequest) -> HighlightClipRequestDto {
+    HighlightClipRequestDto {
+        start_elapsed_s: c.start_elapsed_s,
+        duration_s: c.duration_s,
+        label: c.label,
+    }
+}
+
 fn map_summary(summary: velo_core::RideSummary) -> RideSummaryDto {
     RideSummaryDto {
         elapsed_s: summary.elapsed_s,
@@ -250,6 +276,11 @@ fn map_summary(summary: velo_core::RideSummary) -> RideSummaryDto {
         avg_power_w: summary.avg_power_w,
         max_power_w: summary.max_power_w,
         started_at_unix: summary.started_at_unix,
+        highlight_clips: summary
+            .highlight_clips
+            .into_iter()
+            .map(map_highlight_clip)
+            .collect(),
     }
 }
 
@@ -278,6 +309,7 @@ fn map_ride_record(record: RideRecord) -> RideRecordDto {
         max_power_w: record.max_power_w,
         fit_path: record.fit_path,
         screenshot_path: record.screenshot_path,
+        highlight_clip_path: record.highlight_clip_path,
         strava_activity_id: record.strava_activity_id,
         publish_status: map_publish_status(record.publish_status),
         route_id: record.route_id,
@@ -342,6 +374,7 @@ fn persist_finished_ride(
                     .screenshot_path
                     .as_ref()
                     .map(|p| p.display().to_string()),
+                highlight_clip_path: None,
                 strava_activity_id,
                 publish_status: infer_publish_status(publish),
                 route_id,
@@ -955,6 +988,7 @@ impl VeloHandle {
         };
 
         let mut publish = publisher.publish_ride(fit_bytes.clone(), screenshot_png.clone(), summary_dto.clone());
+        publish.highlight_clip_path = None;
 
         if let Some(library) = inner.ride_library.as_ref() {
             let route_id = inner.app.active_route_id().map(|s| s.to_string());
@@ -967,6 +1001,23 @@ impl VeloHandle {
                 route_id,
             )?;
             publish.ride_id = ride_id.clone();
+
+            if !summary_dto.highlight_clips.is_empty() {
+                if let Ok(Some(ride)) = library.get_ride(&ride_id) {
+                    if let Some(parent) = std::path::Path::new(&ride.fit_path).parent() {
+                        let clip_path = parent.join("highlight.mp4");
+                        let clip_path_str = clip_path.display().to_string();
+                        if media.encode_highlight_clip(
+                            summary_dto.highlight_clips.clone(),
+                            clip_path_str.clone(),
+                        ) {
+                            let _ = library.update_highlight_clip_path(&ride_id, &clip_path_str);
+                            publish.highlight_clip_path = Some(clip_path_str);
+                        }
+                    }
+                }
+            }
+
             if publish.saved_locally {
                 if let Ok(Some(ride)) = library.get_ride(&ride_id) {
                     if let Some(parent) = std::path::Path::new(&ride.fit_path).parent() {
