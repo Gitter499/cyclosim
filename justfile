@@ -15,6 +15,7 @@ test:
 
 lint:
     ./scripts/lint-apple-symbols.sh
+    ./scripts/lint-shell-ui.sh
 
 bindgen:
     cargo build --release -p velo-ffi
