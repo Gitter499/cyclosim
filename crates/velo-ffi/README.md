@@ -46,9 +46,11 @@ Integration tests under `tests/` (shared mocks in `tests/common/mod.rs`):
 | `tiles_integration.rs` | Scenery config + synthetic 3D Tiles session |
 | `bike_integration.rs` | Bike import, list, active bike |
 | `workout_integration.rs` | Custom workout start, validation, live state, ERG target, `.zwo` parse |
+| `steering_audio_integration.rs` | Steering axis → ride state; workout → audio director |
+| `app_scenarios.rs` | End-to-end route + publish + workout ERG + steering (no hardware) |
 
 ## Milestone
 
-**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5** (workout builder FFI, `.zwo` parse, highlight clip encode)
+**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5** (workout builder FFI, `.zwo` parse, highlight clip encode) · **M6** (`SteeringInputCallback`, `AudioDirectorCallback`)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

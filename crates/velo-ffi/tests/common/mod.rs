@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use velo_ffi::{
@@ -8,9 +9,26 @@ use velo_ffi::{
     SteerStateDto, SteeringInputCallback, TelemetrySampleDto, TrainerControlCallback,
 };
 
+/// GPX fixture shared by route scenario tests.
+pub fn fixture_gpx_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../velo-route-import/tests/fixtures/simple_climb.gpx")
+}
+
 pub struct MockPublisher {
     pub saved_locally: bool,
     pub activity_url: String,
+    pub publish_count: Arc<Mutex<usize>>,
+}
+
+impl MockPublisher {
+    pub fn local(activity_url: impl Into<String>) -> Self {
+        Self {
+            saved_locally: true,
+            activity_url: activity_url.into(),
+            publish_count: Arc::new(Mutex::new(0)),
+        }
+    }
 }
 
 impl ActivityPublisherCallback for MockPublisher {
@@ -20,6 +38,7 @@ impl ActivityPublisherCallback for MockPublisher {
         _screenshot_png: Option<Vec<u8>>,
         _summary: RideSummaryDto,
     ) -> PublishResultDto {
+        *self.publish_count.lock().unwrap() += 1;
         PublishResultDto {
             activity_url: self.activity_url.clone(),
             saved_locally: self.saved_locally,
@@ -29,7 +48,17 @@ impl ActivityPublisherCallback for MockPublisher {
     }
 }
 
-pub struct MockMedia;
+pub struct MockMedia {
+    pub highlight_encode_count: Arc<Mutex<usize>>,
+}
+
+impl Default for MockMedia {
+    fn default() -> Self {
+        Self {
+            highlight_encode_count: Arc::new(Mutex::new(0)),
+        }
+    }
+}
 
 impl MediaCaptureCallback for MockMedia {
     fn encode_png_rgba(&self, _width: u32, _height: u32, _rgba_pixels: Vec<u8>) -> Vec<u8> {
@@ -44,7 +73,39 @@ impl MediaCaptureCallback for MockMedia {
         if clips.is_empty() {
             return false;
         }
+        *self.highlight_encode_count.lock().unwrap() += 1;
         std::fs::write(&output_path, b"mock-mp4").is_ok()
+    }
+}
+
+/// Replay sensors with monotonic elapsed time and configurable power.
+pub struct ReplaySensors {
+    pub tick: Arc<Mutex<u64>>,
+    pub power_w: f64,
+    pub step_ms: u64,
+}
+
+impl ReplaySensors {
+    pub fn at_180w() -> Self {
+        Self {
+            tick: Arc::new(Mutex::new(0)),
+            power_w: 180.0,
+            step_ms: 10,
+        }
+    }
+}
+
+impl SensorSourceCallback for ReplaySensors {
+    fn poll_samples(&self) -> Vec<TelemetrySampleDto> {
+        let mut t = self.tick.lock().unwrap();
+        *t += self.step_ms;
+        vec![TelemetrySampleDto {
+            elapsed_ms: *t,
+            power_w: Some(self.power_w),
+            cadence_rpm: Some(90.0),
+            heart_rate_bpm: Some(140.0),
+            wheel_speed_mps: None,
+        }]
     }
 }
 

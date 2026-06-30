@@ -25,6 +25,7 @@ velo-units = { workspace = true }
 [dev-dependencies]
 tempfile = "3"
 png = { workspace = true }
+fitparser = "0.8"
 velo-route-import = { workspace = true }
 velo-terrain = { workspace = true }
 

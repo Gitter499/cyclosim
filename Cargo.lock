@@ -2920,6 +2920,7 @@ dependencies = [
 name = "velo-ffi"
 version = "0.1.0"
 dependencies = [
+ "fitparser",
  "png 0.17.16",
  "tempfile",
  "thiserror 2.0.18",

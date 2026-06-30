@@ -113,6 +113,7 @@ let package = Package(
                 "Ride",
                 "Input",
                 "Music",
+                "Workout",
                 "PlatformCallbacks.swift",
                 "UI/VeloGlass.swift",
                 "UI/RideSummaryFormatting.swift",

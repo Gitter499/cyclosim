@@ -15,8 +15,7 @@ use velo_route_import::import_gpx;
 use common::{MockSteering, NoopSteering, NoopTrainer, RecordingAudioDirectorCallback, TickSensors};
 
 fn fixture_gpx() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../velo-route-import/tests/fixtures/simple_climb.gpx")
+    common::fixture_gpx_path()
 }
 
 fn route_handle() -> VeloHandle {
