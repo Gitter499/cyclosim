@@ -90,7 +90,7 @@ control are proven. Mesh is permanent (it's the terrain), splats are an overlay 
 
 Cargo workspace. The Xcode project links the produced static lib + generated UniFFI bindings.
 
-**Current workspace (M0–M3c + M5 partial):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-cesium`, `velo-bikegen`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
+**Current workspace (M0–M3c + M5):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-cesium`, `velo-bikegen`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
 
 ```
 cyclosim/                           # repo root (git: cyclosim; product: VeloSim)

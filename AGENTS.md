@@ -57,7 +57,7 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 
 - Land on `dev` quickly; run `cargo test` locally before push.
 - Release to `main` only when the `test` check is green.
-- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md) · [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md)
+- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md) · [rust-best-practices](.cursor/skills/rust-best-practices/SKILL.md) · [swift-best-practices](.cursor/skills/swift-best-practices/SKILL.md) · [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md)
 - Strava setup: [STRAVA.md](STRAVA.md)
 - **`initial-monolith`** tag: single import commit (M0–M2c baseline)
 

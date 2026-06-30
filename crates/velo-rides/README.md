@@ -28,6 +28,6 @@ cargo test -p velo-rides    # schema, insert/query, v1→v2 migration, edge case
 
 ## Milestone
 
-**M2c** (ride history DB) · **M5 partial** (`highlight_clip_path`)
+**M2c** (ride history DB) · **M5** (`highlight_clip_path`, schema v2 migration)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

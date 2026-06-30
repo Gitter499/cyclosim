@@ -43,6 +43,6 @@ Integration tests under `tests/` (shared mocks in `tests/common/mod.rs`):
 
 ## Milestone
 
-**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5 partial** (workout + highlight clip FFI)
+**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5** (workout builder FFI, `.zwo` parse, highlight clip encode)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

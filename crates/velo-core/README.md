@@ -32,6 +32,6 @@ Integration: `tests/golden_replay.rs`, `tests/route_ride.rs`, `tests/workout_erg
 
 ## Milestone
 
-**M1** (physics) · **M2a** (ride loop) · **M2b** (session + FIT hookup) · **M3** (route + grade) · **M5 partial** (workout engine + highlight planning)
+**M1** (physics) · **M2a** (ride loop) · **M2b** (session + FIT hookup) · **M3** (route + grade) · **M5** (workout engine, `.zwo` import, highlight planning)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)
