@@ -4,13 +4,17 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use velo_core::VeloApp;
+use velo_core::{
+    default_packs_dir, list_route_packs, load_route_pack, pack_dir_for_id, VeloApp,
+};
 use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
-use velo_render::Renderer;
+use velo_render::{forward_from_enu, RouteFollow, Renderer};
+use velo_route_import::import_file;
 use velo_rides::{
     default_artifacts_base, default_db_path, NewRideRecord, PublishStatus as StorePublishStatus,
     RideLibrary, RideRecord,
 };
+use velo_terrain::{bake_terrain_for_route, DEFAULT_CELL_M, DEFAULT_CORRIDOR_M};
 use velo_units::{Bpm, Grade, MetersPerSecond, Rpm, Watts};
 
 /// UniFFI telemetry pattern: Swift pushes samples via `poll_samples()` each tick;
@@ -128,6 +132,13 @@ pub enum PublishStatus {
     Local,
     Strava,
     Failed,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct RouteInfoDto {
+    pub route_id: String,
+    pub name: String,
+    pub total_distance_m: f64,
 }
 
 #[derive(uniffi::Record, Clone, Debug)]
@@ -255,6 +266,7 @@ fn persist_finished_ride(
     fit_bytes: &[u8],
     screenshot_png: Option<&[u8]>,
     publish: &PublishResultDto,
+    route_id: Option<String>,
 ) -> Result<String, VeloError> {
     let artifacts = library
         .save_ride_artifacts(fit_bytes, screenshot_png)
@@ -284,7 +296,7 @@ fn persist_finished_ride(
                     .map(|p| p.display().to_string()),
                 strava_activity_id,
                 publish_status: infer_publish_status(publish),
-                route_id: None,
+                route_id,
             },
         )
         .map_err(|e| VeloError::RideError {
@@ -348,6 +360,7 @@ struct VeloHandleInner {
     app: VeloApp,
     renderer: Option<Renderer>,
     ride_library: Option<RideLibrary>,
+    packs_dir: PathBuf,
 }
 
 #[derive(uniffi::Object)]
@@ -361,10 +374,100 @@ impl VeloHandle {
     pub fn new() -> Self {
         let mut inner = VeloHandleInner::default();
         inner.app.set_clock_unix(unix_now());
+        inner.packs_dir = default_packs_dir();
         inner.ride_library = RideLibrary::open(default_db_path(), default_artifacts_base()).ok();
         Self {
             inner: Mutex::new(inner),
         }
+    }
+
+    pub fn packs_dir(&self) -> String {
+        self.inner.lock().unwrap().packs_dir.display().to_string()
+    }
+
+    pub fn list_routes(&self) -> Result<Vec<RouteInfoDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let ids = list_route_packs(&inner.packs_dir).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        let mut routes = Vec::new();
+        for id in ids {
+            let pack_dir = pack_dir_for_id(&inner.packs_dir, &id);
+            if let Ok(route) = load_route_pack(&pack_dir) {
+                routes.push(RouteInfoDto {
+                    route_id: route.meta.route_id.clone(),
+                    name: route.meta.name.clone(),
+                    total_distance_m: route.meta.total_distance_m,
+                });
+            }
+        }
+        Ok(routes)
+    }
+
+    pub fn import_gpx_route(
+        &self,
+        gpx_path: String,
+        route_id: String,
+        name: Option<String>,
+    ) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let pack_dir = pack_dir_for_id(&inner.packs_dir, &route_id);
+        std::fs::create_dir_all(&pack_dir).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        let model = import_file(
+            std::path::Path::new(&gpx_path),
+            &route_id,
+            name.as_deref(),
+            velo_route_import::DEFAULT_SPACING_M,
+            velo_route_import::DEFAULT_GRADE_WINDOW_M,
+        )
+        .map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        model.save_pack(&pack_dir).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        bake_terrain_for_route(&model, &pack_dir, DEFAULT_CORRIDOR_M, DEFAULT_CELL_M).map_err(
+            |e| VeloError::RideError {
+                message: e.to_string(),
+            },
+        )?;
+        inner.app.load_route(model);
+        if let Some(renderer) = inner.renderer.as_mut() {
+            let _ = renderer.load_terrain_pack(&pack_dir);
+        }
+        Ok(())
+    }
+
+    pub fn set_active_route(&self, route_id: String) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let pack_dir = pack_dir_for_id(&inner.packs_dir, &route_id);
+        let route = load_route_pack(&pack_dir).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        inner.app.load_route(route);
+        if let Some(renderer) = inner.renderer.as_mut() {
+            let _ = renderer.load_terrain_pack(&pack_dir);
+        }
+        Ok(())
+    }
+
+    pub fn clear_active_route(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.app.clear_route();
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer.clear_terrain();
+        }
+    }
+
+    pub fn active_route_id(&self) -> Option<String> {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .active_route_id()
+            .map(|s| s.to_string())
     }
 
     /// Open or create the ride library at custom paths (for tests).
@@ -544,9 +647,10 @@ impl VeloHandle {
         let ride = inner.app.ride.clone();
         let hud = hud_from_ride(&ride);
         let distance_m = ride.distance_m;
+        let follow = route_follow(&inner.app);
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
         renderer
-            .render_frame(&hud, distance_m)
+            .render_frame(&hud, distance_m, follow)
             .map_err(|_| VeloError::RenderError)
     }
 
@@ -556,9 +660,10 @@ impl VeloHandle {
         let ride = inner.app.ride.clone();
         let hud = hud_from_ride(&ride);
         let distance_m = ride.distance_m;
+        let follow = route_follow(&inner.app);
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
         let fb = renderer
-            .capture_framebuffer_rgba(&hud, distance_m)
+            .capture_framebuffer_rgba(&hud, distance_m, follow)
             .map_err(|_| VeloError::RenderError)?;
         Ok(FramebufferDto {
             width: fb.width,
@@ -590,9 +695,10 @@ impl VeloHandle {
             let ride = inner.app.ride.clone();
             let hud = hud_from_ride(&ride);
             let distance_m = ride.distance_m;
+            let follow = route_follow(&inner.app);
             let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
             let fb = renderer
-                .capture_framebuffer_rgba(&hud, distance_m)
+                .capture_framebuffer_rgba(&hud, distance_m, follow)
                 .map_err(|_| VeloError::RenderError)?;
             Some(media.encode_png_rgba(fb.width, fb.height, fb.pixels))
         } else {
@@ -602,12 +708,14 @@ impl VeloHandle {
         let mut publish = publisher.publish_ride(fit_bytes.clone(), screenshot_png.clone(), summary_dto.clone());
 
         if let Some(library) = inner.ride_library.as_ref() {
+            let route_id = inner.app.active_route_id().map(|s| s.to_string());
             let ride_id = persist_finished_ride(
                 library,
                 &summary_dto,
                 &fit_bytes,
                 screenshot_png.as_deref(),
                 &publish,
+                route_id,
             )?;
             publish.ride_id = ride_id.clone();
             if publish.saved_locally {
@@ -623,6 +731,22 @@ impl VeloHandle {
 
         Ok(publish)
     }
+}
+
+fn route_follow(app: &VeloApp) -> Option<RouteFollow> {
+    let route = app.route.as_ref()?;
+    let d = app.ride.distance_m;
+    let (east, up, north) = route.position_enu_at(d);
+    let ahead = 15.0_f64;
+    let d2 = (d + ahead).min(route.total_distance_m());
+    let (e2, _, n2) = route.position_enu_at(d2);
+    let forward = forward_from_enu(east, up, north, e2, n2);
+    Some(RouteFollow {
+        east,
+        up,
+        north,
+        forward,
+    })
 }
 
 fn hud_from_ride(ride: &velo_core::RideState) -> velo_render::HudSnapshot {
