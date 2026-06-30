@@ -5,6 +5,7 @@ use crate::physics::{integrate_step, PhysicsConfig};
 use crate::ride::{RideMode, RideState};
 use crate::ride_session::{RideSample, RideSession, RideSummary};
 use crate::route::RouteModel;
+use crate::workout::{Workout, WorkoutEngine};
 
 const DT: f32 = 1.0 / 100.0;
 
@@ -15,6 +16,7 @@ pub struct VeloApp {
     pub ride_session: RideSession,
     pub route: Option<RouteModel>,
     pub active_route_id: Option<String>,
+    pub workout_engine: Option<WorkoutEngine>,
     log: Vec<String>,
     tick: u64,
     target_power: Watts,
@@ -31,6 +33,7 @@ impl VeloApp {
             ride_session: RideSession::new(),
             route: None,
             active_route_id: None,
+            workout_engine: None,
             log: Vec::new(),
             tick: 0,
             target_power: Watts::new(150.0),
@@ -88,6 +91,34 @@ impl VeloApp {
         self.target_power = Watts::new(watts);
     }
 
+    pub fn set_ftp(&mut self, ftp_w: f64) {
+        self.physics.ftp_w = ftp_w;
+    }
+
+    pub fn ftp(&self) -> f64 {
+        self.physics.ftp_w
+    }
+
+    pub fn start_workout(&mut self, workout: Workout) {
+        let engine = WorkoutEngine::new(workout, self.physics.ftp_w);
+        self.workout_engine = Some(engine);
+        self.set_ride_mode(RideMode::Erg);
+        self.push_log("workout started".into());
+    }
+
+    pub fn clear_workout(&mut self) {
+        self.workout_engine = None;
+        self.push_log("workout cleared".into());
+    }
+
+    pub fn workout_active(&self) -> bool {
+        self.workout_engine.is_some()
+    }
+
+    pub fn workout_state(&self) -> Option<&crate::workout::WorkoutState> {
+        self.workout_engine.as_ref().map(WorkoutEngine::state)
+    }
+
     pub fn target_power(&self) -> f64 {
         self.target_power.0
     }
@@ -128,6 +159,24 @@ impl VeloApp {
         }
     }
 
+    fn sync_workout_targets(&mut self) {
+        let Some(engine) = self.workout_engine.as_mut() else {
+            return;
+        };
+        if engine.state().finished {
+            self.workout_engine = None;
+            self.push_log("workout finished".into());
+            return;
+        }
+        if engine.is_free_ride_interval() {
+            self.ride.mode = RideMode::Sim;
+        } else if let Some(w) = engine.target_watts() {
+            self.ride.mode = RideMode::Erg;
+            self.target_power = w;
+        }
+        engine.tick(DT as f64);
+    }
+
     /// Fixed-step sim tick: drain sensor samples, integrate, emit trainer commands.
     pub fn tick<S: SensorSource, T: TrainerControl>(
         &mut self,
@@ -142,6 +191,7 @@ impl VeloApp {
         }
 
         self.sync_grade_from_route();
+        self.sync_workout_targets();
 
         let grade = Grade::new(self.ride.grade);
         let power = self
