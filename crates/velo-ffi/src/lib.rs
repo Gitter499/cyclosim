@@ -5,7 +5,8 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use velo_core::{
-    default_packs_dir, list_route_packs, load_route_pack, pack_dir_for_id, VeloApp,
+    default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
+    save_scenery_config, SceneryConfig, VeloApp,
 };
 use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
 use velo_render::{forward_from_enu, RouteFollow, Renderer};
@@ -361,6 +362,7 @@ struct VeloHandleInner {
     renderer: Option<Renderer>,
     ride_library: Option<RideLibrary>,
     packs_dir: PathBuf,
+    tiles_3d_enabled: bool,
 }
 
 #[derive(uniffi::Object)]
@@ -459,8 +461,19 @@ impl VeloHandle {
             message: e.to_string(),
         })?;
         inner.app.load_route(route);
+        let scenery = load_scenery_config(&pack_dir);
+        inner.tiles_3d_enabled = scenery.tiles_3d_enabled;
+        let tiles_on = inner.tiles_3d_enabled;
+        let route_for_tiles = inner.app.route.clone();
+        let distance_m = inner.app.ride.distance_m;
         if let Some(renderer) = inner.renderer.as_mut() {
             let _ = renderer.load_terrain_pack(&pack_dir);
+            renderer.set_tiles_mode(tiles_on);
+            if tiles_on {
+                if let Some(route) = &route_for_tiles {
+                    sync_tiles_view(route, distance_m, renderer);
+                }
+            }
         }
         Ok(())
     }
@@ -468,8 +481,10 @@ impl VeloHandle {
     pub fn clear_active_route(&self) {
         let mut inner = self.inner.lock().unwrap();
         inner.app.clear_route();
+        inner.tiles_3d_enabled = false;
         if let Some(renderer) = inner.renderer.as_mut() {
             renderer.clear_terrain();
+            renderer.set_tiles_mode(false);
         }
     }
 
@@ -480,6 +495,47 @@ impl VeloHandle {
             .app
             .active_route_id()
             .map(|s| s.to_string())
+    }
+
+    /// Per-route Tier B toggle (online-only; persisted in pack `scenery.json`).
+    pub fn set_route_tiles_3d(&self, enabled: bool) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let route_id = inner.app.active_route_id().ok_or(VeloError::RideError {
+            message: "no active route".into(),
+        })?;
+        let pack_dir = pack_dir_for_id(&inner.packs_dir, route_id);
+        let config = SceneryConfig {
+            tiles_3d_enabled: enabled,
+        };
+        save_scenery_config(&pack_dir, &config).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        inner.tiles_3d_enabled = enabled;
+        let route_for_tiles = inner.app.route.clone();
+        let distance_m = inner.app.ride.distance_m;
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer.set_tiles_mode(enabled);
+            if enabled {
+                if let Some(route) = &route_for_tiles {
+                    sync_tiles_view(route, distance_m, renderer);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn route_tiles_3d_enabled(&self) -> bool {
+        self.inner.lock().unwrap().tiles_3d_enabled
+    }
+
+    pub fn tiles_attribution(&self) -> String {
+        self.inner
+            .lock()
+            .unwrap()
+            .renderer
+            .as_ref()
+            .map(|r| r.tiles_attribution().to_string())
+            .unwrap_or_default()
     }
 
     /// Open or create the ride library at custom paths (for tests).
@@ -657,10 +713,22 @@ impl VeloHandle {
     pub fn render_frame(&self) -> Result<(), VeloError> {
         let mut inner = self.inner.lock().unwrap();
         let ride = inner.app.ride.clone();
-        let hud = hud_from_ride(&ride);
+        let tiles_on = inner.tiles_3d_enabled;
+        let tiles_attr = inner
+            .renderer
+            .as_ref()
+            .filter(|_| tiles_on)
+            .map(|r| r.tiles_attribution().to_string());
+        let hud = hud_from_ride(&ride, tiles_attr);
         let distance_m = ride.distance_m;
         let follow = route_follow(&inner.app);
+        let route_for_tiles = inner.app.route.clone();
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        if tiles_on {
+            if let Some(route) = &route_for_tiles {
+                sync_tiles_view(route, distance_m, renderer);
+            }
+        }
         renderer
             .render_frame(&hud, distance_m, follow)
             .map_err(|_| VeloError::RenderError)
@@ -670,7 +738,12 @@ impl VeloHandle {
     pub fn capture_framebuffer_rgba(&self) -> Result<FramebufferDto, VeloError> {
         let mut inner = self.inner.lock().unwrap();
         let ride = inner.app.ride.clone();
-        let hud = hud_from_ride(&ride);
+        let tiles_attr = inner
+            .renderer
+            .as_ref()
+            .filter(|_| inner.tiles_3d_enabled)
+            .map(|r| r.tiles_attribution().to_string());
+        let hud = hud_from_ride(&ride, tiles_attr);
         let distance_m = ride.distance_m;
         let follow = route_follow(&inner.app);
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
@@ -705,7 +778,12 @@ impl VeloHandle {
 
         let screenshot_png = if inner.renderer.is_some() {
             let ride = inner.app.ride.clone();
-            let hud = hud_from_ride(&ride);
+            let tiles_attr = inner
+                .renderer
+                .as_ref()
+                .filter(|_| inner.tiles_3d_enabled)
+                .map(|r| r.tiles_attribution().to_string());
+            let hud = hud_from_ride(&ride, tiles_attr);
             let distance_m = ride.distance_m;
             let follow = route_follow(&inner.app);
             let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
@@ -761,7 +839,12 @@ fn route_follow(app: &VeloApp) -> Option<RouteFollow> {
     })
 }
 
-fn hud_from_ride(ride: &velo_core::RideState) -> velo_render::HudSnapshot {
+fn sync_tiles_view(route: &velo_core::RouteModel, distance_m: f64, renderer: &mut Renderer) {
+    let (lat, lon, _) = route.lat_lon_elev_at(distance_m);
+    renderer.update_tiles_view(lat, lon, 500.0);
+}
+
+fn hud_from_ride(ride: &velo_core::RideState, attribution: Option<String>) -> velo_render::HudSnapshot {
     let mode = match ride.mode {
         velo_core::ride::RideMode::Free => "Free",
         velo_core::ride::RideMode::Erg => "ERG",
@@ -776,6 +859,7 @@ fn hud_from_ride(ride: &velo_core::RideState) -> velo_render::HudSnapshot {
         elapsed_s: ride.elapsed_s,
         grade: ride.grade,
         mode,
+        attribution,
     }
 }
 

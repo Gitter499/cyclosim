@@ -18,6 +18,7 @@ velo-render = { workspace = true }
 velo-rides = { workspace = true }
 velo-route-import = { workspace = true }
 velo-terrain = { workspace = true }
+velo-cesium = { workspace = true }
 velo-units = { workspace = true }
 
 [dev-dependencies]

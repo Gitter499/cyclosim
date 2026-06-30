@@ -14,7 +14,7 @@ struct ContentView: View {
                 .frame(minWidth: 640)
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("VeloSim M3")
+                Text("VeloSim M3b")
                     .font(.title2.bold())
 
                 Text("core v\(version())")
@@ -53,6 +53,20 @@ struct ContentView: View {
                                 Text("\(route.name) (\(Int(route.totalDistanceM)) m)")
                                     .tag(route.routeId)
                             }
+                        }
+                    }
+
+                    if model.activeRouteId != nil {
+                        Toggle("3D Tiles mode (online)", isOn: Binding(
+                            get: { model.tiles3dEnabled },
+                            set: { model.setTiles3d($0) }
+                        ))
+                        .help("Streams photorealistic tiles during the ride. Online-only; attribution shown in HUD.")
+
+                        if model.tiles3dEnabled, !model.tilesAttribution.isEmpty {
+                            Text(model.tilesAttribution)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

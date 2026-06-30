@@ -6,7 +6,10 @@ pub mod ride_session;
 pub mod route;
 
 pub use app::VeloApp;
-pub use packs::{default_packs_dir, list_route_packs, load_route_pack, pack_dir_for_id};
+pub use packs::{
+    default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
+    save_scenery_config, SceneryConfig, SCENERY_FILE,
+};
 pub use physics::{integrate_step, PhysicsConfig, RideSnapshot};
 pub use ride::{RideMode, RideState};
 pub use ride_session::{RideSample, RideSession, RideSummary};

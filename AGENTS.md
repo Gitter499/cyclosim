@@ -12,7 +12,7 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M2b** — FIT + Strava + screenshot | ✅ | [#4](https://github.com/Gitter499/cyclosim/issues/4) |
 | **M2c** — Ride library (SQLite) | ✅ | [#5](https://github.com/Gitter499/cyclosim/issues/5) |
 | **M3** — Real route + terrain | ✅ | [#6](https://github.com/Gitter499/cyclosim/issues/6) |
-| **M3b** — Google 3D Tiles | 🔜 | [#7](https://github.com/Gitter499/cyclosim/issues/7) |
+| **M3b** — Google 3D Tiles (spike) | ✅ | [#7](https://github.com/Gitter499/cyclosim/issues/7) |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 
@@ -28,6 +28,7 @@ See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criter
 | [`velo-rides`](crates/velo-rides/) | SQLite ride library |
 | [`velo-route-import`](crates/velo-route-import/) | GPX/TCX → RouteModel (lib + CLI) |
 | [`velo-terrain`](crates/velo-terrain/) | DEM → terrain mesh + texture bake |
+| [`velo-cesium`](crates/velo-cesium/) | 3D Tiles streaming + glTF decode (M3b) |
 | [`velo-ffi`](crates/velo-ffi/) | UniFFI surface for Swift |
 | [`shell-macos`](shell-macos/) | macOS app (BLE, Strava, UI) |
 
