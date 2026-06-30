@@ -4,9 +4,11 @@ mod capture;
 mod hud;
 mod scene;
 mod terrain;
+mod tiles;
 
 use std::path::Path;
 
+use velo_cesium::{TilesSession, ViewCorridor};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use thiserror::Error;
@@ -17,6 +19,7 @@ pub use capture::{bgra_to_rgba, FramebufferRgba, PNG_MAGIC};
 pub use hud::{HudRenderer, HudSnapshot};
 pub use scene::{ChaseCamera, GroundMesh, SceneVertex};
 pub use terrain::{forward_from_enu, TerrainScene};
+pub use tiles::TilesScene;
 
 /// Rider position in local ENU for chase camera along a loaded route.
 #[derive(Debug, Clone, Copy)]
@@ -61,6 +64,10 @@ pub struct Renderer {
     camera: ChaseCamera,
     hud: HudRenderer,
     terrain: Option<TerrainScene>,
+    tiles: Option<TilesScene>,
+    tiles_session: Option<TilesSession>,
+    tiles_mode: bool,
+    tiles_attribution: String,
     rider_z: f32,
 }
 
@@ -279,6 +286,10 @@ impl Renderer {
             camera: ChaseCamera::default(),
             hud,
             terrain: None,
+            tiles: None,
+            tiles_session: None,
+            tiles_mode: false,
+            tiles_attribution: String::new(),
             rider_z: 0.0,
         })
     }
@@ -304,6 +315,56 @@ impl Renderer {
 
     pub fn has_terrain(&self) -> bool {
         self.terrain.is_some()
+    }
+
+    /// Enable or disable Tier B 3D Tiles overlay (online-only during ride).
+    pub fn set_tiles_mode(&mut self, enabled: bool) {
+        if enabled && self.tiles_session.is_none() {
+            let session = TilesSession::online_default().unwrap_or_else(|_| TilesSession::synthetic());
+            self.tiles_attribution = session.attribution().text.clone();
+            self.tiles_session = Some(session);
+        }
+        if !enabled {
+            self.tiles_session = None;
+            self.tiles = None;
+            self.tiles_attribution.clear();
+        }
+        self.tiles_mode = enabled;
+    }
+
+    pub fn tiles_mode(&self) -> bool {
+        self.tiles_mode
+    }
+
+    pub fn tiles_attribution(&self) -> &str {
+        &self.tiles_attribution
+    }
+
+    /// Refresh visible tile meshes for the current rider position (ENU origin frame).
+    pub fn update_tiles_view(&mut self, lat: f64, lon: f64, radius_m: f64) {
+        if !self.tiles_mode {
+            return;
+        }
+        let Some(session) = self.tiles_session.as_mut() else {
+            return;
+        };
+        let view = ViewCorridor {
+            lat,
+            lon,
+            radius_m,
+        };
+        if session.tick(view).is_ok() {
+            let meshes = session.meshes();
+            if !meshes.is_empty() {
+                self.tiles = Some(TilesScene::from_meshes(
+                    &self.device,
+                    &self.queue,
+                    self.config.format,
+                    &self.scene_bind_layout,
+                    meshes,
+                ));
+            }
+        }
     }
 
     pub fn render_frame(
@@ -393,6 +454,10 @@ impl Renderer {
                 pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
                 pass.set_pipeline(&self.grid_pipeline);
                 pass.draw(0..self.grid_vertex_count, 0..1);
+            }
+
+            if let Some(tiles) = &self.tiles {
+                tiles.draw(&mut pass, &self.scene_bind_group);
             }
         }
 
@@ -523,6 +588,10 @@ impl Renderer {
                 pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
                 pass.set_pipeline(&self.grid_pipeline);
                 pass.draw(0..self.grid_vertex_count, 0..1);
+            }
+
+            if let Some(tiles) = &self.tiles {
+                tiles.draw(&mut pass, &self.scene_bind_group);
             }
         }
 

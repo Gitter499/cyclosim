@@ -15,6 +15,8 @@ pub struct HudSnapshot {
     pub elapsed_s: f64,
     pub grade: f64,
     pub mode: &'static str,
+    /// Shown when Tier B 3D Tiles mode is active (ToS attribution).
+    pub attribution: Option<String>,
 }
 
 impl HudSnapshot {
@@ -29,7 +31,7 @@ impl HudSnapshot {
         let speed_kmh = self.speed_mps * 3.6;
         let mins = (self.elapsed_s / 60.0).floor() as u32;
         let secs = (self.elapsed_s % 60.0).floor() as u32;
-        vec![
+        let mut lines = vec![
             format!("Mode: {}  Grade: {:.1}%", self.mode, self.grade * 100.0),
             Self::format_line("Power", self.power_w, "W"),
             Self::format_line("Cadence", self.cadence_rpm, "rpm"),
@@ -37,7 +39,11 @@ impl HudSnapshot {
             format!("Speed: {:.1} km/h", speed_kmh),
             format!("Distance: {:.0} m", self.distance_m),
             format!("Time: {mins:02}:{secs:02}"),
-        ]
+        ];
+        if let Some(attr) = &self.attribution {
+            lines.push(attr.clone());
+        }
+        lines
     }
 }
 

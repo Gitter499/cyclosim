@@ -10,6 +10,7 @@ bytemuck = { version = "1", features = ["derive"] }
 glam = { workspace = true }
 glyphon = "0.8"
 thiserror = { workspace = true }
+velo-cesium = { workspace = true, features = ["network"] }
 velo-core = { workspace = true }
 velo-terrain = { workspace = true }
 wgpu = "24"
