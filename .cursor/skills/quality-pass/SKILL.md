@@ -10,6 +10,11 @@ description: >-
 
 Post-milestone cleanup. Consumes the **entire** codebase and restores cohesion after parallel milestone work.
 
+**Companion skills** — apply all three on a full pass:
+
+- [rust-best-practices](../rust-best-practices/SKILL.md) — portable crates, tests, lint
+- [swift-best-practices](../swift-best-practices/SKILL.md) — shell UI, UniFFI, Package.swift
+
 ## When to run
 
 - After merging a milestone (M3, M4, …) into `dev`
@@ -34,6 +39,7 @@ Copy and track:
 
 ```
 Quality pass progress:
+- [ ] Read quality-pass + rust-best-practices + swift-best-practices skills
 - [ ] Read VeloSim-Technical-Plan.md + root README + every crate README
 - [ ] Map crate boundaries vs actual deps (Cargo.toml, Package.swift)
 - [ ] Find dead code, duplicate logic, inconsistent naming
