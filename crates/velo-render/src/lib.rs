@@ -1,5 +1,6 @@
 //! wgpu renderer — terrain mesh or flat ground plane, chase camera, HUD overlay.
 
+mod bike;
 mod capture;
 mod hud;
 mod scene;
@@ -8,12 +9,14 @@ mod tiles;
 
 use std::path::Path;
 
+use velo_bikegen::AnchorTransform;
 use velo_cesium::{TilesSession, ViewCorridor};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use thiserror::Error;
 use wgpu::util::DeviceExt;
 
+pub use bike::BikeScene;
 pub use capture::{bgra_to_rgba, FramebufferRgba, PNG_MAGIC};
 
 pub use hud::{HudRenderer, HudSnapshot};
@@ -69,6 +72,7 @@ pub struct Renderer {
     tiles_mode: bool,
     tiles_attribution: String,
     rider_z: f32,
+    bike: Option<BikeScene>,
 }
 
 impl Renderer {
@@ -291,7 +295,34 @@ impl Renderer {
             tiles_mode: false,
             tiles_attribution: String::new(),
             rider_z: 0.0,
+            bike: None,
         })
+    }
+
+    /// Load rider bike glTF for the foreground-object pass.
+    pub fn load_bike_gltf(
+        &mut self,
+        gltf_path: &Path,
+        anchor: AnchorTransform,
+    ) -> Result<(), RenderError> {
+        let bike = BikeScene::from_gltf_path(
+            &self.device,
+            self.config.format,
+            &self.scene_bind_layout,
+            gltf_path,
+            anchor,
+        )
+        .map_err(|e| RenderError::Wgpu(e))?;
+        self.bike = Some(bike);
+        Ok(())
+    }
+
+    pub fn clear_bike(&mut self) {
+        self.bike = None;
+    }
+
+    pub fn has_bike(&self) -> bool {
+        self.bike.is_some()
     }
 
     /// Load textured terrain from a route pack directory.
@@ -459,6 +490,18 @@ impl Renderer {
             if let Some(tiles) = &self.tiles {
                 tiles.draw(&mut pass, &self.scene_bind_group);
             }
+
+            if let Some(bike) = &self.bike {
+                let (rider, forward) = rider_pose(follow, self.rider_z);
+                bike.draw(
+                    &mut pass,
+                    &self.queue,
+                    aspect,
+                    &self.camera,
+                    rider,
+                    forward,
+                );
+            }
         }
 
         {
@@ -593,6 +636,18 @@ impl Renderer {
             if let Some(tiles) = &self.tiles {
                 tiles.draw(&mut pass, &self.scene_bind_group);
             }
+
+            if let Some(bike) = &self.bike {
+                let (rider, forward) = rider_pose(follow, self.rider_z);
+                bike.draw(
+                    &mut pass,
+                    &self.queue,
+                    aspect,
+                    &self.camera,
+                    rider,
+                    forward,
+                );
+            }
         }
 
         {
@@ -681,6 +736,17 @@ impl Renderer {
             height,
             pixels,
         })
+    }
+}
+
+fn rider_pose(follow: Option<RouteFollow>, rider_z: f32) -> (Vec3, Vec3) {
+    if let Some(f) = follow {
+        (
+            Vec3::new(f.east as f32, f.up as f32, f.north as f32),
+            f.forward,
+        )
+    } else {
+        (Vec3::new(0.0, 0.0, rider_z), Vec3::Z)
     }
 }
 
