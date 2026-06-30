@@ -32,8 +32,17 @@ jobs:
             --out-dir shell-macos/Generated
           cp shell-macos/Generated/velo_ffiFFI.h shell-macos/Bridge/include/velo_ffiFFI.h
 
+      - name: Swift build (app + support library)
+        run: |
+          cd shell-macos
+          swift build --product VeloSim
+          swift build --product VeloSimSupport
+
       - name: Swift tests
         run: cd shell-macos && swift test
+
+      - name: Shell UI lint (Liquid Glass conventions)
+        run: ./scripts/lint-shell-ui.sh
 
       - name: Apple symbol lint
         run: ./scripts/lint-apple-symbols.sh
