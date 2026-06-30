@@ -19,6 +19,7 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 - Title references the issue: `feat: M3b Cesium tile streaming (#7)`.
 - Body includes `Closes #N` when the PR completes an issue.
 - Granular commits on the branch; CI must pass before merge.
+- **No AI tool branding** in titles, bodies, or commits (see [no-tool-branding.mdc](no-tool-branding.mdc)).
 
 ## Agents
 

@@ -63,3 +63,4 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 - Read this file and the technical plan before implementing a milestone.
 - One issue per PR; run `cargo test` and `just lint` before pushing.
 - Do not rewrite git history on `main`.
+- **No AI tool branding** in commits, PRs, or user-facing docs. The user handles attribution.
