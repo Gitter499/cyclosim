@@ -11,4 +11,6 @@ thiserror = { workspace = true }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+fitparser = "0.8"
 tempfile = "3"
+velo-fit = { workspace = true }

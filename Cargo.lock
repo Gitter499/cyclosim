@@ -1930,10 +1930,12 @@ dependencies = [
 name = "velo-rides"
 version = "0.1.0"
 dependencies = [
+ "fitparser",
  "rusqlite",
  "tempfile",
  "thiserror 2.0.18",
  "uuid",
+ "velo-fit",
 ]
 
 [[package]]
