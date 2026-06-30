@@ -1,6 +1,8 @@
 #[path = "common/mod.rs"]
 mod common;
 
+use std::sync::{Arc, Mutex};
+
 use velo_ffi::{PublishStatus, VeloHandle};
 
 use common::{MockMedia, MockPublisher, NoopSteering, NoopTrainer, TickSensors};
@@ -32,10 +34,11 @@ fn finish_ride_persists_to_library() {
 
     let result = handle
         .finish_ride_and_publish(
-            Box::new(MockMedia),
+            Box::new(MockMedia::default()),
             Box::new(MockPublisher {
                 saved_locally: true,
                 activity_url: "/tmp/ride-folder".into(),
+                publish_count: Arc::new(Mutex::new(0)),
             }),
         )
         .expect("finish ride");
@@ -69,10 +72,11 @@ fn strava_publish_records_activity_id() {
 
     let result = handle
         .finish_ride_and_publish(
-            Box::new(MockMedia),
+            Box::new(MockMedia::default()),
             Box::new(MockPublisher {
                 saved_locally: false,
                 activity_url: "https://www.strava.com/activities/998877".into(),
+                publish_count: Arc::new(Mutex::new(0)),
             }),
         )
         .unwrap();
@@ -104,10 +108,11 @@ fn finish_ride_plans_and_encodes_highlight_clips() {
 
     let result = handle
         .finish_ride_and_publish(
-            Box::new(MockMedia),
+            Box::new(MockMedia::default()),
             Box::new(MockPublisher {
                 saved_locally: true,
                 activity_url: "/tmp/ride-folder".into(),
+                publish_count: Arc::new(Mutex::new(0)),
             }),
         )
         .expect("finish ride");
