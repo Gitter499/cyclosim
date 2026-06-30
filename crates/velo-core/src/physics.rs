@@ -9,6 +9,8 @@ pub struct PhysicsConfig {
     pub cda: f32,
     pub drivetrain_efficiency: f32,
     pub v_min: f32,
+    /// Functional threshold power for workout % targets.
+    pub ftp_w: f64,
 }
 
 impl Default for PhysicsConfig {
@@ -20,6 +22,7 @@ impl Default for PhysicsConfig {
             cda: 0.32,
             drivetrain_efficiency: 0.97,
             v_min: 0.5,
+            ftp_w: 250.0,
         }
     }
 }
