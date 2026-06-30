@@ -34,12 +34,13 @@ fn session_synthetic_integration() {
 #[ignore = "requires network; run with --ignored --features network"]
 fn session_online_dev_tileset() {
     let mut session = TilesSession::online_default().unwrap();
-    let meshes = session
-        .tick(velo_cesium::ViewCorridor {
-            lat: 37.7749,
-            lon: -122.4194,
-            radius_m: 500.0,
-        })
-        .unwrap_or_else(|_| session.meshes());
-    assert!(!meshes.is_empty());
+    let view = velo_cesium::ViewCorridor {
+        lat: 37.7749,
+        lon: -122.4194,
+        radius_m: 500.0,
+    };
+    match session.tick(view) {
+        Ok(meshes) => assert!(!meshes.is_empty()),
+        Err(_) => assert!(!session.meshes().is_empty()),
+    }
 }
