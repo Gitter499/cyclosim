@@ -3,6 +3,7 @@
 //! Shell implementations (Swift over BLE, etc.) satisfy these contracts.
 //! Over FFI, use the UniFFI callback interfaces in `velo-ffi` (polling model for sensors).
 
+use std::sync::Mutex;
 use std::time::Duration;
 use velo_units::{Bpm, Grade, MetersPerSecond, Rpm, Watts};
 
@@ -88,20 +89,14 @@ impl SensorSource for MockSensorSource {
     }
 }
 
-/// Records trainer commands for tests.
-#[derive(Default, Debug)]
-pub struct MockTrainerControl {
-    pub last_power: Option<Watts>,
-    pub stopped: bool,
-}
+/// No-op trainer for tests that only need a valid [`TrainerControl`] impl.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct MockTrainerControl;
 
 impl TrainerControl for MockTrainerControl {
-    fn set_target_power(&self, watts: Watts) {
-        // Interior mutability would be needed for &self; tests use Arc<Mutex<>> wrapper.
-        let _ = watts;
-    }
+    fn set_target_power(&self, _: Watts) {}
 
-    fn set_simulation(&self, _grade: Grade, _crr: f32, _cw_a: f32) {}
+    fn set_simulation(&self, _: Grade, _: f32, _: f32) {}
 
     fn stop(&self) {}
 
@@ -111,5 +106,73 @@ impl TrainerControl for MockTrainerControl {
             sim: true,
             max_watts: 2000,
         }
+    }
+}
+
+/// Records trainer commands for assertion in headless tests.
+#[derive(Default, Debug)]
+pub struct RecordingTrainerControl {
+    last_power: Mutex<Option<Watts>>,
+    sim_grades: Mutex<Vec<f64>>,
+    last_sim: Mutex<Option<(Grade, f32, f32)>>,
+    stopped: Mutex<bool>,
+}
+
+impl RecordingTrainerControl {
+    pub fn last_power(&self) -> Option<Watts> {
+        *self.last_power.lock().unwrap()
+    }
+
+    pub fn sim_grades(&self) -> Vec<f64> {
+        self.sim_grades.lock().unwrap().clone()
+    }
+
+    pub fn last_sim(&self) -> Option<(Grade, f32, f32)> {
+        *self.last_sim.lock().unwrap()
+    }
+
+    pub fn stopped(&self) -> bool {
+        *self.stopped.lock().unwrap()
+    }
+}
+
+impl TrainerControl for RecordingTrainerControl {
+    fn set_target_power(&self, watts: Watts) {
+        *self.last_power.lock().unwrap() = Some(watts);
+    }
+
+    fn set_simulation(&self, grade: Grade, crr: f32, cw_a: f32) {
+        self.sim_grades.lock().unwrap().push(grade.0);
+        *self.last_sim.lock().unwrap() = Some((grade, crr, cw_a));
+    }
+
+    fn stop(&self) {
+        *self.stopped.lock().unwrap() = true;
+    }
+
+    fn capabilities(&self) -> TrainerCaps {
+        TrainerCaps {
+            erg: true,
+            sim: true,
+            max_watts: 2000,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recording_trainer_captures_erg_and_sim() {
+        let trainer = RecordingTrainerControl::default();
+        trainer.set_target_power(Watts::new(200.0));
+        trainer.set_simulation(Grade::new(0.05), 0.004, 0.32);
+        trainer.stop();
+
+        assert_eq!(trainer.last_power(), Some(Watts::new(200.0)));
+        assert_eq!(trainer.sim_grades(), vec![0.05]);
+        assert!(trainer.last_sim().is_some());
+        assert!(trainer.stopped());
     }
 }
