@@ -97,6 +97,8 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("Security"),
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreMotion"),
+                .linkedFramework("MusicKit"),
             ]
         ),
         .executableTarget(
@@ -109,6 +111,8 @@ let package = Package(
                 "Strava/StravaTokenStore.swift",
                 "Strava/StravaUploader.swift",
                 "Ride",
+                "Input",
+                "Music",
                 "PlatformCallbacks.swift",
                 "UI/VeloGlass.swift",
                 "UI/RideSummaryFormatting.swift",

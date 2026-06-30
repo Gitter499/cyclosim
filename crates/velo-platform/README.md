@@ -8,7 +8,7 @@ Platform abstraction — trait contracts between the Rust core and the Swift she
 |-------|------|
 | `TrainerControl` | ERG/SIM commands to the smart trainer |
 | `SensorSource` | Drain telemetry samples each tick |
-| `AudioDirector`, `SteeringInput`, `Clock` | Future M6 hooks |
+| `AudioDirector`, `SteeringInput`, `Clock` | M6 — MusicKit segment playback + optional steering |
 | `MockSensorSource`, `MockTrainerControl` | Headless tests (no-op trainer) |
 | `RecordingTrainerControl` | Headless tests that assert ERG/SIM commands |
 

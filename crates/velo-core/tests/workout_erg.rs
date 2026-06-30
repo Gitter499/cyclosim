@@ -36,12 +36,22 @@ fn workout_advances_erg_target_during_ride() {
             heart_rate: None,
             wheel_speed: None,
         });
-        app.tick(&mut sensors, &trainer);
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&velo_platform::MockSteeringInput>,
+            None::<&velo_platform::MockAudioDirector>,
+        );
     }
     assert_eq!(trainer.last_power(), Some(Watts::new(100.0)));
 
     for _ in 0..100 {
-        app.tick(&mut sensors, &trainer);
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&velo_platform::MockSteeringInput>,
+            None::<&velo_platform::MockAudioDirector>,
+        );
     }
     assert_eq!(trainer.last_power(), Some(Watts::new(250.0)));
     assert_eq!(app.ride.mode, RideMode::Erg);

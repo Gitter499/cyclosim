@@ -18,6 +18,8 @@ struct SetupChromeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     inputSection
+                    steeringSection
+                    musicSection
                     routeSection
                     bikeSection
                     workoutSection
@@ -34,7 +36,7 @@ struct SetupChromeView: View {
 
     private var headerChrome: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("VeloSim M5")
+            Text("VeloSim M6")
                 .font(.title2.bold())
             Text("core v\(version())")
                 .font(.caption)
@@ -113,6 +115,74 @@ struct SetupChromeView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private var steeringSection: some View {
+        VeloGlassSection("Steering (M6)") {
+            Picker("Steering", selection: Binding(
+                get: { model.steeringMode },
+                set: { model.setSteeringMode($0) }
+            )) {
+                ForEach(SteeringInputMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("Keyboard: ← → or A/D, Space to recenter. AirPods: head yaw on loaded routes.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if model.steeringMode == .airpods {
+                Button("Recenter heading") {
+                    model.recenterSteering()
+                }
+                .buttonStyle(VeloGlassSecondaryButtonStyle())
+            }
+
+            if model.activeRouteId != nil, model.steeringMode != .off {
+                HStack {
+                    Text("Axis")
+                    Spacer()
+                    Text(String(format: "%.2f", model.rideState.steerAxis))
+                        .monospacedDigit()
+                    Text("Yaw")
+                    Text(String(format: "%.2f°", model.rideState.steerYawRad * 180 / .pi))
+                        .monospacedDigit()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else if model.steeringMode != .off {
+                Text("Load a route to enable steering offset.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var musicSection: some View {
+        VeloGlassSection("Segment music (M6)") {
+            Toggle("Shift music at workout intervals", isOn: Binding(
+                get: { model.segmentMusicEnabled },
+                set: { model.setSegmentMusicEnabled($0) }
+            ))
+
+            HStack {
+                Button("Connect Apple Music") {
+                    model.connectAppleMusic()
+                }
+                .buttonStyle(VeloGlassSecondaryButtonStyle())
+            }
+
+            Text(model.musicStatus)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+
+            Text("Playback control only — MusicKit queues playlists by interval energy.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 

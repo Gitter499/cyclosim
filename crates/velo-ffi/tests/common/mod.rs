@@ -3,8 +3,9 @@
 use std::sync::{Arc, Mutex};
 
 use velo_ffi::{
-    ActivityPublisherCallback, MediaCaptureCallback, PublishResultDto, RideSummaryDto,
-    SensorSourceCallback, TelemetrySampleDto, TrainerControlCallback,
+    ActivityPublisherCallback, AudioDirectorCallback, MediaCaptureCallback, PlaybackIntentDto,
+    PublishResultDto, RideSummaryDto, SegmentEnergyDto, SensorSourceCallback,
+    SteerStateDto, SteeringInputCallback, TelemetrySampleDto, TrainerControlCallback,
 };
 
 pub struct MockPublisher {
@@ -69,6 +70,46 @@ impl TrainerControlCallback for NoopTrainer {
     fn set_target_power(&self, _watts: f64) {}
     fn set_simulation(&self, _grade: f64, _crr: f64, _cwa: f64) {}
     fn stop(&self) {}
+}
+
+pub struct NoopSteering;
+
+impl SteeringInputCallback for NoopSteering {
+    fn poll(&self) -> SteerStateDto {
+        SteerStateDto {
+            axis: 0.0,
+            recenter: false,
+        }
+    }
+}
+
+pub struct MockSteering {
+    pub axis: f32,
+}
+
+impl SteeringInputCallback for MockSteering {
+    fn poll(&self) -> SteerStateDto {
+        SteerStateDto {
+            axis: self.axis,
+            recenter: false,
+        }
+    }
+}
+
+pub struct RecordingAudioDirectorCallback {
+    pub calls: Arc<Mutex<Vec<(SegmentEnergyDto, PlaybackIntentDto)>>>,
+}
+
+impl AudioDirectorCallback for RecordingAudioDirectorCallback {
+    fn on_segment(&self, energy: SegmentEnergyDto, intent: PlaybackIntentDto) {
+        self.calls.lock().unwrap().push((energy, intent));
+    }
+}
+
+pub struct NoopAudioDirector;
+
+impl AudioDirectorCallback for NoopAudioDirector {
+    fn on_segment(&self, _energy: SegmentEnergyDto, _intent: PlaybackIntentDto) {}
 }
 
 /// Records the last ERG target and SIM grade forwarded through FFI callbacks.

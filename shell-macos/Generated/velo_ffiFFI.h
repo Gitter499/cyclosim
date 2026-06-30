@@ -258,6 +258,13 @@ typedef void (*UniffiCallbackInterfaceActivityPublisherCallbackMethod0)(uint64_t
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_AUDIO_DIRECTOR_CALLBACK_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_AUDIO_DIRECTOR_CALLBACK_METHOD0
+typedef void (*UniffiCallbackInterfaceAudioDirectorCallbackMethod0)(uint64_t, RustBuffer, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD0
 typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod0)(uint64_t, uint32_t, uint32_t, RustBuffer, RustBuffer* _Nonnull, 
@@ -275,6 +282,13 @@ typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod1)(uint64_t, Rus
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 typedef void (*UniffiCallbackInterfaceSensorSourceCallbackMethod0)(uint64_t, RustBuffer* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_STEERING_INPUT_CALLBACK_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_STEERING_INPUT_CALLBACK_METHOD0
+typedef void (*UniffiCallbackInterfaceSteeringInputCallbackMethod0)(uint64_t, RustBuffer* _Nonnull, 
         RustCallStatus *_Nonnull uniffiCallStatus
     );
 
@@ -308,6 +322,14 @@ typedef struct UniffiVTableCallbackInterfaceActivityPublisherCallback {
 } UniffiVTableCallbackInterfaceActivityPublisherCallback;
 
 #endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_AUDIO_DIRECTOR_CALLBACK
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_AUDIO_DIRECTOR_CALLBACK
+typedef struct UniffiVTableCallbackInterfaceAudioDirectorCallback {
+    UniffiCallbackInterfaceAudioDirectorCallbackMethod0 _Nonnull onSegment;
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+} UniffiVTableCallbackInterfaceAudioDirectorCallback;
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK
 typedef struct UniffiVTableCallbackInterfaceMediaCaptureCallback {
@@ -323,6 +345,14 @@ typedef struct UniffiVTableCallbackInterfaceSensorSourceCallback {
     UniffiCallbackInterfaceSensorSourceCallbackMethod0 _Nonnull pollSamples;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceSensorSourceCallback;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_STEERING_INPUT_CALLBACK
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_STEERING_INPUT_CALLBACK
+typedef struct UniffiVTableCallbackInterfaceSteeringInputCallback {
+    UniffiCallbackInterfaceSteeringInputCallbackMethod0 _Nonnull poll;
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+} UniffiVTableCallbackInterfaceSteeringInputCallback;
 
 #endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_TRAINER_CONTROL_CALLBACK
@@ -415,6 +445,11 @@ void uniffi_velo_ffi_fn_method_velohandle_clear_active_bike(void*_Nonnull ptr, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_ACTIVE_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_ACTIVE_ROUTE
 void uniffi_velo_ffi_fn_method_velohandle_clear_active_route(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_AUDIO_DIRECTOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_AUDIO_DIRECTOR
+void uniffi_velo_ffi_fn_method_velohandle_clear_audio_director(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_WORKOUT
@@ -522,6 +557,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_ride_state(void*_Nonnull ptr, Ru
 int8_t uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SEGMENT_MUSIC_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SEGMENT_MUSIC_ENABLED
+int8_t uniffi_velo_ffi_fn_method_velohandle_segment_music_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
 void uniffi_velo_ffi_fn_method_velohandle_set_active_bike(void*_Nonnull ptr, RustBuffer bike_id, RustCallStatus *_Nonnull out_status
@@ -530,6 +570,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_active_bike(void*_Nonnull ptr, Rus
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 void uniffi_velo_ffi_fn_method_velohandle_set_active_route(void*_Nonnull ptr, RustBuffer route_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_AUDIO_DIRECTOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_AUDIO_DIRECTOR
+void uniffi_velo_ffi_fn_method_velohandle_set_audio_director(void*_Nonnull ptr, uint64_t director, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_FTP
@@ -552,6 +597,16 @@ void uniffi_velo_ffi_fn_method_velohandle_set_ride_mode(void*_Nonnull ptr, RustB
 void uniffi_velo_ffi_fn_method_velohandle_set_route_tiles_3d(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_SEGMENT_MUSIC_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_SEGMENT_MUSIC_ENABLED
+void uniffi_velo_ffi_fn_method_velohandle_set_segment_music_enabled(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_STEERING_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_STEERING_ENABLED
+void uniffi_velo_ffi_fn_method_velohandle_set_steering_enabled(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_TARGET_POWER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_TARGET_POWER
 void uniffi_velo_ffi_fn_method_velohandle_set_target_power(void*_Nonnull ptr, double watts, RustCallStatus *_Nonnull out_status
@@ -572,6 +627,11 @@ void uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(void*_Nonnull ptr
 void uniffi_velo_ffi_fn_method_velohandle_start_workout(void*_Nonnull ptr, RustBuffer workout, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STEERING_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STEERING_ENABLED
+int8_t uniffi_velo_ffi_fn_method_velohandle_steering_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_stop_ride(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -584,7 +644,7 @@ double uniffi_velo_ffi_fn_method_velohandle_target_power(void*_Nonnull ptr, Rust
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TICK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TICK
-void uniffi_velo_ffi_fn_method_velohandle_tick(void*_Nonnull ptr, uint64_t sensors, uint64_t trainer, RustCallStatus *_Nonnull out_status
+void uniffi_velo_ffi_fn_method_velohandle_tick(void*_Nonnull ptr, uint64_t sensors, uint64_t trainer, uint64_t steering, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_ATTRIBUTION
@@ -617,6 +677,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_workout_live(void*_Nonnull ptr, 
 void uniffi_velo_ffi_fn_init_callback_vtable_activitypublishercallback(const UniffiVTableCallbackInterfaceActivityPublisherCallback* _Nonnull vtable
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_AUDIODIRECTORCALLBACK
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_AUDIODIRECTORCALLBACK
+void uniffi_velo_ffi_fn_init_callback_vtable_audiodirectorcallback(const UniffiVTableCallbackInterfaceAudioDirectorCallback* _Nonnull vtable
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_MEDIACAPTURECALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_MEDIACAPTURECALLBACK
 void uniffi_velo_ffi_fn_init_callback_vtable_mediacapturecallback(const UniffiVTableCallbackInterfaceMediaCaptureCallback* _Nonnull vtable
@@ -625,6 +690,11 @@ void uniffi_velo_ffi_fn_init_callback_vtable_mediacapturecallback(const UniffiVT
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_SENSORSOURCECALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_SENSORSOURCECALLBACK
 void uniffi_velo_ffi_fn_init_callback_vtable_sensorsourcecallback(const UniffiVTableCallbackInterfaceSensorSourceCallback* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_STEERINGINPUTCALLBACK
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_STEERINGINPUTCALLBACK
+void uniffi_velo_ffi_fn_init_callback_vtable_steeringinputcallback(const UniffiVTableCallbackInterfaceSteeringInputCallback* _Nonnull vtable
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_TRAINERCONTROLCALLBACK
@@ -989,6 +1059,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_active_route(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_AUDIO_DIRECTOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_AUDIO_DIRECTOR
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_audio_director(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_WORKOUT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_WORKOUT
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_workout(void
@@ -1115,6 +1191,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SEGMENT_MUSIC_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SEGMENT_MUSIC_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_segment_music_enabled(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_bike(void
@@ -1124,6 +1206,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_bike(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_route(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_AUDIO_DIRECTOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_AUDIO_DIRECTOR
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_audio_director(void
     
 );
 #endif
@@ -1151,6 +1239,18 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_route_tiles_3d(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_SEGMENT_MUSIC_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_SEGMENT_MUSIC_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_segment_music_enabled(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_STEERING_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_STEERING_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_steering_enabled(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_TARGET_POWER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_TARGET_POWER
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_target_power(void
@@ -1172,6 +1272,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_workout(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_STEERING_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_STEERING_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_steering_enabled(void
     
 );
 #endif
@@ -1247,6 +1353,12 @@ uint16_t uniffi_velo_ffi_checksum_method_activitypublishercallback_publish_ride(
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_AUDIODIRECTORCALLBACK_ON_SEGMENT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_AUDIODIRECTORCALLBACK_ON_SEGMENT
+uint16_t uniffi_velo_ffi_checksum_method_audiodirectorcallback_on_segment(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_png_rgba(void
@@ -1262,6 +1374,12 @@ uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_highlight_c
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_SENSORSOURCECALLBACK_POLL_SAMPLES
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_SENSORSOURCECALLBACK_POLL_SAMPLES
 uint16_t uniffi_velo_ffi_checksum_method_sensorsourcecallback_poll_samples(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_STEERINGINPUTCALLBACK_POLL
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_STEERINGINPUTCALLBACK_POLL
+uint16_t uniffi_velo_ffi_checksum_method_steeringinputcallback_poll(void
     
 );
 #endif

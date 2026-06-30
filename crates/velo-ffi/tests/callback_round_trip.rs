@@ -9,7 +9,7 @@ use velo_ffi::{
     RideMode, SensorSourceCallback, TelemetrySampleDto, VeloHandle,
 };
 
-use common::{NoopTrainer, RecordingTrainerCallback};
+use common::{NoopSteering, NoopTrainer, RecordingTrainerCallback};
 
 struct TickSensors {
     sample: TelemetrySampleDto,
@@ -45,6 +45,7 @@ fn sensor_samples_update_ride_state() {
             },
         }),
         Box::new(NoopTrainer),
+        Box::new(NoopSteering),
     );
 
     let state = handle.ride_state();
@@ -67,7 +68,7 @@ fn erg_mode_forwards_target_power_to_trainer() {
         last_sim: Arc::clone(&last_sim),
     };
 
-    handle.tick(Box::new(EmptySensors), Box::new(trainer));
+    handle.tick(Box::new(EmptySensors), Box::new(trainer), Box::new(NoopSteering));
 
     assert_eq!(*last_power.lock().unwrap(), Some(225.0));
     assert!(last_sim.lock().unwrap().is_none());
@@ -86,7 +87,7 @@ fn sim_mode_forwards_grade_to_trainer() {
         last_sim: Arc::clone(&last_sim),
     };
 
-    handle.tick(Box::new(EmptySensors), Box::new(trainer));
+    handle.tick(Box::new(EmptySensors), Box::new(trainer), Box::new(NoopSteering));
 
     let sim = last_sim.lock().unwrap().unwrap();
     assert!((sim.0 - 0.05).abs() < 1e-9);

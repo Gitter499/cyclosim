@@ -8,11 +8,17 @@ UniFFI surface — exposes Rust core, renderer, and ride library to the macOS Sw
 |------|------|
 | `VeloHandle` | App lifecycle: tick, ride modes, renderer, publish flow, workouts, bikes, scenery |
 | `RideLibraryHandle` | Standalone DB access (list/get/delete) |
-| Callback traits | `SensorSourceCallback`, `TrainerControlCallback`, `MediaCaptureCallback`, `ActivityPublisherCallback` |
+| Callback traits | `SensorSourceCallback`, `TrainerControlCallback`, `MediaCaptureCallback`, `ActivityPublisherCallback`, `SteeringInputCallback`, `AudioDirectorCallback` |
 | DTOs | `RideStateDto`, `RideSummaryDto`, `HighlightClipRequestDto`, `FramebufferDto`, `RideRecordDto`, `WorkoutDto`, `WorkoutLiveDto`, … |
 | Functions | `parse_zwo_xml` — Zwift `.zwo` → `WorkoutDto` |
 
 `MediaCaptureCallback` — shell implements PNG encode (`encode_png_rgba`) and highlight reel encode (`encode_highlight_clip` from ring-buffer frames).
+
+`SteeringInputCallback` — shell polls keyboard or AirPods head motion each tick; core applies deadzone, smoothing, and camera yaw.
+
+`AudioDirectorCallback` — core emits `on_segment(energy, intent)` at workout interval boundaries; shell maps to Apple Music playback (control only, no raw PCM).
+
+Register audio via `VeloHandle::set_audio_director`; pass steering to `tick` alongside sensors and trainer.
 
 Builds as `lib`, `staticlib`, and `cdylib` (`velo_ffi`). Swift bindings generated via `just bindgen`.
 
