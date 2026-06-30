@@ -107,6 +107,7 @@ cyclosim/                           # repo root (git: cyclosim; product: VeloSim
 │   ├── velo-route-import/          # GPX/TCX/FIT → RouteModel (lib + thin CLI)
 │   ├── velo-terrain/               # DEM → terrain mesh + texture (lib + CLI)
 │   ├── velo-splatbake/             # *planned* "VeloSplatBake" offline GS bake (CLI) — heaviest, slowest
+│   ├── velo-splatharness/          # *planned* training/generation harness for splat quality iteration
 │   └── velo-bikegen/               # *planned* bike import: 2D images → image-to-3D → glTF asset (lib + CLI)
 ├── shell-macos/                    # Xcode project (Swift): UI, CoreBluetooth, MusicKit, AirPods
 │   └── …
@@ -391,6 +392,22 @@ feature, not a scraping pipeline (see §18 risk).
 **Outputs:** a compressed `.sog`/`.spz` payload per segment + placement transform. **Runtime cost is
 rendering only** (cheap on M4); generation is strictly offline. Build this *after* M3 so there's a
 renderer + ride loop to evaluate bakes in. If bakes disappoint, the mesh substrate still ships a complete product.
+
+### VeloSplatHarness (planned training / generation tool)
+
+Separate from the ride sim, a **comprehensive offline harness** will iterate on splat quality before
+bakes land in route packs. Scope (future, post-M4 scaffold):
+
+- **Dataset curation:** segment manifests, multi-view satellite/aerial inputs, optional ground-level
+  captures, train/val splits per corridor hash.
+- **Generation sweeps:** batch coarse GS + SDEdit refinement with tunable FLUX steps, view counts,
+  curriculum schedules, and compression (SOG/SPZ) presets.
+- **Quality metrics:** perceptual scores, geometric sanity checks, frame-time proxy renders against
+  `velo-render` splat pass, side-by-side review exports.
+- **Best-pick promotion:** winning configs write into the route pack; failed runs stay in harness cache only.
+
+The harness shares bake primitives with `velo-splatbake` but is **not** on the ride-time critical path.
+Goal: find the best-looking splats per hero segment without blocking sim milestone velocity.
 
 ---
 
