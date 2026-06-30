@@ -7,6 +7,8 @@ description = "VeloSim simulation core — physics, ride loop, session recording
 
 [dependencies]
 glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 velo-platform = { workspace = true }
 velo-units = { workspace = true }
@@ -15,3 +17,4 @@ velo-fit = { workspace = true }
 [dev-dependencies]
 fitparser = "0.8"
 velo-platform = { workspace = true }
+velo-route-import = { workspace = true }
