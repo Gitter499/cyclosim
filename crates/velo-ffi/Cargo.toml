@@ -1,0 +1,26 @@
+[package]
+name = "velo-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "UniFFI surface exposing VeloSim core to Swift"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+name = "velo_ffi"
+
+[dependencies]
+uniffi = { workspace = true }
+thiserror = { workspace = true }
+velo-core = { workspace = true }
+velo-platform = { workspace = true }
+velo-render = { workspace = true }
+velo-rides = { workspace = true }
+velo-units = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

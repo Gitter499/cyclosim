@@ -1,0 +1,649 @@
+uniffi::setup_scaffolding!();
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use velo_core::VeloApp;
+use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
+use velo_render::Renderer;
+use velo_rides::{
+    default_artifacts_base, default_db_path, NewRideRecord, PublishStatus as StorePublishStatus,
+    RideLibrary, RideRecord,
+};
+use velo_units::{Bpm, Grade, MetersPerSecond, Rpm, Watts};
+
+/// UniFFI telemetry pattern: Swift pushes samples via `poll_samples()` each tick;
+/// Rust drains them through `SensorSource::drain_samples`. Do not expose `mpsc::Receiver` over FFI.
+struct FfiSensorSource {
+    callback: Box<dyn SensorSourceCallback>,
+}
+
+impl SensorSource for FfiSensorSource {
+    fn drain_samples(&mut self) -> Vec<TelemetrySample> {
+        self.callback
+            .poll_samples()
+            .into_iter()
+            .map(|s| TelemetrySample {
+                elapsed: Duration::from_millis(s.elapsed_ms),
+                power: s.power_w.map(Watts::new),
+                cadence: s.cadence_rpm.map(Rpm::new),
+                heart_rate: s.heart_rate_bpm.map(Bpm::new),
+                wheel_speed: s.wheel_speed_mps.map(MetersPerSecond::new),
+            })
+            .collect()
+    }
+}
+
+struct FfiTrainerControl {
+    callback: Box<dyn TrainerControlCallback>,
+}
+
+impl TrainerControl for FfiTrainerControl {
+    fn set_target_power(&self, watts: Watts) {
+        self.callback.set_target_power(watts.0);
+    }
+
+    fn set_simulation(&self, grade: Grade, crr: f32, cw_a: f32) {
+        self.callback.set_simulation(grade.0, crr as f64, cw_a as f64);
+    }
+
+    fn stop(&self) {
+        self.callback.stop();
+    }
+
+    fn capabilities(&self) -> velo_platform::TrainerCaps {
+        velo_platform::TrainerCaps {
+            erg: true,
+            sim: true,
+            max_watts: 2000,
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum VeloError {
+    #[error("render error")]
+    RenderError,
+    #[error("ride error: {message}")]
+    RideError { message: String },
+    #[error("publish error: {message}")]
+    PublishError { message: String },
+}
+
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RideMode {
+    Free,
+    Erg,
+    Sim,
+}
+
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct TelemetrySampleDto {
+    pub elapsed_ms: u64,
+    pub power_w: Option<f64>,
+    pub cadence_rpm: Option<f64>,
+    pub heart_rate_bpm: Option<f64>,
+    pub wheel_speed_mps: Option<f64>,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct RideStateDto {
+    pub mode: RideMode,
+    pub distance_m: f64,
+    pub speed_mps: f64,
+    pub elapsed_s: f64,
+    pub grade: f64,
+    pub power_w: Option<f64>,
+    pub cadence_rpm: Option<f64>,
+    pub heart_rate_bpm: Option<f64>,
+}
+
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct RideSummaryDto {
+    pub elapsed_s: f64,
+    pub distance_m: f64,
+    pub sample_count: u32,
+    pub avg_power_w: Option<f64>,
+    pub max_power_w: Option<f64>,
+    pub started_at_unix: u64,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct FramebufferDto {
+    pub width: u32,
+    pub height: u32,
+    pub rgba_pixels: Vec<u8>,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct PublishResultDto {
+    pub activity_url: String,
+    pub saved_locally: bool,
+    pub ride_id: String,
+}
+
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PublishStatus {
+    Local,
+    Strava,
+    Failed,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct RideRecordDto {
+    pub id: String,
+    pub started_at_unix: u64,
+    pub elapsed_s: f64,
+    pub distance_m: f64,
+    pub avg_power_w: Option<f64>,
+    pub max_power_w: Option<f64>,
+    pub fit_path: String,
+    pub screenshot_path: Option<String>,
+    pub strava_activity_id: Option<String>,
+    pub publish_status: PublishStatus,
+    pub route_id: Option<String>,
+}
+
+#[uniffi::export(callback_interface)]
+pub trait SensorSourceCallback: Send + Sync {
+    fn poll_samples(&self) -> Vec<TelemetrySampleDto>;
+}
+
+#[uniffi::export(callback_interface)]
+pub trait TrainerControlCallback: Send + Sync {
+    fn set_target_power(&self, watts: f64);
+    fn set_simulation(&self, grade: f64, crr: f64, cwa: f64);
+    fn stop(&self);
+}
+
+/// Shell encodes RGBA → PNG (VideoToolbox / CoreGraphics).
+#[uniffi::export(callback_interface)]
+pub trait MediaCaptureCallback: Send + Sync {
+    fn encode_png_rgba(&self, width: u32, height: u32, rgba_pixels: Vec<u8>) -> Vec<u8>;
+}
+
+/// Shell uploads FIT + optional screenshot (Strava OAuth) or saves locally.
+#[uniffi::export(callback_interface)]
+pub trait ActivityPublisherCallback: Send + Sync {
+    fn publish_ride(
+        &self,
+        fit_bytes: Vec<u8>,
+        screenshot_png: Option<Vec<u8>>,
+        summary: RideSummaryDto,
+    ) -> PublishResultDto;
+}
+
+fn map_ride_mode(mode: velo_core::ride::RideMode) -> RideMode {
+    match mode {
+        velo_core::ride::RideMode::Free => RideMode::Free,
+        velo_core::ride::RideMode::Erg => RideMode::Erg,
+        velo_core::ride::RideMode::Sim => RideMode::Sim,
+    }
+}
+
+fn map_ride_mode_in(mode: RideMode) -> velo_core::ride::RideMode {
+    match mode {
+        RideMode::Free => velo_core::ride::RideMode::Free,
+        RideMode::Erg => velo_core::ride::RideMode::Erg,
+        RideMode::Sim => velo_core::ride::RideMode::Sim,
+    }
+}
+
+fn map_summary(summary: velo_core::RideSummary) -> RideSummaryDto {
+    RideSummaryDto {
+        elapsed_s: summary.elapsed_s,
+        distance_m: summary.distance_m,
+        sample_count: summary.sample_count,
+        avg_power_w: summary.avg_power_w,
+        max_power_w: summary.max_power_w,
+        started_at_unix: summary.started_at_unix,
+    }
+}
+
+fn unix_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(1_700_000_000)
+}
+
+fn map_publish_status(status: StorePublishStatus) -> PublishStatus {
+    match status {
+        StorePublishStatus::Local => PublishStatus::Local,
+        StorePublishStatus::Strava => PublishStatus::Strava,
+        StorePublishStatus::Failed => PublishStatus::Failed,
+    }
+}
+
+fn map_ride_record(record: RideRecord) -> RideRecordDto {
+    RideRecordDto {
+        id: record.id,
+        started_at_unix: record.started_at_unix,
+        elapsed_s: record.elapsed_s,
+        distance_m: record.distance_m,
+        avg_power_w: record.avg_power_w,
+        max_power_w: record.max_power_w,
+        fit_path: record.fit_path,
+        screenshot_path: record.screenshot_path,
+        strava_activity_id: record.strava_activity_id,
+        publish_status: map_publish_status(record.publish_status),
+        route_id: record.route_id,
+    }
+}
+
+fn extract_strava_activity_id(url: &str) -> Option<String> {
+    url.strip_prefix("https://www.strava.com/activities/")
+        .map(|id| id.split('/').next().unwrap_or(id).to_string())
+}
+
+fn infer_publish_status(result: &PublishResultDto) -> StorePublishStatus {
+    if result.saved_locally {
+        if result.activity_url.starts_with("error:") {
+            StorePublishStatus::Failed
+        } else {
+            StorePublishStatus::Local
+        }
+    } else {
+        StorePublishStatus::Strava
+    }
+}
+
+fn persist_finished_ride(
+    library: &RideLibrary,
+    summary: &RideSummaryDto,
+    fit_bytes: &[u8],
+    screenshot_png: Option<&[u8]>,
+    publish: &PublishResultDto,
+) -> Result<String, VeloError> {
+    let artifacts = library
+        .save_ride_artifacts(fit_bytes, screenshot_png)
+        .map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+
+    let strava_activity_id = if publish.saved_locally {
+        None
+    } else {
+        extract_strava_activity_id(&publish.activity_url)
+    };
+
+    library
+        .insert_ride_with_id(
+            &artifacts.ride_id,
+            NewRideRecord {
+                started_at_unix: summary.started_at_unix,
+                elapsed_s: summary.elapsed_s,
+                distance_m: summary.distance_m,
+                avg_power_w: summary.avg_power_w,
+                max_power_w: summary.max_power_w,
+                fit_path: artifacts.fit_path.display().to_string(),
+                screenshot_path: artifacts
+                    .screenshot_path
+                    .as_ref()
+                    .map(|p| p.display().to_string()),
+                strava_activity_id,
+                publish_status: infer_publish_status(publish),
+                route_id: None,
+            },
+        )
+        .map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+
+    Ok(artifacts.ride_id)
+}
+
+#[derive(uniffi::Object)]
+pub struct RideLibraryHandle {
+    inner: RideLibrary,
+}
+
+#[uniffi::export]
+impl RideLibraryHandle {
+    #[uniffi::constructor]
+    pub fn with_defaults() -> Result<Self, VeloError> {
+        Self::open_paths(
+            default_db_path().display().to_string(),
+            default_artifacts_base().display().to_string(),
+        )
+    }
+
+    #[uniffi::constructor(name = "open")]
+    pub fn open_paths(db_path: String, artifacts_base: String) -> Result<Self, VeloError> {
+        let inner = RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base))
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
+        Ok(Self { inner })
+    }
+
+    pub fn list_rides(&self) -> Result<Vec<RideRecordDto>, VeloError> {
+        self.inner
+            .list_rides()
+            .map(|rides| rides.into_iter().map(map_ride_record).collect())
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn get_ride(&self, id: String) -> Result<Option<RideRecordDto>, VeloError> {
+        self.inner
+            .get_ride(&id)
+            .map(|opt| opt.map(map_ride_record))
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn delete_ride(&self, id: String) -> Result<bool, VeloError> {
+        self.inner.delete_ride(&id).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })
+    }
+}
+
+#[derive(Default)]
+struct VeloHandleInner {
+    app: VeloApp,
+    renderer: Option<Renderer>,
+    ride_library: Option<RideLibrary>,
+}
+
+#[derive(uniffi::Object)]
+pub struct VeloHandle {
+    inner: Mutex<VeloHandleInner>,
+}
+
+#[uniffi::export]
+impl VeloHandle {
+    #[uniffi::constructor]
+    pub fn new() -> Self {
+        let mut inner = VeloHandleInner::default();
+        inner.app.set_clock_unix(unix_now());
+        inner.ride_library = RideLibrary::open(default_db_path(), default_artifacts_base()).ok();
+        Self {
+            inner: Mutex::new(inner),
+        }
+    }
+
+    /// Open or create the ride library at custom paths (for tests).
+    pub fn configure_ride_library(
+        &self,
+        db_path: String,
+        artifacts_base: String,
+    ) -> Result<(), VeloError> {
+        let library =
+            RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base)).map_err(
+                |e| VeloError::RideError {
+                    message: e.to_string(),
+                },
+            )?;
+        self.inner.lock().unwrap().ride_library = Some(library);
+        Ok(())
+    }
+
+    pub fn list_rides(&self) -> Result<Vec<RideRecordDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let library = inner.ride_library.as_ref().ok_or(VeloError::RideError {
+            message: "ride library not configured".into(),
+        })?;
+        library
+            .list_rides()
+            .map(|rides| rides.into_iter().map(map_ride_record).collect())
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn get_ride(&self, id: String) -> Result<Option<RideRecordDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let library = inner.ride_library.as_ref().ok_or(VeloError::RideError {
+            message: "ride library not configured".into(),
+        })?;
+        library
+            .get_ride(&id)
+            .map(|opt| opt.map(map_ride_record))
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn delete_ride(&self, id: String) -> Result<bool, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let library = inner.ride_library.as_ref().ok_or(VeloError::RideError {
+            message: "ride library not configured".into(),
+        })?;
+        library.delete_ride(&id).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })
+    }
+
+    pub fn toggle(&self) -> u32 {
+        self.inner.lock().unwrap().app.toggle()
+    }
+
+    pub fn toggle_count(&self) -> u32 {
+        self.inner.lock().unwrap().app.toggle_count()
+    }
+
+    pub fn set_ride_mode(&self, mode: RideMode) {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .set_ride_mode(map_ride_mode_in(mode));
+    }
+
+    pub fn set_target_power(&self, watts: f64) {
+        self.inner.lock().unwrap().app.set_target_power(watts);
+    }
+
+    pub fn set_grade(&self, grade: f64) {
+        self.inner.lock().unwrap().app.set_grade(grade);
+    }
+
+    pub fn target_power(&self) -> f64 {
+        self.inner.lock().unwrap().app.target_power()
+    }
+
+    pub fn is_ride_recording(&self) -> bool {
+        self.inner.lock().unwrap().app.is_ride_recording()
+    }
+
+    pub fn start_ride(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.app.set_clock_unix(unix_now());
+        inner.app.start_ride();
+    }
+
+    pub fn stop_ride(&self) -> Option<RideSummaryDto> {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .stop_ride()
+            .map(map_summary)
+    }
+
+    pub fn export_fit(&self) -> Result<Vec<u8>, VeloError> {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .export_fit()
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn last_ride_summary(&self) -> Option<RideSummaryDto> {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .last_ride_summary()
+            .map(map_summary)
+    }
+
+    pub fn tick(
+        &self,
+        sensors: Box<dyn SensorSourceCallback>,
+        trainer: Box<dyn TrainerControlCallback>,
+    ) {
+        let mut inner = self.inner.lock().unwrap();
+        let mut sensor = FfiSensorSource { callback: sensors };
+        let trainer = FfiTrainerControl { callback: trainer };
+        inner.app.tick(&mut sensor, &trainer);
+    }
+
+    pub fn recent_logs(&self, limit: u32) -> Vec<String> {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .recent_logs(limit as usize)
+    }
+
+    pub fn ride_state(&self) -> RideStateDto {
+        let ride = &self.inner.lock().unwrap().app.ride;
+        RideStateDto {
+            mode: map_ride_mode(ride.mode),
+            distance_m: ride.distance_m,
+            speed_mps: ride.speed_mps,
+            elapsed_s: ride.elapsed_s,
+            grade: ride.grade,
+            power_w: ride.power_w,
+            cadence_rpm: ride.cadence_rpm,
+            heart_rate_bpm: ride.heart_rate_bpm,
+        }
+    }
+
+    pub fn init_renderer(
+        &self,
+        metal_layer_ptr: u64,
+        width: u32,
+        height: u32,
+    ) -> Result<(), VeloError> {
+        let ptr = metal_layer_ptr as *mut std::ffi::c_void;
+        let renderer =
+            Renderer::from_metal_layer(ptr, width, height).map_err(|_| VeloError::RenderError)?;
+        self.inner.lock().unwrap().renderer = Some(renderer);
+        Ok(())
+    }
+
+    pub fn resize_renderer(&self, width: u32, height: u32) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        renderer.resize(width, height);
+        Ok(())
+    }
+
+    pub fn render_frame(&self) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let ride = inner.app.ride.clone();
+        let hud = hud_from_ride(&ride);
+        let distance_m = ride.distance_m;
+        let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        renderer
+            .render_frame(&hud, distance_m)
+            .map_err(|_| VeloError::RenderError)
+    }
+
+    /// Grab the current framebuffer as raw RGBA8 (shell encodes PNG).
+    pub fn capture_framebuffer_rgba(&self) -> Result<FramebufferDto, VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let ride = inner.app.ride.clone();
+        let hud = hud_from_ride(&ride);
+        let distance_m = ride.distance_m;
+        let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        let fb = renderer
+            .capture_framebuffer_rgba(&hud, distance_m)
+            .map_err(|_| VeloError::RenderError)?;
+        Ok(FramebufferDto {
+            width: fb.width,
+            height: fb.height,
+            rgba_pixels: fb.pixels,
+        })
+    }
+
+    /// Stop ride, capture screenshot, export FIT, publish via shell callback.
+    pub fn finish_ride_and_publish(
+        &self,
+        media: Box<dyn MediaCaptureCallback>,
+        publisher: Box<dyn ActivityPublisherCallback>,
+    ) -> Result<PublishResultDto, VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let summary = inner
+            .app
+            .stop_ride()
+            .ok_or(VeloError::RideError {
+                message: "no active or completed ride".into(),
+            })?;
+        let summary_dto = map_summary(summary);
+
+        let fit_bytes = inner.app.export_fit().map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+
+        let screenshot_png = if inner.renderer.is_some() {
+            let ride = inner.app.ride.clone();
+            let hud = hud_from_ride(&ride);
+            let distance_m = ride.distance_m;
+            let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+            let fb = renderer
+                .capture_framebuffer_rgba(&hud, distance_m)
+                .map_err(|_| VeloError::RenderError)?;
+            Some(media.encode_png_rgba(fb.width, fb.height, fb.pixels))
+        } else {
+            None
+        };
+
+        let mut publish = publisher.publish_ride(fit_bytes.clone(), screenshot_png.clone(), summary_dto.clone());
+
+        if let Some(library) = inner.ride_library.as_ref() {
+            let ride_id = persist_finished_ride(
+                library,
+                &summary_dto,
+                &fit_bytes,
+                screenshot_png.as_deref(),
+                &publish,
+            )?;
+            publish.ride_id = ride_id.clone();
+            if publish.saved_locally {
+                if let Ok(Some(ride)) = library.get_ride(&ride_id) {
+                    if let Some(parent) = std::path::Path::new(&ride.fit_path).parent() {
+                        publish.activity_url = parent.display().to_string();
+                    }
+                }
+            }
+        } else {
+            publish.ride_id = String::new();
+        }
+
+        Ok(publish)
+    }
+}
+
+fn hud_from_ride(ride: &velo_core::RideState) -> velo_render::HudSnapshot {
+    let mode = match ride.mode {
+        velo_core::ride::RideMode::Free => "Free",
+        velo_core::ride::RideMode::Erg => "ERG",
+        velo_core::ride::RideMode::Sim => "SIM",
+    };
+    velo_render::HudSnapshot {
+        power_w: ride.power_w,
+        cadence_rpm: ride.cadence_rpm,
+        heart_rate_bpm: ride.heart_rate_bpm,
+        speed_mps: ride.speed_mps,
+        distance_m: ride.distance_m,
+        elapsed_s: ride.elapsed_s,
+        grade: ride.grade,
+        mode,
+    }
+}
+
+#[uniffi::export]
+pub fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}

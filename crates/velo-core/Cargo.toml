@@ -1,0 +1,17 @@
+[package]
+name = "velo-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "VeloSim simulation core — physics, ride loop, HUD state"
+
+[dependencies]
+glam = { workspace = true }
+thiserror = { workspace = true }
+velo-platform = { workspace = true }
+velo-units = { workspace = true }
+velo-fit = { workspace = true }
+
+[dev-dependencies]
+fitparser = "0.8"
+velo-platform = { workspace = true }

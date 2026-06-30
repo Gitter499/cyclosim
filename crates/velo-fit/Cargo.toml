@@ -1,0 +1,13 @@
+[package]
+name = "velo-fit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "FIT activity file encoder for VeloSim"
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+fitparser = "0.8"
+proptest = "1"

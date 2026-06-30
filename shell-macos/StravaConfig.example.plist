@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>client_id</key>
+    <string>YOUR_STRAVA_CLIENT_ID</string>
+    <key>client_secret</key>
+    <string>YOUR_STRAVA_CLIENT_SECRET</string>
+    <key>redirect_uri</key>
+    <string>velosim://oauth</string>
+</dict>
+</plist>

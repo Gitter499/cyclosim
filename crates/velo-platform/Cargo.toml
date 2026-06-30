@@ -1,0 +1,9 @@
+[package]
+name = "velo-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Platform trait definitions for VeloSim (no OS dependencies)"
+
+[dependencies]
+velo-units = { workspace = true }
