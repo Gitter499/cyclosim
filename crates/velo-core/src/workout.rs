@@ -34,6 +34,23 @@ impl Workout {
         self.intervals.iter().map(|i| i.duration_s).sum()
     }
 
+    /// Validates a workout before playback (non-empty intervals, positive durations).
+    pub fn validate(&self) -> Result<(), String> {
+        if self.intervals.is_empty() {
+            return Err("workout must have at least one interval".into());
+        }
+        for (i, interval) in self.intervals.iter().enumerate() {
+            if !(interval.duration_s.is_finite() && interval.duration_s > 0.0) {
+                return Err(format!(
+                    "interval {} ({}) must have a positive duration",
+                    i + 1,
+                    interval.name
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// Simple 2×20-style template for tests and defaults.
     pub fn sample_threshold() -> Self {
         Self {
@@ -214,5 +231,27 @@ mod tests {
     fn sample_threshold_duration() {
         let w = Workout::sample_threshold();
         assert!((w.total_duration_s() - 4200.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn validate_rejects_empty_intervals() {
+        let w = Workout {
+            name: "empty".into(),
+            intervals: vec![],
+        };
+        assert!(w.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_positive_duration() {
+        let w = Workout {
+            name: "bad".into(),
+            intervals: vec![WorkoutInterval {
+                name: "zero".into(),
+                duration_s: 0.0,
+                target: WorkoutTarget::ErgWatts(100.0),
+            }],
+        };
+        assert!(w.validate().is_err());
     }
 }
