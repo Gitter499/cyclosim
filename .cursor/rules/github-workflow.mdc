@@ -9,16 +9,22 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 
 ## Branching
 
-- **`dev`**: integration branch; open PRs here.
-- **`main`**: stable releases; merge from `dev` via PR when a milestone batch is ready.
+- **`dev`**: integration hub; merge feature work here quickly.
+- **`main`**: stable releases; merge from `dev` via PR **only when CI passes**.
 - Feature branches: `feat/issue-N-short-name` or `chore/...` from latest `dev`.
+
+## Development velocity
+
+- **Do not block on CI** to land work on `dev`. Run `cargo test` locally; push and merge.
+- **CI gate applies to `main` only** (branch protection requires `test`).
+- Open PRs to `dev` for review history, or merge feature branches directly when iterating fast.
 
 ## Pull requests
 
-- One milestone or focused change per PR.
-- Title references the issue: `feat: M3b Cesium tile streaming (#7)`.
+- One milestone or focused change per PR when practical.
+- Title references the issue: `feat: M5 workout engine (#10)`.
 - Body includes `Closes #N` when the PR completes an issue.
-- Granular commits on the branch; CI must pass before merge.
+- Granular commits on the branch.
 - **No AI tool branding** in titles, bodies, or commits (see [no-tool-branding.mdc](no-tool-branding.mdc)).
 
 ## Agents
