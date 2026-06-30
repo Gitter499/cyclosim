@@ -2,7 +2,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use velo_ffi::{SensorSourceCallback, TrainerControlCallback, VeloHandle};
+use velo_ffi::{
+    SensorSourceCallback, TrainerControlCallback, VeloError, VeloHandle, WorkoutDto,
+    WorkoutIntervalDto, WorkoutTargetDto,
+};
 
 struct EmptySensors;
 
@@ -53,4 +56,53 @@ fn workout_live_state_round_trip() {
     handle.clear_workout();
     assert!(!handle.workout_active());
     assert!(!handle.workout_live().active);
+}
+
+#[test]
+fn custom_workout_start_and_erg_tick() {
+    let handle = VeloHandle::new();
+    handle.set_ftp(200.0);
+
+    let workout = WorkoutDto {
+        name: "Custom ERG steps".into(),
+        intervals: vec![
+            WorkoutIntervalDto {
+                name: "Step 1".into(),
+                duration_s: 60.0,
+                target: WorkoutTargetDto::ErgWatts { watts: 150.0 },
+            },
+            WorkoutIntervalDto {
+                name: "Step 2".into(),
+                duration_s: 60.0,
+                target: WorkoutTargetDto::ErgWatts { watts: 220.0 },
+            },
+        ],
+    };
+
+    handle.start_workout(workout).expect("valid workout");
+    assert!(handle.workout_active());
+
+    let live = handle.workout_live();
+    assert_eq!(live.workout_name, "Custom ERG steps");
+    assert_eq!(live.interval_name, "Step 1");
+    assert_eq!(live.target_watts, Some(150.0));
+
+    let last_power = Arc::new(Mutex::new(None));
+    let trainer = RecordingTrainer {
+        last_power: Arc::clone(&last_power),
+    };
+    handle.tick(Box::new(EmptySensors), Box::new(trainer));
+    assert_eq!(*last_power.lock().unwrap(), Some(150.0));
+}
+
+#[test]
+fn start_workout_rejects_empty_intervals() {
+    let handle = VeloHandle::new();
+    let err = handle
+        .start_workout(WorkoutDto {
+            name: "Empty".into(),
+            intervals: vec![],
+        })
+        .expect_err("empty intervals");
+    assert!(matches!(err, VeloError::RideError { .. }));
 }

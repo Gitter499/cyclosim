@@ -559,6 +559,11 @@ void uniffi_velo_ffi_fn_method_velohandle_start_ride(void*_Nonnull ptr, RustCall
 void uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_WORKOUT
+void uniffi_velo_ffi_fn_method_velohandle_start_workout(void*_Nonnull ptr, RustBuffer workout, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_stop_ride(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -1142,6 +1147,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_ride(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_workout(void
     
 );
 #endif

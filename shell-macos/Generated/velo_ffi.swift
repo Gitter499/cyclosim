@@ -781,6 +781,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func startSampleWorkout() 
     
+    func startWorkout(workout: WorkoutDto) throws 
+    
     func stopRide()  -> RideSummaryDto?
     
     func targetPower()  -> Double
@@ -1124,6 +1126,13 @@ open func startRide()  {try! rustCall() {
     
 open func startSampleWorkout()  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+open func startWorkout(workout: WorkoutDto)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_start_workout(self.uniffiClonePointer(),
+        FfiConverterTypeWorkoutDto_lower(workout),$0
     )
 }
 }
@@ -2001,6 +2010,154 @@ public func FfiConverterTypeTelemetrySampleDto_lower(_ value: TelemetrySampleDto
 }
 
 
+public struct WorkoutDto {
+    public var name: String
+    public var intervals: [WorkoutIntervalDto]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, intervals: [WorkoutIntervalDto]) {
+        self.name = name
+        self.intervals = intervals
+    }
+}
+
+#if compiler(>=6)
+extension WorkoutDto: Sendable {}
+#endif
+
+
+extension WorkoutDto: Equatable, Hashable {
+    public static func ==(lhs: WorkoutDto, rhs: WorkoutDto) -> Bool {
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.intervals != rhs.intervals {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(intervals)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWorkoutDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WorkoutDto {
+        return
+            try WorkoutDto(
+                name: FfiConverterString.read(from: &buf), 
+                intervals: FfiConverterSequenceTypeWorkoutIntervalDto.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WorkoutDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterSequenceTypeWorkoutIntervalDto.write(value.intervals, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutDto_lift(_ buf: RustBuffer) throws -> WorkoutDto {
+    return try FfiConverterTypeWorkoutDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutDto_lower(_ value: WorkoutDto) -> RustBuffer {
+    return FfiConverterTypeWorkoutDto.lower(value)
+}
+
+
+public struct WorkoutIntervalDto {
+    public var name: String
+    public var durationS: Double
+    public var target: WorkoutTargetDto
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, durationS: Double, target: WorkoutTargetDto) {
+        self.name = name
+        self.durationS = durationS
+        self.target = target
+    }
+}
+
+#if compiler(>=6)
+extension WorkoutIntervalDto: Sendable {}
+#endif
+
+
+extension WorkoutIntervalDto: Equatable, Hashable {
+    public static func ==(lhs: WorkoutIntervalDto, rhs: WorkoutIntervalDto) -> Bool {
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.durationS != rhs.durationS {
+            return false
+        }
+        if lhs.target != rhs.target {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(durationS)
+        hasher.combine(target)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWorkoutIntervalDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WorkoutIntervalDto {
+        return
+            try WorkoutIntervalDto(
+                name: FfiConverterString.read(from: &buf), 
+                durationS: FfiConverterDouble.read(from: &buf), 
+                target: FfiConverterTypeWorkoutTargetDto.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WorkoutIntervalDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterDouble.write(value.durationS, into: &buf)
+        FfiConverterTypeWorkoutTargetDto.write(value.target, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutIntervalDto_lift(_ buf: RustBuffer) throws -> WorkoutIntervalDto {
+    return try FfiConverterTypeWorkoutIntervalDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutIntervalDto_lower(_ value: WorkoutIntervalDto) -> RustBuffer {
+    return FfiConverterTypeWorkoutIntervalDto.lower(value)
+}
+
+
 public struct WorkoutLiveDto {
     public var active: Bool
     public var workoutName: String
@@ -2352,6 +2509,89 @@ extension VeloError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum WorkoutTargetDto {
+    
+    case ergWatts(watts: Double
+    )
+    case ftpPercent(percent: Double
+    )
+    case freeRide
+}
+
+
+#if compiler(>=6)
+extension WorkoutTargetDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWorkoutTargetDto: FfiConverterRustBuffer {
+    typealias SwiftType = WorkoutTargetDto
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WorkoutTargetDto {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .ergWatts(watts: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 2: return .ftpPercent(percent: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 3: return .freeRide
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WorkoutTargetDto, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .ergWatts(watts):
+            writeInt(&buf, Int32(1))
+            FfiConverterDouble.write(watts, into: &buf)
+            
+        
+        case let .ftpPercent(percent):
+            writeInt(&buf, Int32(2))
+            FfiConverterDouble.write(percent, into: &buf)
+            
+        
+        case .freeRide:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutTargetDto_lift(_ buf: RustBuffer) throws -> WorkoutTargetDto {
+    return try FfiConverterTypeWorkoutTargetDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutTargetDto_lower(_ value: WorkoutTargetDto) -> RustBuffer {
+    return FfiConverterTypeWorkoutTargetDto.lower(value)
+}
+
+
+extension WorkoutTargetDto: Equatable, Hashable {}
+
+
 
 
 
@@ -3130,6 +3370,31 @@ fileprivate struct FfiConverterSequenceTypeTelemetrySampleDto: FfiConverterRustB
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeWorkoutIntervalDto: FfiConverterRustBuffer {
+    typealias SwiftType = [WorkoutIntervalDto]
+
+    public static func write(_ value: [WorkoutIntervalDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeWorkoutIntervalDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [WorkoutIntervalDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [WorkoutIntervalDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeWorkoutIntervalDto.read(from: &buf))
+        }
+        return seq
+    }
+}
 public func version() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_func_version($0
@@ -3270,6 +3535,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout() != 49538) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_start_workout() != 64260) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_stop_ride() != 31002) {

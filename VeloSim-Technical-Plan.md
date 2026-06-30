@@ -624,8 +624,8 @@ Workout builder/engine, structured-workout ERG control, full Liquid Glass setup/
 summary with an auto-generated highlight clip.
 
 **Shipped so far:** `WorkoutEngine` + sample workout template, ERG auto-target during rides, FFI
-`workout_live` / `start_sample_workout`, minimal shell workout picker. **Remaining:** in-app builder,
-highlight clips, full Liquid Glass setup/summary UI.
+`workout_live` / `start_sample_workout` / `start_workout(WorkoutDto)`, in-app workout builder (shell).
+**Remaining:** highlight clips, full Liquid Glass setup/summary UI, `.zwo` import.
 
 **M6 — Apple Music + AirPods (lowest priority).**
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
