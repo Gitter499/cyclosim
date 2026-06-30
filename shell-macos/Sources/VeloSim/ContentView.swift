@@ -14,7 +14,7 @@ struct ContentView: View {
                 .frame(minWidth: 640)
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("VeloSim M3b")
+                Text("VeloSim M3c")
                     .font(.title2.bold())
 
                 Text("core v\(version())")
@@ -67,6 +67,42 @@ struct ContentView: View {
                             Text(model.tilesAttribution)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                GroupBox("Bike (M3c)") {
+                    HStack {
+                        Button("Import photos…") {
+                            model.importBikePhotos()
+                        }
+                        if model.activeBikeId != nil {
+                            Button("Clear bike") {
+                                model.clearBike()
+                            }
+                        }
+                    }
+
+                    Text(model.bikeImportStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    if !model.availableBikes.isEmpty {
+                        Picker("Active bike", selection: Binding(
+                            get: { model.activeBikeId ?? "" },
+                            set: { id in
+                                if id.isEmpty {
+                                    model.clearBike()
+                                } else {
+                                    model.selectBike(id)
+                                }
+                            }
+                        )) {
+                            Text("None (default)").tag("")
+                            ForEach(model.availableBikes, id: \.bikeId) { bike in
+                                Text(bike.name).tag(bike.bikeId)
+                            }
                         }
                     }
                 }
