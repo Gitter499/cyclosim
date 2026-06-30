@@ -54,6 +54,15 @@ final class VeloSimModel: ObservableObject {
     @Published var workoutLive: WorkoutLiveDto
     @Published var workoutStatus: String = "No workout"
 
+    private let noopSteering = NoopSteeringInput()
+    private let keyboardSteering = KeyboardSteeringInput()
+    private let airPodsSteering = AirPodsSteeringInput()
+    let musicDirector = VeloMusicDirector()
+
+    @Published var steeringMode: SteeringInputMode = .off
+    @Published var segmentMusicEnabled: Bool = false
+    @Published var musicStatus: String = "Music off"
+
     private var tickTimer: Timer?
     private var rideStore: LocalRideStoreHandle?
 
@@ -73,6 +82,9 @@ final class VeloSimModel: ObservableObject {
         refreshRideHistory()
         refreshRoutes()
         refreshBikes()
+
+        handle.setAudioDirector(director: musicDirector)
+        musicStatus = musicDirector.status
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
@@ -114,6 +126,53 @@ final class VeloSimModel: ObservableObject {
         simGrade = grade
         if activeRouteId == nil {
             handle.setGrade(grade: grade)
+        }
+    }
+
+    func setSteeringMode(_ mode: SteeringInputMode) {
+        steeringMode = mode
+        airPodsSteering.stop()
+        switch mode {
+        case .off:
+            handle.setSteeringEnabled(enabled: false)
+        case .keyboard:
+            handle.setSteeringEnabled(enabled: true)
+        case .airpods:
+            handle.setSteeringEnabled(enabled: true)
+            if airPodsSteering.isAvailable {
+                airPodsSteering.start()
+            }
+        }
+    }
+
+    func setSegmentMusicEnabled(_ enabled: Bool) {
+        segmentMusicEnabled = enabled
+        handle.setSegmentMusicEnabled(enabled: enabled)
+        musicDirector.setEnabled(enabled)
+        musicStatus = musicDirector.status
+    }
+
+    func connectAppleMusic() {
+        Task {
+            await musicDirector.requestAuthorization()
+            await MainActor.run {
+                musicStatus = musicDirector.status
+            }
+        }
+    }
+
+    func recenterSteering() {
+        airPodsSteering.requestRecenter()
+    }
+
+    private func activeSteering() -> SteeringInputCallback {
+        switch steeringMode {
+        case .off:
+            return noopSteering
+        case .keyboard:
+            return keyboardSteering
+        case .airpods:
+            return airPodsSteering.isAvailable ? airPodsSteering : noopSteering
         }
     }
 
@@ -415,11 +474,11 @@ final class VeloSimModel: ObservableObject {
     private func simTick() {
         switch sensorMode {
         case .fake:
-            handle.tick(sensors: fakeSensors, trainer: activeTrainer())
+            handle.tick(sensors: fakeSensors, trainer: activeTrainer(), steering: activeSteering())
         case .replay:
-            handle.tick(sensors: replaySensors, trainer: loggingTrainer)
+            handle.tick(sensors: replaySensors, trainer: loggingTrainer, steering: activeSteering())
         case .bluetooth:
-            handle.tick(sensors: ftmsBridge, trainer: ftmsBridge)
+            handle.tick(sensors: ftmsBridge, trainer: ftmsBridge, steering: activeSteering())
         }
 
         toggleCount = handle.toggleCount()

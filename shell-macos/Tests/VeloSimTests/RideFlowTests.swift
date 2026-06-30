@@ -11,8 +11,9 @@ final class RideFlowTests: XCTestCase {
         XCTAssertTrue(handle.isRideRecording())
         let sensors = FakeSensorSource()
         let trainer = MockTrainerControl()
+        let steering = NoopSteeringInput()
         for _ in 0..<10 {
-            handle.tick(sensors: sensors, trainer: trainer)
+            handle.tick(sensors: sensors, trainer: trainer, steering: steering)
         }
         let summary = handle.stopRide()
         XCTAssertNotNil(summary)
@@ -25,8 +26,9 @@ final class RideFlowTests: XCTestCase {
         handle.startRide()
         let sensors = FakeSensorSource()
         let trainer = MockTrainerControl()
+        let steering = NoopSteeringInput()
         for _ in 0..<5 {
-            handle.tick(sensors: sensors, trainer: trainer)
+            handle.tick(sensors: sensors, trainer: trainer, steering: steering)
         }
         _ = handle.stopRide()
         let fit = try handle.exportFit()

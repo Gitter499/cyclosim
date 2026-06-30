@@ -36,7 +36,7 @@ final class RideLibraryTests: XCTestCase {
         let sensors = FakeSensorSource()
         let trainer = MockTrainerControl()
         for _ in 0..<6 {
-            handle.tick(sensors: sensors, trainer: trainer)
+            handle.tick(sensors: sensors, trainer: trainer, steering: NoopSteeringInput())
         }
 
         let publisher = LocalOnlyPublisher()
@@ -72,7 +72,7 @@ final class RideLibraryTests: XCTestCase {
         let sensors = FakeSensorSource()
         let trainer = MockTrainerControl()
         for _ in 0..<4 {
-            handle.tick(sensors: sensors, trainer: trainer)
+            handle.tick(sensors: sensors, trainer: trainer, steering: NoopSteeringInput())
         }
 
         let result = try handle.finishRideAndPublish(
