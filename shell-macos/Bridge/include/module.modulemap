@@ -1,0 +1,4 @@
+module velo_ffiFFI {
+    header "velo_ffiFFI.h"
+    export *
+}

@@ -1,0 +1,8 @@
+[package]
+name = "velo-units"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Physical quantity newtypes for VeloSim"
+
+[dependencies]

@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/velo-units",
+    "crates/velo-platform",
+    "crates/velo-fit",
+    "crates/velo-core",
+    "crates/velo-render",
+    "crates/velo-rides",
+    "crates/velo-ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+glam = "0.29"
+thiserror = "2"
+uniffi = { version = "0.29", features = ["cli"] }
+velo-core = { path = "crates/velo-core" }
+velo-fit = { path = "crates/velo-fit" }
+velo-platform = { path = "crates/velo-platform" }
+velo-render = { path = "crates/velo-render" }
+velo-rides = { path = "crates/velo-rides" }
+velo-units = { path = "crates/velo-units" }
