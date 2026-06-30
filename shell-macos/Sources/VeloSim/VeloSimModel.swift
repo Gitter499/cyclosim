@@ -63,22 +63,22 @@ final class VeloSimModel: ObservableObject {
         refreshRoutes()
 
         ftmsBridge.onStateChange = { [weak self] state in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.bleState = state
             }
         }
         ftmsBridge.onCapabilitiesChange = { [weak self] caps in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.bleCapabilities = caps.description
             }
         }
         ftmsBridge.onTrainerStatusChange = { [weak self] status in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.bleTrainerStatus = status
             }
         }
         ftmsBridge.onControlErrorChange = { [weak self] error in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.bleControlError = error
             }
         }
@@ -219,7 +219,7 @@ final class VeloSimModel: ObservableObject {
     func startSimLoop() {
         tickTimer?.invalidate()
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.simTick()
             }
         }
