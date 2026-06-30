@@ -4,6 +4,7 @@ use velo_units::{Grade, MetersPerSecond, Watts};
 use crate::physics::{integrate_step, PhysicsConfig};
 use crate::ride::{RideMode, RideState};
 use crate::ride_session::{RideSample, RideSession, RideSummary};
+use crate::route::RouteModel;
 
 const DT: f32 = 1.0 / 100.0;
 
@@ -12,6 +13,8 @@ pub struct VeloApp {
     pub toggle_count: u32,
     pub ride: RideState,
     pub ride_session: RideSession,
+    pub route: Option<RouteModel>,
+    pub active_route_id: Option<String>,
     log: Vec<String>,
     tick: u64,
     target_power: Watts,
@@ -26,6 +29,8 @@ impl VeloApp {
             toggle_count: 0,
             ride: RideState::default(),
             ride_session: RideSession::new(),
+            route: None,
+            active_route_id: None,
             log: Vec::new(),
             tick: 0,
             target_power: Watts::new(150.0),
@@ -88,7 +93,39 @@ impl VeloApp {
     }
 
     pub fn set_grade(&mut self, grade: f64) {
-        self.ride.grade = grade;
+        if self.route.is_none() {
+            self.ride.grade = grade;
+        }
+    }
+
+    pub fn load_route(&mut self, route: RouteModel) {
+        self.active_route_id = Some(route.meta.route_id.clone());
+        self.ride.distance_m = 0.0;
+        self.ride.grade = route.grade_at(0.0);
+        self.route = Some(route);
+        self.push_log("route loaded".into());
+    }
+
+    pub fn clear_route(&mut self) {
+        self.route = None;
+        self.active_route_id = None;
+        self.push_log("route cleared".into());
+    }
+
+    pub fn active_route_id(&self) -> Option<&str> {
+        self.active_route_id.as_deref()
+    }
+
+    pub fn route_position_enu(&self) -> Option<(f64, f64, f64)> {
+        self.route
+            .as_ref()
+            .map(|r| r.position_enu_at(self.ride.distance_m))
+    }
+
+    fn sync_grade_from_route(&mut self) {
+        if let Some(route) = &self.route {
+            self.ride.grade = route.grade_at(self.ride.distance_m);
+        }
     }
 
     /// Fixed-step sim tick: drain sensor samples, integrate, emit trainer commands.
@@ -103,6 +140,8 @@ impl VeloApp {
         for sample in samples {
             self.apply_sample(&sample);
         }
+
+        self.sync_grade_from_route();
 
         let grade = Grade::new(self.ride.grade);
         let power = self
