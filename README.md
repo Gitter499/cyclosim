@@ -12,7 +12,7 @@ Native offline cycling simulator — portable Rust core + thin macOS Swift shell
 | **M2b** — FIT + Strava + screenshot | ✅ |
 | **M2c** — Ride library (SQLite) | ✅ |
 | **M3** — Real route + terrain | ✅ |
-| **M3b** — Google 3D Tiles | 🔜 next |
+| **M3b** — Google 3D Tiles (spike) | ✅ |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 
@@ -28,6 +28,7 @@ See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criter
 | [`velo-rides`](crates/velo-rides/) | SQLite ride library |
 | [`velo-route-import`](crates/velo-route-import/) | GPX/TCX → RouteModel (lib + CLI) |
 | [`velo-terrain`](crates/velo-terrain/) | DEM → terrain mesh + texture bake |
+| [`velo-cesium`](crates/velo-cesium/) | 3D Tiles streaming + glTF decode (M3b) |
 | [`velo-ffi`](crates/velo-ffi/) | UniFFI surface for Swift |
 | [`shell-macos`](shell-macos/) | macOS app (BLE, Strava, UI) |
 
@@ -40,6 +41,10 @@ cargo test              # Rust workspace
 just lint               # Apple-symbol check
 just build && just run  # Full app (Xcode Swift + Metal)
 ```
+
+### M3b build notes (optional Cesium Native)
+
+Default build uses Rust glTF decode (CI-friendly). See [`crates/velo-cesium/README.md`](crates/velo-cesium/README.md) for pinned Cesium Native **0.44.0** and optional `cesium-native` feature.
 
 ## Git history
 
