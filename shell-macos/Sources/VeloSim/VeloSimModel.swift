@@ -42,6 +42,8 @@ final class VeloSimModel: ObservableObject {
     @Published var availableRoutes: [RouteInfoDto] = []
     @Published var activeRouteId: String?
     @Published var routeImportStatus: String = ""
+    @Published var tiles3dEnabled: Bool = false
+    @Published var tilesAttribution: String = ""
 
     private var tickTimer: Timer?
     private var rideStore: LocalRideStoreHandle?
@@ -112,6 +114,8 @@ final class VeloSimModel: ObservableObject {
         do {
             try handle.setActiveRoute(routeId: routeId)
             activeRouteId = routeId
+            tiles3dEnabled = handle.routeTiles3dEnabled()
+            tilesAttribution = handle.tilesAttribution()
             routeImportStatus = "Riding: \(routeId)"
             rideState = handle.rideState()
             simGrade = rideState.grade
@@ -120,9 +124,21 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    func setTiles3d(_ enabled: Bool) {
+        do {
+            try handle.setRouteTiles3d(enabled: enabled)
+            tiles3dEnabled = enabled
+            tilesAttribution = handle.tilesAttribution()
+        } catch {
+            routeImportStatus = "3D Tiles toggle failed: \(error)"
+        }
+    }
+
     func clearRoute() {
         handle.clearActiveRoute()
         activeRouteId = nil
+        tiles3dEnabled = false
+        tilesAttribution = ""
         routeImportStatus = "Flat plane (no route)"
         refreshRoutes()
     }

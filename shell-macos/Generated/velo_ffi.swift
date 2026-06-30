@@ -744,11 +744,18 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func rideState()  -> RideStateDto
     
+    func routeTiles3dEnabled()  -> Bool
+    
     func setActiveRoute(routeId: String) throws 
     
     func setGrade(grade: Double) 
     
     func setRideMode(mode: RideMode) 
+    
+    /**
+     * Per-route Tier B toggle (online-only; persisted in pack `scenery.json`).
+     */
+    func setRouteTiles3d(enabled: Bool) throws 
     
     func setTargetPower(watts: Double) 
     
@@ -759,6 +766,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func targetPower()  -> Double
     
     func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback) 
+    
+    func tilesAttribution()  -> String
     
     func toggle()  -> UInt32
     
@@ -975,6 +984,13 @@ open func rideState() -> RideStateDto  {
 })
 }
     
+open func routeTiles3dEnabled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func setActiveRoute(routeId: String)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_set_active_route(self.uniffiClonePointer(),
         FfiConverterString.lower(routeId),$0
@@ -992,6 +1008,16 @@ open func setGrade(grade: Double)  {try! rustCall() {
 open func setRideMode(mode: RideMode)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_ride_mode(self.uniffiClonePointer(),
         FfiConverterTypeRideMode_lower(mode),$0
+    )
+}
+}
+    
+    /**
+     * Per-route Tier B toggle (online-only; persisted in pack `scenery.json`).
+     */
+open func setRouteTiles3d(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_set_route_tiles_3d(self.uniffiClonePointer(),
+        FfiConverterBool.lower(enabled),$0
     )
 }
 }
@@ -1029,6 +1055,13 @@ open func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback)  
         FfiConverterCallbackInterfaceTrainerControlCallback_lower(trainer),$0
     )
 }
+}
+    
+open func tilesAttribution() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_tiles_attribution(self.uniffiClonePointer(),$0
+    )
+})
 }
     
 open func toggle() -> UInt32  {
@@ -2876,6 +2909,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_ride_state() != 21549) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled() != 60041) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_active_route() != 53968) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2883,6 +2919,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_ride_mode() != 33821) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_route_tiles_3d() != 17410) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_target_power() != 18399) {
@@ -2898,6 +2937,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_tick() != 23598) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_tiles_attribution() != 31323) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_toggle() != 46353) {

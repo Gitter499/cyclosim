@@ -474,6 +474,11 @@ void uniffi_velo_ffi_fn_method_velohandle_resize_renderer(void*_Nonnull ptr, uin
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_ride_state(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
+int8_t uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 void uniffi_velo_ffi_fn_method_velohandle_set_active_route(void*_Nonnull ptr, RustBuffer route_id, RustCallStatus *_Nonnull out_status
@@ -487,6 +492,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_grade(void*_Nonnull ptr, double gr
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_RIDE_MODE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_RIDE_MODE
 void uniffi_velo_ffi_fn_method_velohandle_set_ride_mode(void*_Nonnull ptr, RustBuffer mode, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ROUTE_TILES_3D
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ROUTE_TILES_3D
+void uniffi_velo_ffi_fn_method_velohandle_set_route_tiles_3d(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_TARGET_POWER
@@ -512,6 +522,11 @@ double uniffi_velo_ffi_fn_method_velohandle_target_power(void*_Nonnull ptr, Rust
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TICK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TICK
 void uniffi_velo_ffi_fn_method_velohandle_tick(void*_Nonnull ptr, uint64_t sensors, uint64_t trainer, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_ATTRIBUTION
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_ATTRIBUTION
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_tiles_attribution(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TOGGLE
@@ -968,6 +983,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_ride_state(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_route(void
@@ -983,6 +1004,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_grade(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_RIDE_MODE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_RIDE_MODE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_ride_mode(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ROUTE_TILES_3D
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ROUTE_TILES_3D
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_route_tiles_3d(void
     
 );
 #endif
@@ -1013,6 +1040,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_target_power(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TICK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TICK
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_tick(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_ATTRIBUTION
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_ATTRIBUTION
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_tiles_attribution(void
     
 );
 #endif
