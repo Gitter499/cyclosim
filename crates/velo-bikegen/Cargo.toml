@@ -1,0 +1,26 @@
+[package]
+name = "velo-bikegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bike image-to-3D asset pipeline: photos → normalized glTF (M3c)"
+
+[dependencies]
+clap = { workspace = true }
+glam = { workspace = true }
+png = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+velo-cesium = { workspace = true }
+
+[features]
+default = []
+hosted-api = []
+
+[[bin]]
+name = "velo-bikegen"
+path = "src/bin/velo-bikegen.rs"
+
+[dev-dependencies]
+tempfile = "3"

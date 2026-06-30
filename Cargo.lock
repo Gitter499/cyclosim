@@ -2870,6 +2870,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
+name = "velo-bikegen"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "glam",
+ "png 0.17.16",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "velo-cesium",
+]
+
+[[package]]
 name = "velo-cesium"
 version = "0.1.0"
 dependencies = [
@@ -2905,9 +2919,11 @@ dependencies = [
 name = "velo-ffi"
 version = "0.1.0"
 dependencies = [
+ "png 0.17.16",
  "tempfile",
  "thiserror 2.0.18",
  "uniffi",
+ "velo-bikegen",
  "velo-cesium",
  "velo-core",
  "velo-platform",
@@ -2944,6 +2960,7 @@ dependencies = [
  "pollster",
  "raw-window-handle",
  "thiserror 2.0.18",
+ "velo-bikegen",
  "velo-cesium",
  "velo-core",
  "velo-terrain",

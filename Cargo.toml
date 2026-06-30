@@ -10,6 +10,7 @@ members = [
     "crates/velo-route-import",
     "crates/velo-terrain",
     "crates/velo-cesium",
+    "crates/velo-bikegen",
     "crates/velo-ffi",
 ]
 
@@ -30,6 +31,7 @@ velo-rides = { path = "crates/velo-rides" }
 velo-route-import = { path = "crates/velo-route-import" }
 velo-terrain = { path = "crates/velo-terrain" }
 velo-cesium = { path = "crates/velo-cesium" }
+velo-bikegen = { path = "crates/velo-bikegen" }
 velo-units = { path = "crates/velo-units" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

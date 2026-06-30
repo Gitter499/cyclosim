@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use velo_bikegen::{
+    default_bikes_dir, import_bike_from_images, list_bikes, load_bike_asset, BikeSummary,
+};
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
     save_scenery_config, SceneryConfig, VeloApp,
@@ -143,6 +146,12 @@ pub struct RouteInfoDto {
 }
 
 #[derive(uniffi::Record, Clone, Debug)]
+pub struct BikeInfoDto {
+    pub bike_id: String,
+    pub name: String,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
 pub struct RideRecordDto {
     pub id: String,
     pub started_at_unix: u64,
@@ -241,6 +250,13 @@ fn map_ride_record(record: RideRecord) -> RideRecordDto {
         strava_activity_id: record.strava_activity_id,
         publish_status: map_publish_status(record.publish_status),
         route_id: record.route_id,
+    }
+}
+
+fn map_bike_summary(summary: BikeSummary) -> BikeInfoDto {
+    BikeInfoDto {
+        bike_id: summary.bike_id,
+        name: summary.name,
     }
 }
 
@@ -362,6 +378,8 @@ struct VeloHandleInner {
     renderer: Option<Renderer>,
     ride_library: Option<RideLibrary>,
     packs_dir: PathBuf,
+    bikes_dir: PathBuf,
+    active_bike_id: Option<String>,
     tiles_3d_enabled: bool,
 }
 
@@ -371,10 +389,11 @@ pub struct VeloHandle {
 }
 
 impl VeloHandle {
-    fn with_packs_dir(packs_dir: PathBuf) -> Self {
+    fn with_dirs(packs_dir: PathBuf, bikes_dir: PathBuf) -> Self {
         let mut inner = VeloHandleInner::default();
         inner.app.set_clock_unix(unix_now());
         inner.packs_dir = packs_dir;
+        inner.bikes_dir = bikes_dir;
         inner.ride_library = RideLibrary::open(default_db_path(), default_artifacts_base()).ok();
         Self {
             inner: Mutex::new(inner),
@@ -383,8 +402,14 @@ impl VeloHandle {
 
     /// Integration tests only — avoids writing under `~/Documents`.
     #[doc(hidden)]
+    pub fn with_dirs_for_tests(packs_dir: PathBuf, bikes_dir: PathBuf) -> Self {
+        Self::with_dirs(packs_dir, bikes_dir)
+    }
+
+    /// Integration tests only — avoids writing under `~/Documents`.
+    #[doc(hidden)]
     pub fn with_packs_dir_for_tests(packs_dir: PathBuf) -> Self {
-        Self::with_packs_dir(packs_dir)
+        Self::with_dirs(packs_dir, default_bikes_dir())
     }
 }
 
@@ -392,11 +417,15 @@ impl VeloHandle {
 impl VeloHandle {
     #[uniffi::constructor]
     pub fn new() -> Self {
-        Self::with_packs_dir(default_packs_dir())
+        Self::with_dirs(default_packs_dir(), default_bikes_dir())
     }
 
     pub fn packs_dir(&self) -> String {
         self.inner.lock().unwrap().packs_dir.display().to_string()
+    }
+
+    pub fn bikes_dir(&self) -> String {
+        self.inner.lock().unwrap().bikes_dir.display().to_string()
     }
 
     pub fn list_routes(&self) -> Result<Vec<RouteInfoDto>, VeloError> {
@@ -495,6 +524,65 @@ impl VeloHandle {
             .app
             .active_route_id()
             .map(|s| s.to_string())
+    }
+
+    pub fn list_bikes(&self) -> Result<Vec<BikeInfoDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        list_bikes(&inner.bikes_dir)
+            .map(|bikes| bikes.into_iter().map(map_bike_summary).collect())
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
+    }
+
+    pub fn import_bike_from_images(
+        &self,
+        image_paths: Vec<String>,
+        bike_id: String,
+        name: Option<String>,
+    ) -> Result<(), VeloError> {
+        let paths: Vec<PathBuf> = image_paths.into_iter().map(PathBuf::from).collect();
+        let mut inner = self.inner.lock().unwrap();
+        let asset = import_bike_from_images(
+            &inner.bikes_dir,
+            &paths,
+            &bike_id,
+            name.as_deref(),
+        )
+        .map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        inner.active_bike_id = Some(bike_id);
+        if let Some(renderer) = inner.renderer.as_mut() {
+            let _ = renderer.load_bike_gltf(&asset.gltf_path, asset.anchor);
+        }
+        Ok(())
+    }
+
+    pub fn set_active_bike(&self, bike_id: String) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let asset = load_bike_asset(&inner.bikes_dir, &bike_id).map_err(|e| VeloError::RideError {
+            message: e.to_string(),
+        })?;
+        inner.active_bike_id = Some(bike_id);
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer
+                .load_bike_gltf(&asset.gltf_path, asset.anchor)
+                .map_err(|_| VeloError::RenderError)?;
+        }
+        Ok(())
+    }
+
+    pub fn clear_active_bike(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.active_bike_id = None;
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer.clear_bike();
+        }
+    }
+
+    pub fn active_bike_id(&self) -> Option<String> {
+        self.inner.lock().unwrap().active_bike_id.clone()
     }
 
     /// Per-route Tier B toggle (online-only; persisted in pack `scenery.json`).
@@ -697,9 +785,15 @@ impl VeloHandle {
         height: u32,
     ) -> Result<(), VeloError> {
         let ptr = metal_layer_ptr as *mut std::ffi::c_void;
-        let renderer =
+        let mut inner = self.inner.lock().unwrap();
+        let mut renderer =
             Renderer::from_metal_layer(ptr, width, height).map_err(|_| VeloError::RenderError)?;
-        self.inner.lock().unwrap().renderer = Some(renderer);
+        if let Some(ref bike_id) = inner.active_bike_id {
+            if let Ok(asset) = load_bike_asset(&inner.bikes_dir, bike_id) {
+                let _ = renderer.load_bike_gltf(&asset.gltf_path, asset.anchor);
+            }
+        }
+        inner.renderer = Some(renderer);
         Ok(())
     }
 
