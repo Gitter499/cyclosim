@@ -4,9 +4,42 @@ Running record of cross-cutting cleanup on the `dev` branch. See [.cursor/skills
 
 | Date | Trigger | Summary | Commits |
 |------|---------|---------|---------|
+| 2026-06-30 | Post-M5 complete (#10 closed) | Agent skills (rust/swift best practices); M5 doc sync; quality-pass skill cross-ref | see below |
 | 2026-06-30 | Initial bootstrap | Doc sync (plan M2c done, workspace layout); FFI callback + FIT catalog integration tests; test-helper warning cleanup | `a1b2c3d`… (see git log before this pass) |
 | 2026-06-30 | Post-M5 partial + multi-agent desync | Plan/README sync (M3b/M3c done, M5 partial); unified `RecordingTrainerControl`; doc refresh | see below |
 | 2026-06-30 | Post-M5 slices (#16, #17) | M5 doc sync; FFI test common mocks; highlight golden + schema v2 migration tests | see below |
+
+---
+
+# Quality pass — 2026-06-30 (post-M5 complete)
+
+## Scope
+Milestone / trigger: **M5 complete** — issue #10 closed; PR #18 merged (`.zwo` import); full pass using quality-pass + rust-best-practices + swift-best-practices skills before `dev` → `main` release.
+
+## Changes made
+- Added `.cursor/skills/rust-best-practices/` and `.cursor/skills/swift-best-practices/` agent checklists with optional `reference.md`.
+- Extended quality-pass skill to cross-reference rust + swift skills in checklist.
+- Synced M5 → ✅ across plan workspace line, `velo-core`, `velo-ffi`, `velo-rides`, and `shell-macos` READMEs.
+- Updated `AGENTS.md` skill links.
+
+## Findings (deferred)
+- **Cinematic replay camera** for highlight clips — ring-buffer + VideoToolbox encode ships; replay-camera path remains future work.
+- **Apple-symbol lint** still scans only `velo-core`, `velo-units`, `velo-platform`.
+- **CI** runs on `main`/`master` PRs — gate for release; `dev` merges skip CI wait per workflow.
+- **Package.swift** `Ride/` exclude on executable target is intentional (compiled via `VeloSimSupport`).
+
+## Doc sync
+- Plan §3 workspace header: M5 complete (was "M5 partial").
+- Crate README milestone rows updated from "M5 partial" to "M5".
+- Shell README documents M5 Liquid Glass, builder, `.zwo`, highlight clips.
+
+## Test coverage added
+- No new tests this pass — existing M5 coverage retained (`workout_integration`, `zwo_import`, `highlight_clips`, `HighlightClipEncoderTests`).
+
+## Verification
+- `cargo test --workspace`
+- `./scripts/lint-apple-symbols.sh`
+- `./scripts/lint-shell-ui.sh`
 
 ---
 
