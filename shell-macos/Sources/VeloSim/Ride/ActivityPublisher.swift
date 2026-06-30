@@ -45,7 +45,7 @@ public final class VeloActivityPublisher: ActivityPublisherCallback, @unchecked 
     summary: RideSummaryDto
   ) -> PublishResultDto {
     let sem = DispatchSemaphore(value: 0)
-    var result: PublishResultDto?
+    let result = ResultBox()
     Task {
       defer { sem.signal() }
       do {
@@ -63,9 +63,9 @@ public final class VeloActivityPublisher: ActivityPublisherCallback, @unchecked 
         )
         let url = upload.activityId.map { "https://www.strava.com/activities/\($0)" }
           ?? "https://www.strava.com/uploads/\(upload.id)"
-        result = PublishResultDto(activityUrl: url, savedLocally: false, rideId: "")
+        result.value = PublishResultDto(activityUrl: url, savedLocally: false, rideId: "")
       } catch {
-        result = PublishResultDto(
+        result.value = PublishResultDto(
           activityUrl: "error:\(error.localizedDescription)",
           savedLocally: true,
           rideId: ""
@@ -73,12 +73,16 @@ public final class VeloActivityPublisher: ActivityPublisherCallback, @unchecked 
       }
     }
     sem.wait()
-    return result!
+    return result.value!
   }
 
   private func localOnlyMarker() -> PublishResultDto {
     PublishResultDto(activityUrl: "", savedLocally: true, rideId: "")
   }
+}
+
+private final class ResultBox: @unchecked Sendable {
+  var value: PublishResultDto?
 }
 
 /// Implements UniFFI `MediaCaptureCallback` — RGBA → PNG in Swift.
