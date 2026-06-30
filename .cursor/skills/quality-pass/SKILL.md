@@ -51,6 +51,8 @@ Quality pass progress:
 - [ ] Granular commits on dev (refactor / test / docs prefixes)
 ```
 
+Also read [rust-best-practices](../rust-best-practices/SKILL.md) and [swift-best-practices](../swift-best-practices/SKILL.md) when touching those languages.
+
 ## Priorities (high → low)
 
 1. **Correctness** — fix bugs or test gaps found during review
