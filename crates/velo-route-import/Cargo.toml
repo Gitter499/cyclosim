@@ -1,0 +1,18 @@
+[package]
+name = "velo-route-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GPX/TCX/FIT route import → RouteModel"
+
+[dependencies]
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+quick-xml = { workspace = true }
+thiserror = { workspace = true }
+velo-core = { workspace = true }
+
+[[bin]]
+name = "velo-route-import"
+path = "src/bin/velo-route-import.rs"
