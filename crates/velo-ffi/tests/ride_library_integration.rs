@@ -1,71 +1,9 @@
-use velo_ffi::{
-    ActivityPublisherCallback, MediaCaptureCallback, PublishResultDto, PublishStatus,
-    RideSummaryDto, SensorSourceCallback, TelemetrySampleDto, TrainerControlCallback, VeloHandle,
-};
+#[path = "common/mod.rs"]
+mod common;
 
-struct MockPublisher {
-    saved_locally: bool,
-    activity_url: String,
-}
+use velo_ffi::{PublishStatus, VeloHandle};
 
-impl ActivityPublisherCallback for MockPublisher {
-    fn publish_ride(
-        &self,
-        _fit_bytes: Vec<u8>,
-        _screenshot_png: Option<Vec<u8>>,
-        _summary: RideSummaryDto,
-    ) -> PublishResultDto {
-        PublishResultDto {
-            activity_url: self.activity_url.clone(),
-            saved_locally: self.saved_locally,
-            ride_id: String::new(),
-            highlight_clip_path: None,
-        }
-    }
-}
-
-struct MockMedia;
-
-impl MediaCaptureCallback for MockMedia {
-    fn encode_png_rgba(&self, _width: u32, _height: u32, _rgba_pixels: Vec<u8>) -> Vec<u8> {
-        vec![0x89, 0x50, 0x4E, 0x47]
-    }
-
-    fn encode_highlight_clip(
-        &self,
-        clips: Vec<velo_ffi::HighlightClipRequestDto>,
-        output_path: String,
-    ) -> bool {
-        if clips.is_empty() {
-            return false;
-        }
-        std::fs::write(&output_path, b"mock-mp4").is_ok()
-    }
-}
-
-struct TickSensors {
-    elapsed_ms: u64,
-}
-
-impl SensorSourceCallback for TickSensors {
-    fn poll_samples(&self) -> Vec<TelemetrySampleDto> {
-        vec![TelemetrySampleDto {
-            elapsed_ms: self.elapsed_ms,
-            power_w: Some(180.0),
-            cadence_rpm: Some(90.0),
-            heart_rate_bpm: Some(140.0),
-            wheel_speed_mps: None,
-        }]
-    }
-}
-
-struct NoopTrainer;
-
-impl TrainerControlCallback for NoopTrainer {
-    fn set_target_power(&self, _watts: f64) {}
-    fn set_simulation(&self, _grade: f64, _crr: f64, _cwa: f64) {}
-    fn stop(&self) {}
-}
+use common::{MockMedia, MockPublisher, NoopTrainer, TickSensors};
 
 #[test]
 fn finish_ride_persists_to_library() {
@@ -92,10 +30,13 @@ fn finish_ride_persists_to_library() {
     }
 
     let result = handle
-        .finish_ride_and_publish(Box::new(MockMedia), Box::new(MockPublisher {
-            saved_locally: true,
-            activity_url: "/tmp/ride-folder".into(),
-        }))
+        .finish_ride_and_publish(
+            Box::new(MockMedia),
+            Box::new(MockPublisher {
+                saved_locally: true,
+                activity_url: "/tmp/ride-folder".into(),
+            }),
+        )
         .expect("finish ride");
 
     assert!(!result.ride_id.is_empty());
@@ -159,10 +100,13 @@ fn finish_ride_plans_and_encodes_highlight_clips() {
     }
 
     let result = handle
-        .finish_ride_and_publish(Box::new(MockMedia), Box::new(MockPublisher {
-            saved_locally: true,
-            activity_url: "/tmp/ride-folder".into(),
-        }))
+        .finish_ride_and_publish(
+            Box::new(MockMedia),
+            Box::new(MockPublisher {
+                saved_locally: true,
+                activity_url: "/tmp/ride-folder".into(),
+            }),
+        )
         .expect("finish ride");
 
     let summary = handle.last_ride_summary().unwrap();

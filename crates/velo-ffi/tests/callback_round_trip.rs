@@ -1,10 +1,15 @@
 //! FFI callback wiring: sensor samples reach ride state; trainer commands echo ERG/SIM.
 
+#[path = "common/mod.rs"]
+mod common;
+
 use std::sync::{Arc, Mutex};
 
 use velo_ffi::{
-    RideMode, SensorSourceCallback, TelemetrySampleDto, TrainerControlCallback, VeloHandle,
+    RideMode, SensorSourceCallback, TelemetrySampleDto, VeloHandle,
 };
+
+use common::{NoopTrainer, RecordingTrainerCallback};
 
 struct TickSensors {
     sample: TelemetrySampleDto,
@@ -22,31 +27,6 @@ impl SensorSourceCallback for EmptySensors {
     fn poll_samples(&self) -> Vec<TelemetrySampleDto> {
         vec![TelemetrySampleDto::default()]
     }
-}
-
-struct RecordingTrainer {
-    last_power: Arc<Mutex<Option<f64>>>,
-    last_sim: Arc<Mutex<Option<(f64, f64, f64)>>>,
-}
-
-impl TrainerControlCallback for RecordingTrainer {
-    fn set_target_power(&self, watts: f64) {
-        *self.last_power.lock().unwrap() = Some(watts);
-    }
-
-    fn set_simulation(&self, grade: f64, crr: f64, cwa: f64) {
-        *self.last_sim.lock().unwrap() = Some((grade, crr, cwa));
-    }
-
-    fn stop(&self) {}
-}
-
-struct NoopTrainer;
-
-impl TrainerControlCallback for NoopTrainer {
-    fn set_target_power(&self, _: f64) {}
-    fn set_simulation(&self, _: f64, _: f64, _: f64) {}
-    fn stop(&self) {}
 }
 
 #[test]
@@ -82,7 +62,7 @@ fn erg_mode_forwards_target_power_to_trainer() {
 
     let last_power = Arc::new(Mutex::new(None));
     let last_sim = Arc::new(Mutex::new(None));
-    let trainer = RecordingTrainer {
+    let trainer = RecordingTrainerCallback {
         last_power: Arc::clone(&last_power),
         last_sim: Arc::clone(&last_sim),
     };
@@ -101,7 +81,7 @@ fn sim_mode_forwards_grade_to_trainer() {
 
     let last_power = Arc::new(Mutex::new(None));
     let last_sim = Arc::new(Mutex::new(None));
-    let trainer = RecordingTrainer {
+    let trainer = RecordingTrainerCallback {
         last_power: Arc::clone(&last_power),
         last_sim: Arc::clone(&last_sim),
     };
