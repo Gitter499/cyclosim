@@ -1,6 +1,6 @@
 # velo-render
 
-wgpu renderer — flat ground plane, chase camera, and glyphon HUD overlay. Framebuffer readback for screenshots.
+wgpu renderer — terrain mesh (route pack) or flat ground plane, chase camera along route ENU, glyphon HUD overlay.
 
 ## Key types
 
@@ -8,7 +8,8 @@ wgpu renderer — flat ground plane, chase camera, and glyphon HUD overlay. Fram
 |------|------|
 | `Renderer` | Metal surface via `from_metal_layer` (macOS); resize + `render_frame` |
 | `HudRenderer`, `HudSnapshot` | Power, cadence, HR, speed, distance, grade, mode |
-| `ChaseCamera`, `GroundMesh` | Scene pass |
+| `ChaseCamera`, `GroundMesh`, `TerrainScene` | Scene pass (flat fallback or textured terrain) |
+| `RouteFollow` | Chase camera position along loaded route |
 | `capture_framebuffer_rgba`, `FramebufferRgba` | RGBA8 readback for M2b PNG |
 | `headless_ok()` | CI placeholder on non-macOS hosts |
 
@@ -26,6 +27,6 @@ cargo test -p velo-render    # unit tests; GPU init needs macOS + Metal layer
 
 ## Milestone
 
-**M0** (surface stub) · **M2a** (HUD + ground plane) · **M2b** (screenshot capture)
+**M0** (surface stub) · **M2a** (HUD + ground plane) · **M2b** (screenshot capture) · **M3** (terrain mesh from route pack)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

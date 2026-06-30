@@ -101,10 +101,21 @@ impl Default for ChaseCamera {
 
 impl ChaseCamera {
     pub fn view_proj(&self, aspect: f32, rider_z: f32) -> Mat4 {
-        let eye = Vec3::new(0.0, self.eye_height, rider_z - self.behind);
-        let target = Vec3::new(0.0, 1.0, rider_z + self.look_ahead);
+        let rider = Vec3::new(0.0, 0.0, rider_z);
+        self.view_proj_at(aspect, rider, Vec3::Z)
+    }
+
+    pub fn view_proj_at(&self, aspect: f32, rider: Vec3, forward: Vec3) -> Mat4 {
+        let fwd = if forward.length_squared() < 1e-6 {
+            Vec3::Z
+        } else {
+            forward.normalize()
+        };
+        let behind = -fwd * self.behind;
+        let eye = rider + Vec3::Y * self.eye_height + behind;
+        let target = rider + fwd * self.look_ahead + Vec3::Y * 0.5;
         let view = Mat4::look_at_rh(eye, target, Vec3::Y);
-        let proj = Mat4::perspective_rh(60.0_f32.to_radians(), aspect, 0.1, 500.0);
+        let proj = Mat4::perspective_rh(60.0_f32.to_radians(), aspect, 0.1, 2000.0);
         proj * view
     }
 }

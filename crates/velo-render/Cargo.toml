@@ -10,6 +10,8 @@ bytemuck = { version = "1", features = ["derive"] }
 glam = { workspace = true }
 glyphon = "0.8"
 thiserror = { workspace = true }
+velo-core = { workspace = true }
+velo-terrain = { workspace = true }
 wgpu = "24"
 pollster = "0.4"
 
