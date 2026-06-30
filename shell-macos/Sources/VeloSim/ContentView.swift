@@ -14,11 +14,48 @@ struct ContentView: View {
                 .frame(minWidth: 640)
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("VeloSim M2c")
+                Text("VeloSim M3")
                     .font(.title2.bold())
 
                 Text("core v\(version())")
                     .foregroundStyle(.secondary)
+
+                GroupBox("Route (M3)") {
+                    HStack {
+                        Button("Import GPX…") {
+                            model.importGpxFile()
+                        }
+                        if model.activeRouteId != nil {
+                            Button("Clear route") {
+                                model.clearRoute()
+                            }
+                        }
+                    }
+
+                    Text(model.routeImportStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    if !model.availableRoutes.isEmpty {
+                        Picker("Active route", selection: Binding(
+                            get: { model.activeRouteId ?? "" },
+                            set: { id in
+                                if id.isEmpty {
+                                    model.clearRoute()
+                                } else {
+                                    model.selectRoute(id)
+                                }
+                            }
+                        )) {
+                            Text("None (flat)").tag("")
+                            ForEach(model.availableRoutes, id: \.routeId) { route in
+                                Text("\(route.name) (\(Int(route.totalDistanceM)) m)")
+                                    .tag(route.routeId)
+                            }
+                        }
+                    }
+                }
 
                 GroupBox("Input") {
                     Picker("Sensors", selection: Binding(
@@ -71,15 +108,21 @@ struct ContentView: View {
                     }
 
                     if model.rideMode == .sim {
-                        HStack {
-                            Text("Grade")
-                            Slider(value: Binding(
-                                get: { model.simGrade },
-                                set: { model.applySimGrade($0) }
-                            ), in: -0.08...0.12, step: 0.005)
-                            Text(String(format: "%.1f%%", model.simGrade * 100))
-                                .monospacedDigit()
-                                .frame(width: 56, alignment: .trailing)
+                        if model.activeRouteId != nil {
+                            Text(String(format: "Route grade: %.1f%%", model.rideState.grade * 100))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            HStack {
+                                Text("Grade")
+                                Slider(value: Binding(
+                                    get: { model.simGrade },
+                                    set: { model.applySimGrade($0) }
+                                ), in: -0.08...0.12, step: 0.005)
+                                Text(String(format: "%.1f%%", model.simGrade * 100))
+                                    .monospacedDigit()
+                                    .frame(width: 56, alignment: .trailing)
+                            }
                         }
                     }
 
