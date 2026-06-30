@@ -368,17 +368,29 @@ pub struct VeloHandle {
     inner: Mutex<VeloHandleInner>,
 }
 
-#[uniffi::export]
 impl VeloHandle {
-    #[uniffi::constructor]
-    pub fn new() -> Self {
+    fn with_packs_dir(packs_dir: PathBuf) -> Self {
         let mut inner = VeloHandleInner::default();
         inner.app.set_clock_unix(unix_now());
-        inner.packs_dir = default_packs_dir();
+        inner.packs_dir = packs_dir;
         inner.ride_library = RideLibrary::open(default_db_path(), default_artifacts_base()).ok();
         Self {
             inner: Mutex::new(inner),
         }
+    }
+
+    /// Integration tests only — avoids writing under `~/Documents`.
+    #[doc(hidden)]
+    pub fn with_packs_dir_for_tests(packs_dir: PathBuf) -> Self {
+        Self::with_packs_dir(packs_dir)
+    }
+}
+
+#[uniffi::export]
+impl VeloHandle {
+    #[uniffi::constructor]
+    pub fn new() -> Self {
+        Self::with_packs_dir(default_packs_dir())
     }
 
     pub fn packs_dir(&self) -> String {

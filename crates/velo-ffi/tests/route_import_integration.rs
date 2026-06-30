@@ -2,7 +2,6 @@
 
 use std::path::PathBuf;
 
-use velo_core::{default_packs_dir, pack_dir_for_id};
 use velo_ffi::VeloHandle;
 use velo_route_import::import_gpx;
 
@@ -13,11 +12,12 @@ fn fixture_gpx() -> PathBuf {
 
 #[test]
 fn set_active_route_and_list() {
-    let data = std::fs::read(fixture_gpx()).unwrap();
-    let pack_dir = pack_dir_for_id(&default_packs_dir(), "ffi-test-climb");
-    let _ = std::fs::remove_dir_all(&pack_dir);
-    std::fs::create_dir_all(pack_dir.parent().unwrap()).ok();
+    let temp = tempfile::tempdir().unwrap();
+    let packs_dir = temp.path().join("packs");
+    std::fs::create_dir_all(&packs_dir).unwrap();
+    let pack_dir = packs_dir.join("ffi-test-climb");
 
+    let data = std::fs::read(fixture_gpx()).unwrap();
     let model = import_gpx(
         &data,
         "ffi-test-climb",
@@ -35,7 +35,7 @@ fn set_active_route_and_list() {
     )
     .unwrap();
 
-    let handle = VeloHandle::new();
+    let handle = VeloHandle::with_packs_dir_for_tests(packs_dir);
     handle
         .set_active_route("ffi-test-climb".into())
         .expect("set route");
@@ -48,6 +48,4 @@ fn set_active_route_and_list() {
 
     handle.clear_active_route();
     assert!(handle.active_route_id().is_none());
-
-    let _ = std::fs::remove_dir_all(&pack_dir);
 }
