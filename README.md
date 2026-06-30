@@ -37,3 +37,9 @@ cargo test              # Rust workspace
 just lint               # Apple-symbol check
 just build && just run  # Full app (Xcode Swift + Metal)
 ```
+
+## Git history
+
+- **`initial-monolith`** tag — single commit with the full M0–M2c codebase (first import).
+- Following commits document each crate/feature (`docs(...)` messages per milestone).
+- Strava setup: [STRAVA.md](STRAVA.md).
