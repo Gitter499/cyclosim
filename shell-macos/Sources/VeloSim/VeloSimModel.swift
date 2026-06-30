@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import QuartzCore
+import UniformTypeIdentifiers
 import VeloFFI
 import VeloSimSupport
 
@@ -38,6 +39,10 @@ final class VeloSimModel: ObservableObject {
     @Published var isFinishingRide = false
     @Published var rideHistory: [RideRecordDto] = []
 
+    @Published var availableRoutes: [RouteInfoDto] = []
+    @Published var activeRouteId: String?
+    @Published var routeImportStatus: String = ""
+
     private var tickTimer: Timer?
     private var rideStore: LocalRideStoreHandle?
 
@@ -53,6 +58,7 @@ final class VeloSimModel: ObservableObject {
             rideStore = LocalRideStore.open(library: library)
         }
         refreshRideHistory()
+        refreshRoutes()
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor in
@@ -92,7 +98,62 @@ final class VeloSimModel: ObservableObject {
 
     func applySimGrade(_ grade: Double) {
         simGrade = grade
-        handle.setGrade(grade: grade)
+        if activeRouteId == nil {
+            handle.setGrade(grade: grade)
+        }
+    }
+
+    func refreshRoutes() {
+        availableRoutes = (try? handle.listRoutes()) ?? []
+        activeRouteId = handle.activeRouteId()
+    }
+
+    func selectRoute(_ routeId: String) {
+        do {
+            try handle.setActiveRoute(routeId: routeId)
+            activeRouteId = routeId
+            routeImportStatus = "Riding: \(routeId)"
+            rideState = handle.rideState()
+            simGrade = rideState.grade
+        } catch {
+            routeImportStatus = "Failed to load route: \(error)"
+        }
+    }
+
+    func clearRoute() {
+        handle.clearActiveRoute()
+        activeRouteId = nil
+        routeImportStatus = "Flat plane (no route)"
+        refreshRoutes()
+    }
+
+    func importGpxFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "gpx") ?? .xml]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select a GPX route file"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let routeId = url.deletingPathExtension().lastPathComponent
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        routeImportStatus = "Importing \(routeId)…"
+
+        do {
+            try handle.importGpxRoute(
+                gpxPath: url.path,
+                routeId: routeId,
+                name: url.deletingPathExtension().lastPathComponent
+            )
+            activeRouteId = routeId
+            routeImportStatus = "Imported \(routeId)"
+            refreshRoutes()
+            rideState = handle.rideState()
+            simGrade = rideState.grade
+        } catch {
+            routeImportStatus = "Import failed: \(error)"
+        }
     }
 
     func setSensorMode(_ mode: SensorInputMode) {
