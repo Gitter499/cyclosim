@@ -27,7 +27,7 @@ cargo build --release -p velo-ffi
 just bindgen    # regenerate Swift stubs
 ```
 
-Integration: `tests/ride_library_integration.rs`.
+Integration: `tests/callback_round_trip.rs`, `tests/ride_library_integration.rs`.
 
 ## Milestone
 

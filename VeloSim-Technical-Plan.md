@@ -90,21 +90,24 @@ control are proven. Mesh is permanent (it's the terrain), splats are an overlay 
 
 Cargo workspace. The Xcode project links the produced static lib + generated UniFFI bindings.
 
+**Current workspace (M0–M2c):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
+
 ```
 cyclosim/                           # repo root (git: cyclosim; product: VeloSim)
 ├── Cargo.toml                      # workspace
 ├── crates/
-│   ├── velo-core/                  # sim, physics, route model, workout engine, HUD state, scene graph
+│   ├── velo-core/                  # sim, physics, route model, workout engine, ride state, scene graph
 │   ├── velo-platform/              # TRAITS ONLY: TrainerControl, SensorSource, AudioDirector, …
 │   ├── velo-render/                # wgpu renderer: terrain pass, splat pass, foreground-object pass, HUD overlay
-│   ├── velo-cesium/                # `cxx` bridge to Cesium Native (C++): 3D Tiles streaming/LOD/glTF decode
-│   ├── velo-units/                 # newtype units (Watts, Meters, Grade, MetersPerSecond, …)
-│   ├── velo-route-import/          # GPX/TCX/FIT/RWGPS → RouteModel (lib + thin CLI)
+│   ├── velo-fit/                   # FIT activity encoder (M2b)
 │   ├── velo-rides/                 # ride library: SQLite catalog + on-disk artifact paths (FIT, PNG, clips)
-│   ├── velo-terrain/               # raster tiles + Terrain-RGB → TerrainTile mesh (lib + CLI)
-│   ├── velo-splatbake/             # "VeloSplatBake" offline GS bake (CLI) — heaviest, slowest
-│   ├── velo-bikegen/               # bike import: 2D images → image-to-3D → glTF asset (lib + CLI)
-│   └── velo-ffi/                   # UniFFI surface: exposes core+render to Swift
+│   ├── velo-ffi/                   # UniFFI surface: exposes core+render to Swift
+│   ├── velo-cesium/                # *planned* `cxx` bridge to Cesium Native (C++): 3D Tiles streaming/LOD/glTF decode
+│   ├── velo-units/                 # newtype units (Watts, Meters, Grade, MetersPerSecond, …)
+│   ├── velo-route-import/          # *planned* GPX/TCX/FIT/RWGPS → RouteModel (lib + thin CLI)
+│   ├── velo-terrain/               # *planned* raster tiles + Terrain-RGB → TerrainTile mesh (lib + CLI)
+│   ├── velo-splatbake/             # *planned* "VeloSplatBake" offline GS bake (CLI) — heaviest, slowest
+│   └── velo-bikegen/               # *planned* bike import: 2D images → image-to-3D → glTF asset (lib + CLI)
 ├── shell-macos/                    # Xcode project (Swift): UI, CoreBluetooth, MusicKit, AirPods
 │   └── …
 └── assets/
@@ -567,7 +570,7 @@ CoreBluetooth FTMS, wgpu flat plane + HUD, Fake/Replay/BLE sensor modes, ERG/SIM
 **M2b — FIT + Strava + screenshot (done).**
 Ride session recording, `velo-fit` export, framebuffer PNG, Strava OAuth/upload or local save.
 
-**M2c — Ride library (internal database).**
+**M2c — Ride library (internal database) (done).**
 `velo-rides` SQLite catalog; migrate publish/save flow off ad-hoc folders; UniFFI list/get/delete; minimal ride history UI.
 *Done when:* every finished ride is indexed in the DB with metadata and artifact paths; history list shows past rides; `LocalRideStore` delegates to `velo-rides`.
 
