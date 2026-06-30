@@ -44,6 +44,7 @@ pub struct RideRecord {
     pub max_power_w: Option<f64>,
     pub fit_path: String,
     pub screenshot_path: Option<String>,
+    pub highlight_clip_path: Option<String>,
     pub strava_activity_id: Option<String>,
     pub publish_status: PublishStatus,
     pub route_id: Option<String>,
@@ -58,6 +59,7 @@ pub struct NewRideRecord {
     pub max_power_w: Option<f64>,
     pub fit_path: String,
     pub screenshot_path: Option<String>,
+    pub highlight_clip_path: Option<String>,
     pub strava_activity_id: Option<String>,
     pub publish_status: PublishStatus,
     pub route_id: Option<String>,
@@ -131,6 +133,26 @@ impl RideLibrary {
         })
     }
 
+    /// Write highlight MP4 under an existing ride directory.
+    pub fn save_highlight_clip(
+        ride_dir: &Path,
+        mp4_bytes: &[u8],
+    ) -> Result<PathBuf> {
+        let path = ride_dir.join("highlight.mp4");
+        fs::write(&path, mp4_bytes)?;
+        Ok(path)
+    }
+
+    pub fn update_highlight_clip_path(&self, id: &str, path: &str) -> Result<()> {
+        validate_ride_id(id)?;
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE rides SET highlight_clip_path = ?1 WHERE id = ?2",
+            params![path, id],
+        )?;
+        Ok(())
+    }
+
     pub fn insert_ride(&self, record: NewRideRecord) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let conn = self.conn.lock().unwrap();
@@ -139,8 +161,8 @@ impl RideLibrary {
             INSERT INTO rides (
                 id, started_at_unix, elapsed_s, distance_m,
                 avg_power_w, max_power_w, fit_path, screenshot_path,
-                strava_activity_id, publish_status, route_id
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                highlight_clip_path, strava_activity_id, publish_status, route_id
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
             "#,
             params![
                 id,
@@ -151,6 +173,7 @@ impl RideLibrary {
                 record.max_power_w,
                 record.fit_path,
                 record.screenshot_path,
+                record.highlight_clip_path,
                 record.strava_activity_id,
                 record.publish_status.as_str(),
                 record.route_id,
@@ -168,8 +191,8 @@ impl RideLibrary {
             INSERT INTO rides (
                 id, started_at_unix, elapsed_s, distance_m,
                 avg_power_w, max_power_w, fit_path, screenshot_path,
-                strava_activity_id, publish_status, route_id
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                highlight_clip_path, strava_activity_id, publish_status, route_id
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
             "#,
             params![
                 id,
@@ -180,6 +203,7 @@ impl RideLibrary {
                 record.max_power_w,
                 record.fit_path,
                 record.screenshot_path,
+                record.highlight_clip_path,
                 record.strava_activity_id,
                 record.publish_status.as_str(),
                 record.route_id,
@@ -194,7 +218,7 @@ impl RideLibrary {
             r#"
             SELECT id, started_at_unix, elapsed_s, distance_m,
                    avg_power_w, max_power_w, fit_path, screenshot_path,
-                   strava_activity_id, publish_status, route_id
+                   highlight_clip_path, strava_activity_id, publish_status, route_id
             FROM rides
             ORDER BY started_at_unix DESC, created_at_unix DESC
             "#,
@@ -211,7 +235,7 @@ impl RideLibrary {
             r#"
             SELECT id, started_at_unix, elapsed_s, distance_m,
                    avg_power_w, max_power_w, fit_path, screenshot_path,
-                   strava_activity_id, publish_status, route_id
+                   highlight_clip_path, strava_activity_id, publish_status, route_id
             FROM rides WHERE id = ?1
             "#,
         )?;
@@ -251,7 +275,7 @@ fn validate_ride_id(id: &str) -> Result<()> {
 }
 
 fn row_to_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<RideRecord> {
-    let status_str: String = row.get(9)?;
+    let status_str: String = row.get(10)?;
     let publish_status = PublishStatus::from_str(&status_str).unwrap_or(PublishStatus::Local);
     Ok(RideRecord {
         id: row.get(0)?,
@@ -262,8 +286,9 @@ fn row_to_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<RideRecord> {
         max_power_w: row.get(5)?,
         fit_path: row.get(6)?,
         screenshot_path: row.get(7)?,
-        strava_activity_id: row.get(8)?,
+        highlight_clip_path: row.get(8)?,
+        strava_activity_id: row.get(9)?,
         publish_status,
-        route_id: row.get(10)?,
+        route_id: row.get(11)?,
     })
 }

@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use crate::error::Result;
 
-pub const SCHEMA_VERSION: i32 = 1;
+pub const SCHEMA_VERSION: i32 = 2;
 
 pub const CREATE_RIDES_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS rides (
@@ -45,6 +45,25 @@ pub fn migrate(conn: &Connection) -> Result<()> {
     if current < 1 {
         conn.execute_batch(CREATE_RIDES_TABLE)?;
         conn.execute_batch(CREATE_INDEX_STARTED)?;
+        conn.execute("DELETE FROM schema_version", [])?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            [1],
+        )?;
+    }
+
+    let current: i32 = conn
+        .query_row(
+            "SELECT COALESCE((SELECT version FROM schema_version LIMIT 1), 0)",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if current < 2 {
+        conn.execute_batch(
+            "ALTER TABLE rides ADD COLUMN highlight_clip_path TEXT;",
+        )?;
         conn.execute("DELETE FROM schema_version", [])?;
         conn.execute(
             "INSERT INTO schema_version (version) VALUES (?1)",

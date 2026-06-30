@@ -20,6 +20,7 @@ pub fn sample_record(fit_path: &str) -> NewRideRecord {
         max_power_w: Some(250.0),
         fit_path: fit_path.to_string(),
         screenshot_path: None,
+        highlight_clip_path: None,
         strava_activity_id: None,
         publish_status: PublishStatus::Local,
         route_id: None,

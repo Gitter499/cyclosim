@@ -24,6 +24,7 @@ fn insert_and_list_newest_first() {
             max_power_w: Some(200.0),
             fit_path: artifacts.fit_path.display().to_string(),
             screenshot_path: None,
+            highlight_clip_path: None,
             strava_activity_id: None,
             publish_status: PublishStatus::Local,
             route_id: None,
@@ -45,6 +46,7 @@ fn insert_and_list_newest_first() {
                 .screenshot_path
                 .as_ref()
                 .map(|p| p.display().to_string()),
+            highlight_clip_path: None,
             strava_activity_id: Some("12345".into()),
             publish_status: PublishStatus::Strava,
             route_id: None,

@@ -50,6 +50,7 @@ fn encoded_fit_round_trips_through_library_artifacts() {
             max_power_w: Some(182.0),
             fit_path: artifacts.fit_path.display().to_string(),
             screenshot_path: None,
+            highlight_clip_path: None,
             strava_activity_id: None,
             publish_status: PublishStatus::Local,
             route_id: None,
