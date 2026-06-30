@@ -7,6 +7,7 @@ let supportExclude = [
     "VeloSimApp.swift",
     "ContentView.swift",
     "VeloSimModel.swift",
+    "WorkoutBuilderView.swift",
     "BLE",
     "Strava/StravaAuthCoordinator.swift",
 ]

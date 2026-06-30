@@ -128,6 +128,13 @@ final class VeloSimModel: ObservableObject {
         rideMode = .erg
     }
 
+    func startCustomWorkout(_ workout: WorkoutDto) throws {
+        try handle.startWorkout(workout: workout)
+        workoutLive = handle.workoutLive()
+        workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
+        rideMode = .erg
+    }
+
     func clearWorkout() {
         handle.clearWorkout()
         workoutLive = handle.workoutLive()

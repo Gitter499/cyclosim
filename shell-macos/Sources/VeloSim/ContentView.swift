@@ -145,42 +145,7 @@ struct ContentView: View {
                             .frame(width: 56, alignment: .trailing)
                     }
 
-                    HStack {
-                        Button("Start 2×20 Threshold") {
-                            model.startSampleWorkout()
-                        }
-                        .disabled(model.workoutLive.active)
-
-                        if model.workoutLive.active {
-                            Button("Clear workout") {
-                                model.clearWorkout()
-                            }
-                        }
-                    }
-
-                    Text(model.workoutStatus)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if model.workoutLive.active {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(model.workoutLive.intervalName)
-                                .font(.headline)
-                            if let target = model.workoutLive.targetWatts {
-                                Text("Target: \(Int(target)) W")
-                            } else {
-                                Text("Target: Free ride")
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(String(
-                                format: "Interval: %.0f s · Workout: %.0f s",
-                                model.workoutLive.intervalElapsedS,
-                                model.workoutLive.workoutElapsedS
-                            ))
-                            .font(.caption)
-                            .monospacedDigit()
-                        }
-                    }
+                    WorkoutBuilderView(model: model)
                 }
 
                 GroupBox("Ride mode") {
