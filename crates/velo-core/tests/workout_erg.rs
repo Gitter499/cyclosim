@@ -2,33 +2,8 @@
 
 use std::time::Duration;
 use velo_core::{RideMode, VeloApp, Workout, WorkoutInterval, WorkoutTarget};
-use velo_platform::{MockSensorSource, TrainerControl, TelemetrySample};
-use velo_units::{Watts};
-
-struct RecordingTrainer {
-    last: std::sync::Mutex<Option<f64>>,
-}
-
-impl TrainerControl for RecordingTrainer {
-    fn set_target_power(&self, watts: Watts) {
-        *self.last.lock().unwrap() = Some(watts.0);
-    }
-    fn set_simulation(
-        &self,
-        _: velo_units::Grade,
-        _: f32,
-        _: f32,
-    ) {
-    }
-    fn stop(&self) {}
-    fn capabilities(&self) -> velo_platform::TrainerCaps {
-        velo_platform::TrainerCaps {
-            erg: true,
-            sim: true,
-            max_watts: 2000,
-        }
-    }
-}
+use velo_platform::{MockSensorSource, RecordingTrainerControl, TelemetrySample};
+use velo_units::Watts;
 
 #[test]
 fn workout_advances_erg_target_during_ride() {
@@ -51,9 +26,7 @@ fn workout_advances_erg_target_during_ride() {
     });
 
     let mut sensors = MockSensorSource::default();
-    let trainer = RecordingTrainer {
-        last: std::sync::Mutex::new(None),
-    };
+    let trainer = RecordingTrainerControl::default();
 
     for _ in 0..100 {
         sensors.push(TelemetrySample {
@@ -65,11 +38,11 @@ fn workout_advances_erg_target_during_ride() {
         });
         app.tick(&mut sensors, &trainer);
     }
-    assert_eq!(*trainer.last.lock().unwrap(), Some(100.0));
+    assert_eq!(trainer.last_power(), Some(Watts::new(100.0)));
 
     for _ in 0..100 {
         app.tick(&mut sensors, &trainer);
     }
-    assert_eq!(*trainer.last.lock().unwrap(), Some(250.0));
+    assert_eq!(trainer.last_power(), Some(Watts::new(250.0)));
     assert_eq!(app.ride.mode, RideMode::Erg);
 }

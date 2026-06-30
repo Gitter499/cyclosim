@@ -1,6 +1,6 @@
 # velo-rides
 
-SQLite ride library — metadata catalog with on-disk artifact paths (FIT, PNG). Replaces ad-hoc folder saves from M2b.
+SQLite ride library — metadata catalog with on-disk artifact paths (FIT, PNG, highlight MP4). Replaces ad-hoc folder saves from M2b.
 
 ## Key types
 
@@ -12,7 +12,7 @@ SQLite ride library — metadata catalog with on-disk artifact paths (FIT, PNG).
 | `PublishStatus` | `Local` / `Strava` / `Failed` |
 | `default_db_path`, `default_artifacts_base` | `~/Documents/VeloSim/` defaults |
 
-Schema in `schema.rs`; migrations in `store.rs`.
+Schema v2 in `schema.rs` (adds `highlight_clip_path`); migrations in `store.rs` / `schema::migrate`.
 
 ## Dependencies
 
@@ -23,11 +23,11 @@ Schema in `schema.rs`; migrations in `store.rs`.
 ## Test
 
 ```bash
-cargo test -p velo-rides    # schema, insert/query, migration, edge cases, FIT artifacts
+cargo test -p velo-rides    # schema, insert/query, v1→v2 migration, edge cases, FIT artifacts
 ```
 
 ## Milestone
 
-**M2c** (ride history DB)
+**M2c** (ride history DB) · **M5** (`highlight_clip_path`, schema v2 migration)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

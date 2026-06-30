@@ -1,33 +1,13 @@
 //! Integration: ride along imported route; grade from route affects physics.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Duration;
 
-use velo_platform::{MockSensorSource, TelemetrySample, TrainerControl};
+use velo_platform::{MockSensorSource, RecordingTrainerControl, TelemetrySample};
 use velo_route_import::{import_gpx, DEFAULT_GRADE_WINDOW_M, DEFAULT_SPACING_M};
-use velo_units::{Grade, Watts};
+use velo_units::Watts;
 
 use velo_core::{RideMode, VeloApp};
-
-struct GradeRecordingTrainer {
-    grades: Mutex<Vec<f64>>,
-}
-
-impl TrainerControl for GradeRecordingTrainer {
-    fn set_target_power(&self, _: Watts) {}
-    fn set_simulation(&self, grade: Grade, _: f32, _: f32) {
-        self.grades.lock().unwrap().push(grade.0);
-    }
-    fn stop(&self) {}
-    fn capabilities(&self) -> velo_platform::TrainerCaps {
-        velo_platform::TrainerCaps {
-            erg: true,
-            sim: true,
-            max_watts: 2000,
-        }
-    }
-}
 
 fn fixture_gpx() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -51,9 +31,7 @@ fn route_grade_drives_sim_and_physics() {
     app.load_route(route);
 
     let mut sensors = MockSensorSource::default();
-    let trainer = GradeRecordingTrainer {
-        grades: Mutex::new(Vec::new()),
-    };
+    let trainer = RecordingTrainerControl::default();
 
     for _ in 0..2000 {
         sensors.push(TelemetrySample {
@@ -72,6 +50,6 @@ fn route_grade_drives_sim_and_physics() {
         "expected positive grade on climb, got {}",
         app.ride.grade
     );
-    let grades = trainer.grades.lock().unwrap();
+    let grades = trainer.sim_grades();
     assert!(grades.iter().any(|&g| g > 0.02));
 }

@@ -274,33 +274,8 @@ impl Default for VeloApp {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use velo_platform::MockSensorSource;
+    use velo_platform::{MockSensorSource, RecordingTrainerControl};
     use velo_units::{Bpm, Rpm};
-
-    struct RecordingTrainer {
-        last: std::sync::Mutex<Option<f64>>,
-    }
-
-    impl TrainerControl for RecordingTrainer {
-        fn set_target_power(&self, watts: Watts) {
-            *self.last.lock().unwrap() = Some(watts.0);
-        }
-        fn set_simulation(
-            &self,
-            _: velo_units::Grade,
-            _: f32,
-            _: f32,
-        ) {
-        }
-        fn stop(&self) {}
-        fn capabilities(&self) -> velo_platform::TrainerCaps {
-            velo_platform::TrainerCaps {
-                erg: true,
-                sim: true,
-                max_watts: 2000,
-            }
-        }
-    }
 
     #[test]
     fn toggle_increments_counter() {
@@ -322,12 +297,10 @@ mod tests {
             heart_rate: Some(Bpm::new(140.0)),
             wheel_speed: None,
         });
-        let trainer = RecordingTrainer {
-            last: std::sync::Mutex::new(None),
-        };
+        let trainer = RecordingTrainerControl::default();
         app.tick(&mut sensors, &trainer);
         assert_eq!(app.ride.power_w, Some(198.0));
-        assert_eq!(*trainer.last.lock().unwrap(), Some(200.0));
+        assert_eq!(trainer.last_power(), Some(Watts::new(200.0)));
         assert!(app.ride.distance_m > 0.0);
     }
 
@@ -338,9 +311,7 @@ mod tests {
         app.set_target_power(200.0);
         app.start_ride();
         let mut sensors = MockSensorSource::default();
-        let trainer = RecordingTrainer {
-            last: std::sync::Mutex::new(None),
-        };
+        let trainer = RecordingTrainerControl::default();
         for _ in 0..100 {
             sensors.push(TelemetrySample {
                 elapsed: Duration::from_millis(0),

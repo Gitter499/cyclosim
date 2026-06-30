@@ -49,7 +49,8 @@ final class RideFlowTests: XCTestCase {
             sampleCount: 5,
             avgPowerW: 180,
             maxPowerW: 200,
-            startedAtUnix: 1_700_000_000
+            startedAtUnix: 1_700_000_000,
+            highlightClips: []
         )
         let result = publisher.publishRide(
             fitBytes: Data([0x0E, 0x10, 0x5E, 0x01]),

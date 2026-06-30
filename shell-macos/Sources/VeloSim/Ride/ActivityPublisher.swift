@@ -63,12 +63,13 @@ public final class VeloActivityPublisher: ActivityPublisherCallback, @unchecked 
         )
         let url = upload.activityId.map { "https://www.strava.com/activities/\($0)" }
           ?? "https://www.strava.com/uploads/\(upload.id)"
-        result.value = PublishResultDto(activityUrl: url, savedLocally: false, rideId: "")
+        result.value = PublishResultDto(activityUrl: url, savedLocally: false, rideId: "", highlightClipPath: nil)
       } catch {
         result.value = PublishResultDto(
           activityUrl: "error:\(error.localizedDescription)",
           savedLocally: true,
-          rideId: ""
+          rideId: "",
+          highlightClipPath: nil
         )
       }
     }
@@ -77,7 +78,7 @@ public final class VeloActivityPublisher: ActivityPublisherCallback, @unchecked 
   }
 
   private func localOnlyMarker() -> PublishResultDto {
-    PublishResultDto(activityUrl: "", savedLocally: true, rideId: "")
+    PublishResultDto(activityUrl: "", savedLocally: true, rideId: "", highlightClipPath: nil)
   }
 }
 
@@ -85,8 +86,10 @@ private final class ResultBox: @unchecked Sendable {
   var value: PublishResultDto?
 }
 
-/// Implements UniFFI `MediaCaptureCallback` — RGBA → PNG in Swift.
+/// Implements UniFFI `MediaCaptureCallback` — RGBA → PNG and highlight clip encode.
 public final class VeloMediaCapture: MediaCaptureCallback, @unchecked Sendable {
+  public let ringBuffer = FrameRingBuffer()
+
   public init() {}
 
   public func encodePngRgba(width: UInt32, height: UInt32, rgbaPixels: Data) -> Data {
@@ -95,5 +98,43 @@ public final class VeloMediaCapture: MediaCaptureCallback, @unchecked Sendable {
       height: Int(height),
       rgba: rgbaPixels
     )) ?? Data()
+  }
+
+  public func encodeHighlightClip(clips: [HighlightClipRequestDto], outputPath: String) -> Bool {
+    let captured = ringBuffer.frames(for: clips)
+    guard !captured.isEmpty else { return false }
+
+    var encodeFrames: [HighlightClipEncoder.Frame] = []
+    for entry in captured {
+      encodeFrames.append(
+        HighlightClipEncoder.Frame(
+          width: entry.width,
+          height: entry.height,
+          rgba: entry.rgba
+        )
+      )
+    }
+    if encodeFrames.isEmpty, let last = captured.last {
+      encodeFrames.append(
+        HighlightClipEncoder.Frame(
+          width: last.width,
+          height: last.height,
+          rgba: last.rgba
+        )
+      )
+    }
+
+    let url = URL(fileURLWithPath: outputPath)
+    do {
+      try HighlightClipEncoder.encode(
+        frames: encodeFrames,
+        fps: HighlightClipEncoder.defaultFps,
+        outputURL: url
+      )
+      ringBuffer.reset()
+      return FileManager.default.fileExists(atPath: outputPath)
+    } catch {
+      return false
+    }
   }
 }

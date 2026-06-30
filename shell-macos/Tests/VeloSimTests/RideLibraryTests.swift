@@ -92,12 +92,16 @@ private final class LocalOnlyPublisher: ActivityPublisherCallback, @unchecked Se
         screenshotPng: Data?,
         summary: RideSummaryDto
     ) -> PublishResultDto {
-        PublishResultDto(activityUrl: "", savedLocally: true, rideId: "")
+        PublishResultDto(activityUrl: "", savedLocally: true, rideId: "", highlightClipPath: nil)
     }
 }
 
 private final class PassthroughMedia: MediaCaptureCallback, @unchecked Sendable {
     func encodePngRgba(width: UInt32, height: UInt32, rgbaPixels: Data) -> Data {
         Data([0x89, 0x50, 0x4E, 0x47])
+    }
+
+    func encodeHighlightClip(clips: [HighlightClipRequestDto], outputPath: String) -> Bool {
+        false
     }
 }

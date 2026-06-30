@@ -265,6 +265,13 @@ typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod0)(uint64_t, uin
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD1
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK_METHOD1
+typedef void (*UniffiCallbackInterfaceMediaCaptureCallbackMethod1)(uint64_t, RustBuffer, RustBuffer, int8_t* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_SENSOR_SOURCE_CALLBACK_METHOD0
 typedef void (*UniffiCallbackInterfaceSensorSourceCallbackMethod0)(uint64_t, RustBuffer* _Nonnull, 
@@ -305,6 +312,7 @@ typedef struct UniffiVTableCallbackInterfaceActivityPublisherCallback {
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MEDIA_CAPTURE_CALLBACK
 typedef struct UniffiVTableCallbackInterfaceMediaCaptureCallback {
     UniffiCallbackInterfaceMediaCaptureCallbackMethod0 _Nonnull encodePngRgba;
+    UniffiCallbackInterfaceMediaCaptureCallbackMethod1 _Nonnull encodeHighlightClip;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceMediaCaptureCallback;
 
@@ -559,6 +567,11 @@ void uniffi_velo_ffi_fn_method_velohandle_start_ride(void*_Nonnull ptr, RustCall
 void uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_WORKOUT
+void uniffi_velo_ffi_fn_method_velohandle_start_workout(void*_Nonnull ptr, RustBuffer workout, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_stop_ride(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -617,6 +630,11 @@ void uniffi_velo_ffi_fn_init_callback_vtable_sensorsourcecallback(const UniffiVT
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_TRAINERCONTROLCALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_TRAINERCONTROLCALLBACK
 void uniffi_velo_ffi_fn_init_callback_vtable_trainercontrolcallback(const UniffiVTableCallbackInterfaceTrainerControlCallback* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_PARSE_ZWO_XML
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_PARSE_ZWO_XML
+RustBuffer uniffi_velo_ffi_fn_func_parse_zwo_xml(RustBuffer xml, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_VERSION
@@ -905,6 +923,12 @@ void ffi_velo_ffi_rust_future_free_void(uint64_t handle
 void ffi_velo_ffi_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_PARSE_ZWO_XML
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_PARSE_ZWO_XML
+uint16_t uniffi_velo_ffi_checksum_func_parse_zwo_xml(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_VERSION
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_VERSION
 uint16_t uniffi_velo_ffi_checksum_func_version(void
@@ -1145,6 +1169,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_WORKOUT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_workout(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_STOP_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_STOP_RIDE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_stop_ride(void
@@ -1220,6 +1250,12 @@ uint16_t uniffi_velo_ffi_checksum_method_activitypublishercallback_publish_ride(
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_PNG_RGBA
 uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_png_rgba(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_HIGHLIGHT_CLIP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_MEDIACAPTURECALLBACK_ENCODE_HIGHLIGHT_CLIP
+uint16_t uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_highlight_clip(void
     
 );
 #endif

@@ -35,6 +35,7 @@ final class VeloSimModel: ObservableObject {
     @Published var isRideRecording = false
     @Published var lastRideSummary: RideSummaryDto?
     @Published var lastPublishResult: PublishResultDto?
+    @Published var showRideSummarySheet = false
     @Published var rideFlowStatus: String = "idle"
     @Published var isFinishingRide = false
     @Published var rideHistory: [RideRecordDto] = []
@@ -123,6 +124,13 @@ final class VeloSimModel: ObservableObject {
 
     func startSampleWorkout() {
         handle.startSampleWorkout()
+        workoutLive = handle.workoutLive()
+        workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
+        rideMode = .erg
+    }
+
+    func startCustomWorkout(_ workout: WorkoutDto) throws {
+        try handle.startWorkout(workout: workout)
         workoutLive = handle.workoutLive()
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
@@ -268,6 +276,7 @@ final class VeloSimModel: ObservableObject {
 
     func startRide() {
         guard !isRideRecording else { return }
+        mediaCapture.ringBuffer.reset()
         handle.startRide()
         isRideRecording = handle.isRideRecording()
         lastPublishResult = nil
@@ -277,7 +286,7 @@ final class VeloSimModel: ObservableObject {
     func stopRideAndPublish() {
         guard isRideRecording, !isFinishingRide else { return }
         isFinishingRide = true
-        rideFlowStatus = "exporting FIT + screenshot…"
+        rideFlowStatus = "exporting FIT + highlight…"
 
         Task { @MainActor in
             defer { isFinishingRide = false }
@@ -288,6 +297,7 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                showRideSummarySheet = lastRideSummary != nil
                 isRideRecording = handle.isRideRecording()
                 rideFlowStatus = result.savedLocally
                     ? "saved locally"
@@ -340,6 +350,14 @@ final class VeloSimModel: ObservableObject {
     func renderFrame() {
         guard rendererReady else { return }
         try? handle.renderFrame()
+        guard isRideRecording else { return }
+        guard let fb = try? handle.captureFramebufferRgba() else { return }
+        mediaCapture.ringBuffer.maybeCapture(
+            elapsedS: rideState.elapsedS,
+            width: Int(fb.width),
+            height: Int(fb.height),
+            rgba: fb.rgbaPixels
+        )
     }
 
     func handleOAuthCallback(url: URL) {
@@ -354,6 +372,36 @@ final class VeloSimModel: ObservableObject {
         } else {
             rideStore?.openInFinder(record)
         }
+    }
+
+    func dismissRideSummary() {
+        showRideSummarySheet = false
+    }
+
+    func openHighlightClip() {
+        guard let path = lastPublishResult?.highlightClipPath, !path.isEmpty else { return }
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func revealHighlightClipInFinder() {
+        guard let path = lastPublishResult?.highlightClipPath, !path.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+    }
+
+    func openLastRideActivity() {
+        guard let pub = lastPublishResult else { return }
+        let urlString = pub.activityUrl
+        if RideSummaryFormatting.isWebActivityURL(urlString), let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        if !urlString.isEmpty, !urlString.hasPrefix("error:") {
+            NSWorkspace.shared.open(URL(fileURLWithPath: urlString, isDirectory: true))
+            return
+        }
+        NSWorkspace.shared.open(LocalRideStore.ridesDirectory)
     }
 
     func refreshRideHistory() {
