@@ -2,20 +2,35 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
+    branches: [main, master, dev]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  rust:
+  test:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
-      - name: Test
-        run: cargo test
+
+      - name: Rust workspace tests
+        run: cargo test --workspace
+
+      - name: Build UniFFI library
+        run: cargo build --release -p velo-ffi
+
       - name: Swift tests
-        run: |
-          cargo build --release -p velo-ffi
-          cd shell-macos && swift test
+        run: cd shell-macos && swift test
+
       - name: Apple symbol lint
         run: ./scripts/lint-apple-symbols.sh
+
+      - name: Route import CLI smoke test
+        run: |
+          cargo build -p velo-route-import --bin velo-route-import
+          cargo build -p velo-terrain --bin velo-terrain

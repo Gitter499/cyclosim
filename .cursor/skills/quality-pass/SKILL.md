@@ -20,10 +20,13 @@ Post-milestone cleanup agent. Consumes the **entire** codebase and restores cohe
 
 ```bash
 git checkout dev
-git merge main   # if main moved ahead
-# … quality pass commits …
-# PR dev → main when green
+git pull origin dev
+git checkout -b feat/issue-N-short-name
+# … work …
+# Open PR to dev; use "Closes #N" in body
 ```
+
+After milestone merges to `dev`, run a quality pass before opening `dev` → `main`.
 
 ## Pass checklist
 

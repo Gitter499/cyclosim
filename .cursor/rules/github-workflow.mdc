@@ -1,0 +1,26 @@
+---
+description: GitHub issues and PRs for all VeloSim work
+alwaysApply: true
+---
+
+# GitHub workflow
+
+All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and pull requests.
+
+## Branching
+
+- **`dev`**: integration branch; open PRs here.
+- **`main`**: stable releases; merge from `dev` via PR when a milestone batch is ready.
+- Feature branches: `feat/issue-N-short-name` or `chore/...` from latest `dev`.
+
+## Pull requests
+
+- One milestone or focused change per PR.
+- Title references the issue: `feat: M3b Cesium tile streaming (#7)`.
+- Body includes `Closes #N` when the PR completes an issue.
+- Granular commits on the branch; CI must pass before merge.
+
+## Agents
+
+- Read [AGENTS.md](../../AGENTS.md) and [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md).
+- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](../skills/quality-pass/SKILL.md).
