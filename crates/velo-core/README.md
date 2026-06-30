@@ -10,6 +10,8 @@ Simulation core — physics integrator, ride state machine, session recording, s
 | `ride` | `RideMode` (Free/ERG/SIM), live `RideState` |
 | `ride_session` | Sample buffer, `RideSummary`, start/stop lifecycle |
 | `workout` | `WorkoutEngine`, interval timeline, ERG target resolution (M5) |
+| `steering` | Deadzone, smoothing, yaw offset from `SteeringInput` (M6) |
+| `audio` | Interval → `SegmentEnergy` mapping for `AudioDirector` (M6) |
 | `zwo` | Zwift `.zwo` XML → `Workout` (M5) |
 | `highlight` | `plan_highlight_clips` — post-ride moment windows (M5) |
 | `route` / `packs` | `RouteModel`, route packs, scenery config |

@@ -159,6 +159,69 @@ impl TrainerControl for RecordingTrainerControl {
     }
 }
 
+/// Fixed-axis steering for headless tests.
+#[derive(Debug, Default)]
+pub struct MockSteeringInput {
+    axis: Mutex<f32>,
+    recenter: Mutex<bool>,
+}
+
+impl MockSteeringInput {
+    pub fn with_axis(axis: f32) -> Self {
+        Self {
+            axis: Mutex::new(axis),
+            recenter: Mutex::new(false),
+        }
+    }
+
+    pub fn recenter() -> Self {
+        Self {
+            axis: Mutex::new(0.0),
+            recenter: Mutex::new(true),
+        }
+    }
+
+    pub fn set_axis(&self, axis: f32) {
+        *self.axis.lock().unwrap() = axis;
+        *self.recenter.lock().unwrap() = false;
+    }
+}
+
+impl SteeringInput for MockSteeringInput {
+    fn poll(&self) -> SteerState {
+        SteerState {
+            axis: *self.axis.lock().unwrap(),
+            recenter: *self.recenter.lock().unwrap(),
+        }
+    }
+}
+
+/// Records segment notifications for workout audio tests.
+#[derive(Default, Debug)]
+pub struct RecordingAudioDirector {
+    calls: Mutex<Vec<(SegmentEnergy, PlaybackIntent)>>,
+}
+
+impl RecordingAudioDirector {
+    pub fn calls(&self) -> Vec<(SegmentEnergy, PlaybackIntent)> {
+        self.calls.lock().unwrap().clone()
+    }
+}
+
+impl AudioDirector for RecordingAudioDirector {
+    fn on_segment(&self, energy: SegmentEnergy, intent: PlaybackIntent) {
+        self.calls.lock().unwrap().push((energy, intent));
+    }
+}
+
+/// No-op audio director for rides with segment music disabled.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct MockAudioDirector;
+
+impl AudioDirector for MockAudioDirector {
+    fn on_segment(&self, _energy: SegmentEnergy, _intent: PlaybackIntent) {}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
