@@ -1,0 +1,25 @@
+[package]
+name = "velo-terrain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Offline terrain bake: DEM → mesh + texture route pack"
+
+[dependencies]
+clap = { workspace = true }
+png = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+velo-core = { workspace = true }
+
+[features]
+default = []
+network-fetch = []
+
+[[bin]]
+name = "velo-terrain"
+path = "src/bin/velo-terrain.rs"
+
+[dev-dependencies]
+velo-route-import = { workspace = true }
