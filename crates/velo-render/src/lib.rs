@@ -403,8 +403,9 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<(), RenderError> {
-        self.draw_scene(hud, distance_m, follow)?;
+        self.draw_scene(hud, distance_m, follow, steer_yaw_rad)?;
         Ok(())
     }
 
@@ -413,6 +414,7 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<(), RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
@@ -425,7 +427,7 @@ impl Renderer {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let mvp = self.scene_mvp(aspect, follow, steer_yaw_rad);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -530,12 +532,13 @@ impl Renderer {
         Ok(())
     }
 
-    fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>) -> glam::Mat4 {
+    fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>, steer_yaw_rad: f32) -> glam::Mat4 {
         if let Some(f) = follow {
             let rider = Vec3::new(f.east as f32, f.up as f32 + 1.5, f.north as f32);
-            self.camera.view_proj_at(aspect, rider, f.forward)
+            let forward = scene::apply_steer_yaw_for_camera(f.forward, steer_yaw_rad);
+            self.camera.view_proj_at(aspect, rider, forward)
         } else {
-            self.camera.view_proj(aspect, self.rider_z)
+            self.camera.view_proj(aspect, self.rider_z, steer_yaw_rad)
         }
     }
 
@@ -551,7 +554,7 @@ impl Renderer {
     }
 
     pub fn render_frame_legacy(&mut self, hud: &HudSnapshot, distance_m: f64) -> Result<(), RenderError> {
-        self.render_frame(hud, distance_m, None)
+        self.render_frame(hud, distance_m, None, 0.0)
     }
 
     /// Grab the current framebuffer as raw RGBA8 pixels from the framebuffer.
@@ -560,6 +563,7 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<FramebufferRgba, RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
@@ -571,7 +575,7 @@ impl Renderer {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let mvp = self.scene_mvp(aspect, follow, steer_yaw_rad);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
