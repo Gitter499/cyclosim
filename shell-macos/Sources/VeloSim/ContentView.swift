@@ -14,7 +14,7 @@ struct ContentView: View {
                 .frame(minWidth: 640)
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("VeloSim M3c")
+                Text("VeloSim M5")
                     .font(.title2.bold())
 
                 Text("core v\(version())")
@@ -130,6 +130,56 @@ struct ContentView: View {
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    }
+                }
+
+                GroupBox("Workout (M5)") {
+                    HStack {
+                        Text("FTP")
+                        Slider(value: Binding(
+                            get: { model.ftp },
+                            set: { model.applyFtp($0) }
+                        ), in: 100...400, step: 5)
+                        Text("\(Int(model.ftp)) W")
+                            .monospacedDigit()
+                            .frame(width: 56, alignment: .trailing)
+                    }
+
+                    HStack {
+                        Button("Start 2×20 Threshold") {
+                            model.startSampleWorkout()
+                        }
+                        .disabled(model.workoutLive.active)
+
+                        if model.workoutLive.active {
+                            Button("Clear workout") {
+                                model.clearWorkout()
+                            }
+                        }
+                    }
+
+                    Text(model.workoutStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if model.workoutLive.active {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(model.workoutLive.intervalName)
+                                .font(.headline)
+                            if let target = model.workoutLive.targetWatts {
+                                Text("Target: \(Int(target)) W")
+                            } else {
+                                Text("Target: Free ride")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(String(
+                                format: "Interval: %.0f s · Workout: %.0f s",
+                                model.workoutLive.intervalElapsedS,
+                                model.workoutLive.workoutElapsedS
+                            ))
+                            .font(.caption)
+                            .monospacedDigit()
+                        }
                     }
                 }
 

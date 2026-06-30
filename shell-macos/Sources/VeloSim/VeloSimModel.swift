@@ -49,16 +49,22 @@ final class VeloSimModel: ObservableObject {
     @Published var activeBikeId: String?
     @Published var bikeImportStatus: String = ""
 
+    @Published var ftp: Double = 250
+    @Published var workoutLive: WorkoutLiveDto
+    @Published var workoutStatus: String = "No workout"
+
     private var tickTimer: Timer?
     private var rideStore: LocalRideStoreHandle?
 
     init() {
         handle = VeloHandle()
         rideState = handle.rideState()
+        workoutLive = handle.workoutLive()
         toggleCount = handle.toggleCount()
         isRideRecording = handle.isRideRecording()
         handle.setRideMode(mode: .erg)
         handle.setTargetPower(watts: 180)
+        handle.setFtp(ftpW: ftp)
 
         if let library = try? LocalRideStore.defaultLibrary() {
             rideStore = LocalRideStore.open(library: library)
@@ -108,6 +114,24 @@ final class VeloSimModel: ObservableObject {
         if activeRouteId == nil {
             handle.setGrade(grade: grade)
         }
+    }
+
+    func applyFtp(_ watts: Double) {
+        ftp = watts
+        handle.setFtp(ftpW: watts)
+    }
+
+    func startSampleWorkout() {
+        handle.startSampleWorkout()
+        workoutLive = handle.workoutLive()
+        workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
+        rideMode = .erg
+    }
+
+    func clearWorkout() {
+        handle.clearWorkout()
+        workoutLive = handle.workoutLive()
+        workoutStatus = "No workout"
     }
 
     func refreshRoutes() {
@@ -352,6 +376,7 @@ final class VeloSimModel: ObservableObject {
 
         toggleCount = handle.toggleCount()
         rideState = handle.rideState()
+        workoutLive = handle.workoutLive()
         isRideRecording = handle.isRideRecording()
         switch sensorMode {
         case .fake, .replay:
