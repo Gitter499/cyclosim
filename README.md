@@ -40,6 +40,9 @@ just build && just run  # Full app (Xcode Swift + Metal)
 
 ## Git history
 
+- **`main`** — stable milestone snapshots and documentation.
+- **`dev`** — active development; quality passes land here before merging to `main`.
 - **`initial-monolith`** tag — single commit with the full M0–M2c codebase (first import).
 - Following commits document each crate/feature (`docs(...)` messages per milestone).
+- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md) · [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md)
 - Strava setup: [STRAVA.md](STRAVA.md).
