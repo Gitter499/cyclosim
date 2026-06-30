@@ -1,4 +1,5 @@
 // swift-tools-version: 5.9
+import Foundation
 import PackageDescription
 
 let rustLibPath = "../target/release"
@@ -13,6 +14,44 @@ let supportExclude = [
     "BLE",
     "Strava/StravaAuthCoordinator.swift",
 ]
+
+/// Liquid Glass SwiftUI APIs require the macOS 26 SDK (Xcode 26+). CI uses macOS 14 runners.
+private func macOSSDKSupportsLiquidGlass() -> Bool {
+    guard let major = macOSSDKMajorVersion() else { return false }
+    return major >= 26
+}
+
+private func macOSSDKMajorVersion() -> Double? {
+    let sdkRoot = ProcessInfo.processInfo.environment["SDKROOT"] ?? ""
+    let pipe = Pipe()
+    let proc = Process()
+    proc.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    if sdkRoot.isEmpty {
+        proc.arguments = ["--show-sdk-version", "--sdk", "macosx"]
+    } else {
+        proc.arguments = ["--show-sdk-version", "--sdk", sdkRoot]
+    }
+    proc.standardOutput = pipe
+    proc.standardError = FileHandle.nullDevice
+    do {
+        try proc.run()
+    } catch {
+        return nil
+    }
+    proc.waitUntilExit()
+    guard proc.terminationStatus == 0 else { return nil }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    guard let version = String(data: data, encoding: .utf8)?
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+        let major = Double(version.split(separator: ".").first ?? "")
+    else {
+        return nil
+    }
+    return major
+}
+
+private let liquidGlassSwiftSettings: [SwiftSetting] =
+    macOSSDKSupportsLiquidGlass() ? [.define("VELO_LIQUID_GLASS")] : []
 
 let package = Package(
     name: "VeloSim",
@@ -54,6 +93,7 @@ let package = Package(
             dependencies: ["VeloFFI"],
             path: "Sources/VeloSim",
             exclude: supportExclude,
+            swiftSettings: liquidGlassSwiftSettings,
             linkerSettings: [
                 .linkedFramework("Security"),
                 .linkedFramework("AVFoundation"),
@@ -73,6 +113,7 @@ let package = Package(
                 "UI/VeloGlass.swift",
                 "UI/RideSummaryFormatting.swift",
             ],
+            swiftSettings: liquidGlassSwiftSettings,
             linkerSettings: [
                 .linkedFramework("CoreBluetooth"),
             ]

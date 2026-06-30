@@ -2,29 +2,42 @@ import SwiftUI
 import VeloFFI
 
 // Shared Liquid Glass helpers — see .cursor/skills/liquid-glass/SKILL.md
+//
+// Liquid Glass APIs require the macOS 26 SDK. Package.swift defines VELO_LIQUID_GLASS when
+// `xcrun --show-sdk-version` is 26+ (or SDKROOT points at MacOSX26). CI on macOS 14 uses
+// material fallbacks only.
 
 extension View {
     /// Navigation-layer capsule chrome with Liquid Glass on macOS 26+, material fallback otherwise.
     @ViewBuilder
     public func veloGlassCapsule(interactive: Bool = false) -> some View {
+        #if VELO_LIQUID_GLASS
         if #available(macOS 26, *) {
             modifier(VeloGlassCapsuleModifier(interactive: interactive))
         } else {
             background(.ultraThinMaterial, in: Capsule())
         }
+        #else
+        background(.ultraThinMaterial, in: Capsule())
+        #endif
     }
 
     /// Rounded rect chrome for section headers / action bars.
     @ViewBuilder
     public func veloGlassRoundedRect(cornerRadius: CGFloat = 12, interactive: Bool = false) -> some View {
+        #if VELO_LIQUID_GLASS
         if #available(macOS 26, *) {
             modifier(VeloGlassRoundedRectModifier(cornerRadius: cornerRadius, interactive: interactive))
         } else {
             background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
         }
+        #else
+        background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        #endif
     }
 }
 
+#if VELO_LIQUID_GLASS
 @available(macOS 26, *)
 private struct VeloGlassCapsuleModifier: ViewModifier {
     let interactive: Bool
@@ -52,6 +65,7 @@ private struct VeloGlassRoundedRectModifier: ViewModifier {
         }
     }
 }
+#endif
 
 /// Section with glass header bar and solid `.quaternary` content body.
 public struct VeloGlassSection<Content: View>: View {
@@ -118,11 +132,15 @@ public struct VeloGlassContainer<Content: View>: View {
     }
 
     public var body: some View {
+        #if VELO_LIQUID_GLASS
         if #available(macOS 26, *) {
             GlassEffectContainer(spacing: spacing, content: content)
         } else {
             content()
         }
+        #else
+        content()
+        #endif
     }
 }
 
