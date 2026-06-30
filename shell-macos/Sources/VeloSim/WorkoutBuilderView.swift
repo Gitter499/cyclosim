@@ -1,5 +1,8 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import VeloFFI
+import VeloSimSupport
 
 enum WorkoutTargetKind: String, CaseIterable, Identifiable {
     case ergWatts = "ERG (W)"
@@ -31,6 +34,41 @@ struct WorkoutBuilderInterval: Identifiable, Equatable {
             ergWatts: 150,
             ftpPercent: 55
         )
+    }
+
+    static func fromDto(_ dto: WorkoutIntervalDto) -> Self {
+        let totalSeconds = max(0, Int(dto.durationS.rounded()))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        switch dto.target {
+        case .ergWatts(let watts):
+            return Self(
+                name: dto.name,
+                durationMinutes: minutes,
+                durationSeconds: seconds,
+                targetKind: .ergWatts,
+                ergWatts: watts,
+                ftpPercent: 55
+            )
+        case .ftpPercent(let percent):
+            return Self(
+                name: dto.name,
+                durationMinutes: minutes,
+                durationSeconds: seconds,
+                targetKind: .ftpPercent,
+                ergWatts: 150,
+                ftpPercent: percent
+            )
+        case .freeRide:
+            return Self(
+                name: dto.name,
+                durationMinutes: minutes,
+                durationSeconds: seconds,
+                targetKind: .freeRide,
+                ergWatts: 150,
+                ftpPercent: 55
+            )
+        }
     }
 
     func toDto() -> WorkoutIntervalDto {
@@ -84,6 +122,10 @@ struct WorkoutBuilderView: View {
                 Button("Add interval") {
                     intervals.append(.warmupDefault())
                 }
+                Button("Import .zwo…") {
+                    importZwo()
+                }
+                .buttonStyle(VeloGlassSecondaryButtonStyle())
                 Spacer()
             }
 
@@ -229,6 +271,35 @@ struct WorkoutBuilderView: View {
                 builderError = message
             default:
                 builderError = "Failed to start workout"
+            }
+        } catch {
+            builderError = error.localizedDescription
+        }
+    }
+
+    private func importZwo() {
+        builderError = nil
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "zwo") ?? .xml]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select a Zwift .zwo workout file"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let xml = try String(contentsOf: url, encoding: .utf8)
+            let dto = try parseZwoXml(xml: xml)
+            workoutName = dto.name
+            intervals = dto.intervals.map { WorkoutBuilderInterval.fromDto($0) }
+            if intervals.isEmpty {
+                builderError = "No supported workout steps in file"
+            }
+        } catch let error as VeloError {
+            switch error {
+            case .RideError(let message):
+                builderError = message
+            default:
+                builderError = "Failed to import .zwo"
             }
         } catch {
             builderError = error.localizedDescription

@@ -3554,6 +3554,13 @@ fileprivate struct FfiConverterSequenceTypeWorkoutIntervalDto: FfiConverterRustB
         return seq
     }
 }
+public func parseZwoXml(xml: String)throws  -> WorkoutDto  {
+    return try  FfiConverterTypeWorkoutDto_lift(try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_func_parse_zwo_xml(
+        FfiConverterString.lower(xml),$0
+    )
+})
+}
 public func version() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_func_version($0
@@ -3575,6 +3582,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_velo_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_velo_ffi_checksum_func_parse_zwo_xml() != 59737) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_func_version() != 14180) {
         return InitializationResult.apiChecksumMismatch
