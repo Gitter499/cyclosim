@@ -1,6 +1,6 @@
 # velo-core
 
-Simulation core — physics integrator, ride state machine, session recording, structured workouts, and FIT export orchestration.
+Simulation core — physics integrator, ride state machine, session recording, structured workouts, highlight clip planning, and FIT export orchestration.
 
 ## Key modules
 
@@ -10,6 +10,7 @@ Simulation core — physics integrator, ride state machine, session recording, s
 | `ride` | `RideMode` (Free/ERG/SIM), live `RideState` |
 | `ride_session` | Sample buffer, `RideSummary`, start/stop lifecycle |
 | `workout` | `WorkoutEngine`, interval timeline, ERG target resolution (M5) |
+| `highlight` | `plan_highlight_clips` — post-ride moment windows (M5) |
 | `route` / `packs` | `RouteModel`, route packs, scenery config |
 | `app` | `VeloApp` — tick loop wiring sensors → physics → trainer |
 
@@ -22,14 +23,14 @@ Simulation core — physics integrator, ride state machine, session recording, s
 ## Test
 
 ```bash
-cargo test -p velo-core          # unit + golden replay + route/workout integration
+cargo test -p velo-core          # unit + golden replay + route/workout/highlight integration
 just lint                        # Apple-symbol check
 ```
 
-Integration: `tests/golden_replay.rs`, `tests/route_ride.rs`, `tests/workout_erg.rs`.
+Integration: `tests/golden_replay.rs`, `tests/route_ride.rs`, `tests/workout_erg.rs`, `tests/highlight_clips.rs`.
 
 ## Milestone
 
-**M1** (physics) · **M2a** (ride loop) · **M2b** (session + FIT hookup) · **M3** (route + grade) · **M5 partial** (workout engine)
+**M1** (physics) · **M2a** (ride loop) · **M2b** (session + FIT hookup) · **M3** (route + grade) · **M5 partial** (workout engine + highlight planning)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

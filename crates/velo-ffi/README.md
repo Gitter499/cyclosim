@@ -9,7 +9,9 @@ UniFFI surface — exposes Rust core, renderer, and ride library to the macOS Sw
 | `VeloHandle` | App lifecycle: tick, ride modes, renderer, publish flow, workouts, bikes, scenery |
 | `RideLibraryHandle` | Standalone DB access (list/get/delete) |
 | Callback traits | `SensorSourceCallback`, `TrainerControlCallback`, `MediaCaptureCallback`, `ActivityPublisherCallback` |
-| DTOs | `RideStateDto`, `RideSummaryDto`, `FramebufferDto`, `RideRecordDto`, `WorkoutDto`, `WorkoutLiveDto`, … |
+| DTOs | `RideStateDto`, `RideSummaryDto`, `HighlightClipRequestDto`, `FramebufferDto`, `RideRecordDto`, `WorkoutDto`, `WorkoutLiveDto`, … |
+
+`MediaCaptureCallback` — shell implements PNG encode (`encode_png_rgba`) and highlight reel encode (`encode_highlight_clip` from ring-buffer frames).
 
 Builds as `lib`, `staticlib`, and `cdylib` (`velo_ffi`). Swift bindings generated via `just bindgen`.
 
@@ -17,7 +19,7 @@ Builds as `lib`, `staticlib`, and `cdylib` (`velo_ffi`). Swift bindings generate
 
 Wires `velo-core`, `velo-platform`, `velo-render`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-cesium`, `velo-bikegen`, `velo-units`, `uniffi`. This is the **only** crate the shell links directly.
 
-Shell owns Apple-only work: PNG encode (VideoToolbox), Strava OAuth, CoreBluetooth FTMS.
+Shell owns Apple-only work: PNG/H.264 encode (VideoToolbox), Strava OAuth, CoreBluetooth FTMS.
 
 ## Test
 
@@ -27,12 +29,12 @@ cargo build --release -p velo-ffi
 just bindgen    # regenerate Swift stubs
 ```
 
-Integration tests under `tests/`:
+Integration tests under `tests/` (shared mocks in `tests/common/mod.rs`):
 
 | File | Coverage |
 |------|----------|
 | `callback_round_trip.rs` | Sensor → ride state; ERG/SIM trainer callbacks |
-| `ride_library_integration.rs` | Publish flow + SQLite catalog |
+| `ride_library_integration.rs` | Publish flow, SQLite catalog, highlight clip encode + persist |
 | `route_import_integration.rs` | GPX import → route pack FFI |
 | `tiles_integration.rs` | Scenery config + synthetic 3D Tiles session |
 | `bike_integration.rs` | Bike import, list, active bike |
@@ -40,6 +42,6 @@ Integration tests under `tests/`:
 
 ## Milestone
 
-**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5 partial** (workout FFI)
+**M0** (round-trip) · **M2a–M2c** (full ride + publish + library FFI) · **M3–M3c** (route, tiles, bikes) · **M5 partial** (workout + highlight clip FFI)
 
 Architecture: [VeloSim-Technical-Plan.md](../../VeloSim-Technical-Plan.md)

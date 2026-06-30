@@ -512,10 +512,9 @@ distribution. Keep FIT writing in Rust so a non-Strava publisher (file export, o
 **Auto screenshots/video.** The renderer already draws every frame, so:
 - *Screenshots* = framebuffer grab (`MediaCapture::grab_screenshot`) → PNG. **In scope for M2b.**
 - *Highlight clips* = pick moments from the ride timeline (start, biggest climb, fastest segment, finish),
-  run a replay camera over those frames, encode via VideoToolbox (`MediaCapture::record_clip`). Heavier
-  (replay camera + encoding) → **M4**, attached to the ride summary.
+  capture frames during the ride (ring buffer), encode via VideoToolbox (`MediaCaptureCallback::encode_highlight_clip`).
+  **Shipped in M5** — moment selection in `velo-core::highlight`, encode in the macOS shell; cinematic replay camera deferred.
 - Moment selection lives in core (it owns the ride timeline); the platform-specific *encode* lives in the shell.
-- **Highlight clips are M5 scope**, not M2b — M2b ships screenshot only. Core should expose a **capture-event hook** (trait/DTO) in M5 so game logic can request screenshots/clips; do not implement clip encoding until then.
 
 ---
 
@@ -525,7 +524,7 @@ M2b saves FIT + PNG to ad-hoc folders (`LocalRideStore`). **M2c** replaces that 
 
 **Design:**
 - New crate **`velo-rides`**: SQLite (via `rusqlite`) catalog at `~/Documents/VeloSim/rides.db` (path injectable via `Storage` trait).
-- Each row: `ride_id`, `started_at_unix`, `elapsed_s`, `distance_m`, `avg_power_w`, `max_power_w`, `fit_path`, `screenshot_path`, `strava_activity_id` (nullable), `publish_status` (local/strava/failed), `route_id` (nullable, for M3+).
+- Each row: `ride_id`, `started_at_unix`, `elapsed_s`, `distance_m`, `avg_power_w`, `max_power_w`, `fit_path`, `screenshot_path`, `highlight_clip_path` (nullable, M5), `strava_activity_id` (nullable), `publish_status` (local/strava/failed), `route_id` (nullable, for M3+).
 - Binary artifacts stay on disk beside or under a per-ride directory; DB holds metadata + paths (not blobs).
 - **`Storage` trait** (`velo-platform`) gets concrete methods: `save_ride`, `list_rides`, `get_ride`, `delete_ride`.
 - Rust implements DB logic; Swift shell calls via UniFFI (`RideLibrary` object or methods on `VeloHandle`).
@@ -618,14 +617,15 @@ to mesh/3D-Tiles elsewhere, within the storage budget. **Not required to ship a 
 Tiers A+B already deliver that.**
 
 **M5 — Workouts + Liquid Glass shell + highlight clips.** *(partial — #10)*
-Workout builder/engine, structured-workout ERG control, full Liquid Glass setup/summary UI, and
-**highlight video clips** (replay camera + VideoToolbox encode) attached to the ride summary.
+Workout builder/engine, structured-workout ERG control, Liquid Glass setup/summary UI, and
+**highlight video clips** (ring-buffer capture + VideoToolbox H.264 encode) attached to the ride summary.
 *Done when:* you can build a structured workout, ride it with auto ERG targets, and review a saved
 summary with an auto-generated highlight clip.
 
-**Shipped so far:** `WorkoutEngine` + sample workout template, ERG auto-target during rides, FFI
-`workout_live` / `start_sample_workout` / `start_workout(WorkoutDto)`, in-app workout builder (shell).
-**Remaining:** highlight clips, full Liquid Glass setup/summary UI, `.zwo` import.
+**Shipped:** `WorkoutEngine` + sample template, ERG auto-target, FFI `workout_live` /
+`start_sample_workout` / `start_workout(WorkoutDto)`, in-app workout builder, Liquid Glass setup chrome
+and ride summary sheet, `plan_highlight_clips` + schema v2 `highlight_clip_path` + shell encode on finish.
+**Remaining:** `.zwo` import, cinematic replay camera for clips.
 
 **M6 — Apple Music + AirPods (lowest priority).**
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
