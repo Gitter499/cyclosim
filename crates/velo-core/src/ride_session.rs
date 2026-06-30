@@ -1,5 +1,6 @@
 //! Ride session recording — accumulates per-tick telemetry for FIT export.
 
+use crate::highlight::{plan_highlight_clips, HighlightClipRequest};
 use velo_fit::{encode_activity, FitEncodeError, FitRecordSample, FitRide};
 
 /// Snapshot of one sim tick while a ride is active.
@@ -23,6 +24,7 @@ pub struct RideSummary {
     pub avg_power_w: Option<f64>,
     pub max_power_w: Option<f64>,
     pub started_at_unix: u64,
+    pub highlight_clips: Vec<HighlightClipRequest>,
 }
 
 /// In-memory ride recorder.
@@ -157,6 +159,7 @@ fn compute_summary(started_at_unix: u64, samples: &[RideSample]) -> RideSummary 
         avg_power_w,
         max_power_w,
         started_at_unix,
+        highlight_clips: plan_highlight_clips(samples, elapsed_s),
     }
 }
 
