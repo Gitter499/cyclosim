@@ -4,6 +4,7 @@ Running record of cross-cutting cleanup on the `dev` branch. See [.cursor/skills
 
 | Date | Trigger | Summary | Commits |
 |------|---------|---------|---------|
+| 2026-06-30 | Pre headless app testing | M6 doc sync; headless scenario tests (core + FFI + Swift); `docs/HEADLESS_TESTING.md`; workout builder extracted to Support | see PR |
 | 2026-06-30 | Post-M5 complete (#10 closed) | Agent skills (rust/swift best practices); M5 doc sync; quality-pass skill cross-ref | see below |
 | 2026-06-30 | Initial bootstrap | Doc sync (plan M2c done, workspace layout); FFI callback + FIT catalog integration tests; test-helper warning cleanup | `a1b2c3d`… (see git log before this pass) |
 | 2026-06-30 | Post-M5 partial + multi-agent desync | Plan/README sync (M3b/M3c done, M5 partial); unified `RecordingTrainerControl`; doc refresh | see below |
@@ -11,7 +12,38 @@ Running record of cross-cutting cleanup on the `dev` branch. See [.cursor/skills
 
 ---
 
-# Quality pass — 2026-06-30 (post-M5 complete)
+# Quality pass — 2026-06-30 (pre headless app testing)
+
+## Scope
+Milestone / trigger: **Pre headless app testing** — M6 on `feat/issue-11-m6-music-steering`; expand scenario tests before Kickr hardware-in-the-loop.
+
+## Changes made
+- Added user-story integration tests: `velo-core/tests/scenarios/`, `steering_golden.rs`, `audio_segment.rs`, `route_import_scenario.rs`.
+- Added `velo-ffi/tests/app_scenarios.rs`; extended `tests/common/mod.rs` with `ReplaySensors`, `fixture_gpx_path`, recording mocks.
+- Extracted `WorkoutBuilderInterval` to `VeloSimSupport` (`Workout/`) for testable DTO mapping; executable excludes `Workout/` (same pattern as `Ride/`, `Music/`).
+- Added `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`.
+- New guide: [docs/HEADLESS_TESTING.md](HEADLESS_TESTING.md).
+
+## Findings (deferred)
+- **Swift CI** — `swift test` not in default GitHub Actions job; local Xcode + `libvelo_ffi.dylib` required.
+- **Hardware-in-the-loop** — Kickr ERG hold, SIM grade response, BLE dropout: manual checklist placeholder in HEADLESS_TESTING.md.
+- **Cinematic replay camera** for highlight clips — unchanged from prior passes.
+
+## Doc sync
+- `velo-core`, `velo-ffi` README test tables updated for M6 + scenario files.
+- `velo-ffi` README milestone row includes M6 callbacks.
+- Plan §19 references headless testing doc.
+
+## Test coverage added
+- See [HEADLESS_TESTING.md](HEADLESS_TESTING.md) test map.
+
+## Verification
+- `cargo test --workspace`
+- `./scripts/lint-apple-symbols.sh`
+- `./scripts/lint-shell-ui.sh`
+- `cd shell-macos && swift build --product VeloSim` (local)
+
+---
 
 ## Scope
 Milestone / trigger: **M5 complete** — issue #10 closed; PR #18 merged (`.zwo` import); full pass using quality-pass + rust-best-practices + swift-best-practices skills before `dev` → `main` release.

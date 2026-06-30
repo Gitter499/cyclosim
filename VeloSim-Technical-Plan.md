@@ -663,7 +663,8 @@ summary with an auto-generated highlight clip.
 - **Physics:** unit tests (steady-state, climb, coast-down) + golden-file replay of recorded rides.
 - **Determinism:** same route + same telemetry log + injected `Clock` → identical `RideState` trace.
 - **Trait boundary:** mock implementations of every `velo-platform` trait so core is fully testable
-  headless, no hardware, no Apple frameworks.
+  headless, no hardware, no Apple frameworks. See [docs/HEADLESS_TESTING.md](docs/HEADLESS_TESTING.md).
+- **Scenario tests:** user-story named integration tests in `velo-core/tests/scenarios/`, `velo-ffi/tests/app_scenarios.rs`, and `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`.
 - **Hardware-in-the-loop:** a manual M2 checklist against the real Kickr (pair, ERG hold, SIM grade
   response, dropout/reconnect).
 - **Render:** snapshot tests of terrain + HUD; visual review for splat passes.
