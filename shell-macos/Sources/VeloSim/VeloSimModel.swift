@@ -35,6 +35,7 @@ final class VeloSimModel: ObservableObject {
     @Published var isRideRecording = false
     @Published var lastRideSummary: RideSummaryDto?
     @Published var lastPublishResult: PublishResultDto?
+    @Published var showRideSummarySheet = false
     @Published var rideFlowStatus: String = "idle"
     @Published var isFinishingRide = false
     @Published var rideHistory: [RideRecordDto] = []
@@ -295,6 +296,7 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                showRideSummarySheet = lastRideSummary != nil
                 isRideRecording = handle.isRideRecording()
                 rideFlowStatus = result.savedLocally
                     ? "saved locally"
@@ -361,6 +363,24 @@ final class VeloSimModel: ObservableObject {
         } else {
             rideStore?.openInFinder(record)
         }
+    }
+
+    func dismissRideSummary() {
+        showRideSummarySheet = false
+    }
+
+    func openLastRideActivity() {
+        guard let pub = lastPublishResult else { return }
+        let urlString = pub.activityUrl
+        if RideSummaryFormatting.isWebActivityURL(urlString), let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        if !urlString.isEmpty, !urlString.hasPrefix("error:") {
+            NSWorkspace.shared.open(URL(fileURLWithPath: urlString, isDirectory: true))
+            return
+        }
+        NSWorkspace.shared.open(LocalRideStore.ridesDirectory)
     }
 
     func refreshRideHistory() {

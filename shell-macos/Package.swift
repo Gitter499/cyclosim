@@ -8,6 +8,8 @@ let supportExclude = [
     "ContentView.swift",
     "VeloSimModel.swift",
     "WorkoutBuilderView.swift",
+    "UI/SetupChromeView.swift",
+    "UI/RideSummarySheet.swift",
     "BLE",
     "Strava/StravaAuthCoordinator.swift",
 ]
@@ -67,6 +69,8 @@ let package = Package(
                 "Strava/StravaUploader.swift",
                 "Ride",
                 "PlatformCallbacks.swift",
+                "UI/VeloGlass.swift",
+                "UI/RideSummaryFormatting.swift",
             ],
             linkerSettings: [
                 .linkedFramework("CoreBluetooth"),
