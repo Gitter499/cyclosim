@@ -1,10 +1,14 @@
-//! wgpu renderer — flat ground plane, chase camera, HUD overlay.
+//! wgpu renderer — terrain mesh or flat ground plane, chase camera, HUD overlay.
 
 mod capture;
 mod hud;
 mod scene;
+mod terrain;
+
+use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
+use glam::Vec3;
 use thiserror::Error;
 use wgpu::util::DeviceExt;
 
@@ -12,6 +16,16 @@ pub use capture::{bgra_to_rgba, FramebufferRgba, PNG_MAGIC};
 
 pub use hud::{HudRenderer, HudSnapshot};
 pub use scene::{ChaseCamera, GroundMesh, SceneVertex};
+pub use terrain::{forward_from_enu, TerrainScene};
+
+/// Rider position in local ENU for chase camera along a loaded route.
+#[derive(Debug, Clone, Copy)]
+pub struct RouteFollow {
+    pub east: f64,
+    pub up: f64,
+    pub north: f64,
+    pub forward: Vec3,
+}
 
 #[derive(Debug, Error)]
 pub enum RenderError {
@@ -36,6 +50,7 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     grid_pipeline: wgpu::RenderPipeline,
     fill_pipeline: wgpu::RenderPipeline,
+    scene_bind_layout: wgpu::BindGroupLayout,
     scene_bind_group: wgpu::BindGroup,
     scene_uniforms: wgpu::Buffer,
     vertex_buffer: wgpu::Buffer,
@@ -45,6 +60,7 @@ pub struct Renderer {
     depth_view: wgpu::TextureView,
     camera: ChaseCamera,
     hud: HudRenderer,
+    terrain: Option<TerrainScene>,
     rider_z: f32,
 }
 
@@ -252,6 +268,7 @@ impl Renderer {
             config,
             grid_pipeline,
             fill_pipeline,
+            scene_bind_layout: bind_layout,
             scene_bind_group,
             scene_uniforms,
             vertex_buffer,
@@ -261,22 +278,50 @@ impl Renderer {
             depth_view,
             camera: ChaseCamera::default(),
             hud,
+            terrain: None,
             rider_z: 0.0,
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width > 0 && height > 0 {
-            self.config.width = width;
-            self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
-            let (depth_texture, depth_view) = create_depth(&self.device, width, height);
-            self.depth_texture = depth_texture;
-            self.depth_view = depth_view;
-        }
+    /// Load textured terrain from a route pack directory.
+    pub fn load_terrain_pack(&mut self, pack_dir: &Path) -> Result<(), RenderError> {
+        let pack = velo_terrain::TerrainPack::load_from_dir(pack_dir)
+            .map_err(|e| RenderError::Wgpu(e.to_string()))?;
+        let terrain = TerrainScene::from_pack(
+            &self.device,
+            &self.queue,
+            self.config.format,
+            &self.scene_bind_layout,
+            &pack,
+        );
+        self.terrain = Some(terrain);
+        Ok(())
     }
 
-    pub fn render_frame(&mut self, hud: &HudSnapshot, distance_m: f64) -> Result<(), RenderError> {
+    pub fn clear_terrain(&mut self) {
+        self.terrain = None;
+    }
+
+    pub fn has_terrain(&self) -> bool {
+        self.terrain.is_some()
+    }
+
+    pub fn render_frame(
+        &mut self,
+        hud: &HudSnapshot,
+        distance_m: f64,
+        follow: Option<RouteFollow>,
+    ) -> Result<(), RenderError> {
+        self.draw_scene(hud, distance_m, follow)?;
+        Ok(())
+    }
+
+    fn draw_scene(
+        &mut self,
+        hud: &HudSnapshot,
+        distance_m: f64,
+        follow: Option<RouteFollow>,
+    ) -> Result<(), RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
         let frame = self
@@ -288,7 +333,7 @@ impl Renderer {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.camera.view_proj(aspect, self.rider_z);
+        let mvp = self.scene_mvp(aspect, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -339,14 +384,16 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            pass.set_bind_group(0, &self.scene_bind_group, &[]);
-            pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-
-            pass.set_pipeline(&self.fill_pipeline);
-            pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
-
-            pass.set_pipeline(&self.grid_pipeline);
-            pass.draw(0..self.grid_vertex_count, 0..1);
+            if let Some(terrain) = &self.terrain {
+                terrain.draw(&mut pass, &self.scene_bind_group);
+            } else {
+                pass.set_bind_group(0, &self.scene_bind_group, &[]);
+                pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                pass.set_pipeline(&self.fill_pipeline);
+                pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
+                pass.set_pipeline(&self.grid_pipeline);
+                pass.draw(0..self.grid_vertex_count, 0..1);
+            }
         }
 
         {
@@ -375,11 +422,36 @@ impl Renderer {
         Ok(())
     }
 
-    /// Render the current frame and read back RGBA8 pixels from the framebuffer.
+    fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>) -> glam::Mat4 {
+        if let Some(f) = follow {
+            let rider = Vec3::new(f.east as f32, f.up as f32 + 1.5, f.north as f32);
+            self.camera.view_proj_at(aspect, rider, f.forward)
+        } else {
+            self.camera.view_proj(aspect, self.rider_z)
+        }
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.config.width = width;
+            self.config.height = height;
+            self.surface.configure(&self.device, &self.config);
+            let (depth_texture, depth_view) = create_depth(&self.device, width, height);
+            self.depth_texture = depth_texture;
+            self.depth_view = depth_view;
+        }
+    }
+
+    pub fn render_frame_legacy(&mut self, hud: &HudSnapshot, distance_m: f64) -> Result<(), RenderError> {
+        self.render_frame(hud, distance_m, None)
+    }
+
+    /// Grab the current framebuffer as raw RGBA8 pixels from the framebuffer.
     pub fn capture_framebuffer_rgba(
         &mut self,
         hud: &HudSnapshot,
         distance_m: f64,
+        follow: Option<RouteFollow>,
     ) -> Result<FramebufferRgba, RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
@@ -391,7 +463,7 @@ impl Renderer {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.camera.view_proj(aspect, self.rider_z);
+        let mvp = self.scene_mvp(aspect, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -442,12 +514,16 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            pass.set_bind_group(0, &self.scene_bind_group, &[]);
-            pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            pass.set_pipeline(&self.fill_pipeline);
-            pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
-            pass.set_pipeline(&self.grid_pipeline);
-            pass.draw(0..self.grid_vertex_count, 0..1);
+            if let Some(terrain) = &self.terrain {
+                terrain.draw(&mut pass, &self.scene_bind_group);
+            } else {
+                pass.set_bind_group(0, &self.scene_bind_group, &[]);
+                pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                pass.set_pipeline(&self.fill_pipeline);
+                pass.draw(self.fill_vertex_start..self.fill_vertex_start + 6, 0..1);
+                pass.set_pipeline(&self.grid_pipeline);
+                pass.draw(0..self.grid_vertex_count, 0..1);
+            }
         }
 
         {
