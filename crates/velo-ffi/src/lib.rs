@@ -9,7 +9,7 @@ use velo_bikegen::{
 };
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
-    save_scenery_config, SceneryConfig, VeloApp,
+    save_scenery_config, SceneryConfig, VeloApp, Workout,
 };
 use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
 use velo_render::{forward_from_enu, RouteFollow, Renderer};
@@ -105,6 +105,17 @@ pub struct RideStateDto {
     pub power_w: Option<f64>,
     pub cadence_rpm: Option<f64>,
     pub heart_rate_bpm: Option<f64>,
+}
+
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct WorkoutLiveDto {
+    pub active: bool,
+    pub workout_name: String,
+    pub interval_name: String,
+    pub interval_elapsed_s: f64,
+    pub workout_elapsed_s: f64,
+    pub target_watts: Option<f64>,
+    pub finished: bool,
 }
 
 #[derive(uniffi::Record, Clone, Debug, Default)]
@@ -698,6 +709,34 @@ impl VeloHandle {
         self.inner.lock().unwrap().app.set_target_power(watts);
     }
 
+    pub fn set_ftp(&self, ftp_w: f64) {
+        self.inner.lock().unwrap().app.set_ftp(ftp_w);
+    }
+
+    pub fn ftp(&self) -> f64 {
+        self.inner.lock().unwrap().app.ftp()
+    }
+
+    pub fn start_sample_workout(&self) {
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .start_workout(Workout::sample_threshold());
+    }
+
+    pub fn clear_workout(&self) {
+        self.inner.lock().unwrap().app.clear_workout();
+    }
+
+    pub fn workout_active(&self) -> bool {
+        self.inner.lock().unwrap().app.workout_active()
+    }
+
+    pub fn workout_live(&self) -> WorkoutLiveDto {
+        map_workout_live(&self.inner.lock().unwrap().app)
+    }
+
     pub fn set_grade(&self, grade: f64) {
         self.inner.lock().unwrap().app.set_grade(grade);
     }
@@ -813,7 +852,7 @@ impl VeloHandle {
             .as_ref()
             .filter(|_| tiles_on)
             .map(|r| r.tiles_attribution().to_string());
-        let hud = hud_from_ride(&ride, tiles_attr);
+        let hud = hud_snapshot(&inner.app, tiles_attr);
         let distance_m = ride.distance_m;
         let follow = route_follow(&inner.app);
         let route_for_tiles = inner.app.route.clone();
@@ -831,14 +870,13 @@ impl VeloHandle {
     /// Grab the current framebuffer as raw RGBA8 (shell encodes PNG).
     pub fn capture_framebuffer_rgba(&self) -> Result<FramebufferDto, VeloError> {
         let mut inner = self.inner.lock().unwrap();
-        let ride = inner.app.ride.clone();
         let tiles_attr = inner
             .renderer
             .as_ref()
             .filter(|_| inner.tiles_3d_enabled)
             .map(|r| r.tiles_attribution().to_string());
-        let hud = hud_from_ride(&ride, tiles_attr);
-        let distance_m = ride.distance_m;
+        let hud = hud_snapshot(&inner.app, tiles_attr);
+        let distance_m = inner.app.ride.distance_m;
         let follow = route_follow(&inner.app);
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
         let fb = renderer
@@ -877,7 +915,7 @@ impl VeloHandle {
                 .as_ref()
                 .filter(|_| inner.tiles_3d_enabled)
                 .map(|r| r.tiles_attribution().to_string());
-            let hud = hud_from_ride(&ride, tiles_attr);
+            let hud = hud_snapshot(&inner.app, tiles_attr);
             let distance_m = ride.distance_m;
             let follow = route_follow(&inner.app);
             let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
@@ -938,11 +976,19 @@ fn sync_tiles_view(route: &velo_core::RouteModel, distance_m: f64, renderer: &mu
     renderer.update_tiles_view(lat, lon, 500.0);
 }
 
-fn hud_from_ride(ride: &velo_core::RideState, attribution: Option<String>) -> velo_render::HudSnapshot {
+fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudSnapshot {
+    let ride = &app.ride;
     let mode = match ride.mode {
         velo_core::ride::RideMode::Free => "Free",
         velo_core::ride::RideMode::Erg => "ERG",
         velo_core::ride::RideMode::Sim => "SIM",
+    };
+    let (workout_interval, workout_target_w) = match app.workout_engine.as_ref() {
+        Some(engine) if !engine.state().finished => (
+            engine.current_interval().map(|i| i.name.clone()),
+            engine.target_watts().map(|w| w.0),
+        ),
+        _ => (None, None),
     };
     velo_render::HudSnapshot {
         power_w: ride.power_w,
@@ -953,7 +999,26 @@ fn hud_from_ride(ride: &velo_core::RideState, attribution: Option<String>) -> ve
         elapsed_s: ride.elapsed_s,
         grade: ride.grade,
         mode,
+        workout_interval,
+        workout_target_w,
         attribution,
+    }
+}
+
+fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {
+    let Some(engine) = app.workout_engine.as_ref() else {
+        return WorkoutLiveDto::default();
+    };
+    let state = engine.state();
+    let interval = engine.current_interval();
+    WorkoutLiveDto {
+        active: true,
+        workout_name: engine.workout().name.clone(),
+        interval_name: interval.map(|i| i.name.clone()).unwrap_or_default(),
+        interval_elapsed_s: state.interval_elapsed_s,
+        workout_elapsed_s: state.workout_elapsed_s,
+        target_watts: engine.target_watts().map(|w| w.0),
+        finished: state.finished,
     }
 }
 
