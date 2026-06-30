@@ -67,3 +67,5 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 - One issue per PR; run `cargo test` and `just lint` before pushing.
 - Do not rewrite git history on `main`.
 - **No AI tool branding** in commits, PRs, or user-facing docs. The user handles attribution.
+- Run `./scripts/install-git-hooks.sh` once per clone.
+- Commit via `./scripts/git-commit-clean.sh "message"` (not plain `git commit`) to block injected `Co-authored-by: Cursor` trailers.

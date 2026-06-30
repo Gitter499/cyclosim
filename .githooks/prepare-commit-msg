@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Remove Cursor co-author lines before the commit is finalized.
+set -euo pipefail
+msg_file="${1:?}"
+tmp="$(mktemp)"
+sed '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' "$msg_file" >"$tmp"
+mv "$tmp" "$msg_file"

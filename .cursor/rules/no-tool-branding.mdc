@@ -28,3 +28,14 @@ The user handles attribution separately when they choose.
 ## Commits and PRs
 
 Write as a human contributor: imperative mood, no meta-commentary about how the code was produced.
+
+## Preventing injected Co-authored-by trailers
+
+Cursor may append `Co-authored-by: Cursor <cursoragent@cursor.com>` **after** `git commit`.
+Do not use plain `git commit` for agent work.
+
+1. Run once per clone: `./scripts/install-git-hooks.sh`
+2. Commit with: `git add … && ./scripts/git-commit-clean.sh "message"`
+
+Hooks in `.githooks/` strip the trailer if it still appears. Verify with
+`git log -1 --format=%B` before push.
