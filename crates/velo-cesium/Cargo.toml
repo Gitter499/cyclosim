@@ -1,0 +1,32 @@
+[package]
+name = "velo-cesium"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "3D Tiles streaming glue — Cesium Native bridge + glTF decode (M3b)"
+build = "build.rs"
+
+[features]
+default = []
+# Enable HTTP tile fetch (in-memory only; never cached to disk).
+network = ["dep:reqwest"]
+# Link Cesium Native C++ via cxx/CMake (requires CESIUM_NATIVE_DIR).
+cesium-native = ["dep:cxx"]
+
+[dependencies]
+base64 = "0.22"
+bytemuck = { version = "1", features = ["derive"] }
+gltf = { version = "1", features = ["import"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+url = "2"
+
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"], optional = true }
+cxx = { version = "1", optional = true }
+
+[build-dependencies]
+cxx-build = "1"
+
+[dev-dependencies]
+tempfile = "3"
