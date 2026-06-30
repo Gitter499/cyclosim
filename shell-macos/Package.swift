@@ -56,6 +56,7 @@ let package = Package(
             exclude: supportExclude,
             linkerSettings: [
                 .linkedFramework("Security"),
+                .linkedFramework("AVFoundation"),
             ]
         ),
         .executableTarget(

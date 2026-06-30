@@ -46,6 +46,7 @@ final class RideHistoryStoreTests: XCTestCase {
             maxPowerW: 220,
             fitPath: fitPath.path,
             screenshotPath: nil,
+            highlightClipPath: nil,
             stravaActivityId: nil,
             publishStatus: .local,
             routeId: nil
@@ -76,6 +77,7 @@ final class RideHistoryStoreTests: XCTestCase {
             maxPowerW: nil,
             fitPath: "/tmp/x/ride.fit",
             screenshotPath: nil,
+            highlightClipPath: nil,
             stravaActivityId: "424242",
             publishStatus: .strava,
             routeId: nil
@@ -121,12 +123,16 @@ private final class LocalOnlyPublisherForStore: ActivityPublisherCallback, @unch
         screenshotPng: Data?,
         summary: RideSummaryDto
     ) -> PublishResultDto {
-        PublishResultDto(activityUrl: "", savedLocally: true, rideId: "")
+        PublishResultDto(activityUrl: "", savedLocally: true, rideId: "", highlightClipPath: nil)
     }
 }
 
 private final class PassthroughMediaCapture: MediaCaptureCallback, @unchecked Sendable {
     func encodePngRgba(width: UInt32, height: UInt32, rgbaPixels: Data) -> Data {
         Data()
+    }
+
+    func encodeHighlightClip(clips: [HighlightClipRequestDto], outputPath: String) -> Bool {
+        false
     }
 }
