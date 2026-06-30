@@ -11,7 +11,8 @@ Native offline cycling simulator — portable Rust core + thin macOS Swift shell
 | **M2a** — Trainer + HUD | ✅ |
 | **M2b** — FIT + Strava + screenshot | ✅ |
 | **M2c** — Ride library (SQLite) | ✅ |
-| **M3** — Real route + terrain | 🔜 next |
+| **M3** — Real route + terrain | ✅ |
+| **M3b** — Google 3D Tiles | 🔜 next |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 
@@ -25,6 +26,8 @@ See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criter
 | [`velo-render`](crates/velo-render/) | wgpu scene + HUD |
 | [`velo-fit`](crates/velo-fit/) | FIT activity encoder |
 | [`velo-rides`](crates/velo-rides/) | SQLite ride library |
+| [`velo-route-import`](crates/velo-route-import/) | GPX/TCX → RouteModel (lib + CLI) |
+| [`velo-terrain`](crates/velo-terrain/) | DEM → terrain mesh + texture bake |
 | [`velo-ffi`](crates/velo-ffi/) | UniFFI surface for Swift |
 | [`shell-macos`](shell-macos/) | macOS app (BLE, Strava, UI) |
 

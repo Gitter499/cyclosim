@@ -90,7 +90,7 @@ control are proven. Mesh is permanent (it's the terrain), splats are an overlay 
 
 Cargo workspace. The Xcode project links the produced static lib + generated UniFFI bindings.
 
-**Current workspace (M0–M2c):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
+**Current workspace (M0–M3):** `velo-units`, `velo-platform`, `velo-core`, `velo-render`, `velo-fit`, `velo-rides`, `velo-route-import`, `velo-terrain`, `velo-ffi`. Crates below marked *planned* are not in `Cargo.toml` yet.
 
 ```
 cyclosim/                           # repo root (git: cyclosim; product: VeloSim)
@@ -104,8 +104,8 @@ cyclosim/                           # repo root (git: cyclosim; product: VeloSim
 │   ├── velo-ffi/                   # UniFFI surface: exposes core+render to Swift
 │   ├── velo-cesium/                # *planned* `cxx` bridge to Cesium Native (C++): 3D Tiles streaming/LOD/glTF decode
 │   ├── velo-units/                 # newtype units (Watts, Meters, Grade, MetersPerSecond, …)
-│   ├── velo-route-import/          # *planned* GPX/TCX/FIT/RWGPS → RouteModel (lib + thin CLI)
-│   ├── velo-terrain/               # *planned* raster tiles + Terrain-RGB → TerrainTile mesh (lib + CLI)
+│   ├── velo-route-import/          # GPX/TCX/FIT → RouteModel (lib + thin CLI)
+│   ├── velo-terrain/               # DEM → terrain mesh + texture (lib + CLI)
 │   ├── velo-splatbake/             # *planned* "VeloSplatBake" offline GS bake (CLI) — heaviest, slowest
 │   └── velo-bikegen/               # *planned* bike import: 2D images → image-to-3D → glTF asset (lib + CLI)
 ├── shell-macos/                    # Xcode project (Swift): UI, CoreBluetooth, MusicKit, AirPods
@@ -574,8 +574,8 @@ Ride session recording, `velo-fit` export, framebuffer PNG, Strava OAuth/upload 
 `velo-rides` SQLite catalog; migrate publish/save flow off ad-hoc folders; UniFFI list/get/delete; minimal ride history UI.
 *Done when:* every finished ride is indexed in the DB with metadata and artifact paths; history list shows past rides; `LocalRideStore` delegates to `velo-rides`.
 
-**M3 — Real route + terrain substrate (priority #2).**
-`velo-route-import` (GPX/FIT/RWGPS) + `velo-terrain` (raster tiles + Terrain-RGB → mesh), renderer
+**M3 — Real route + terrain substrate (priority #2).** ✅
+`velo-route-import` (GPX/TCX) + `velo-terrain` (synthetic/Copernicus DEM → mesh), renderer
 terrain pass, grade driving SIM resistance.
 *Done when:* you ride an imported real route over satellite-textured terrain with grade-accurate resistance.
 
