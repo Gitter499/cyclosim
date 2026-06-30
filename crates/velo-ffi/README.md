@@ -9,7 +9,7 @@ UniFFI surface — exposes Rust core, renderer, and ride library to the macOS Sw
 | `VeloHandle` | App lifecycle: tick, ride modes, renderer, publish flow, workouts, bikes, scenery |
 | `RideLibraryHandle` | Standalone DB access (list/get/delete) |
 | Callback traits | `SensorSourceCallback`, `TrainerControlCallback`, `MediaCaptureCallback`, `ActivityPublisherCallback` |
-| DTOs | `RideStateDto`, `RideSummaryDto`, `FramebufferDto`, `RideRecordDto`, `WorkoutLiveDto`, … |
+| DTOs | `RideStateDto`, `RideSummaryDto`, `FramebufferDto`, `RideRecordDto`, `WorkoutDto`, `WorkoutLiveDto`, … |
 
 Builds as `lib`, `staticlib`, and `cdylib` (`velo_ffi`). Swift bindings generated via `just bindgen`.
 
@@ -36,7 +36,7 @@ Integration tests under `tests/`:
 | `route_import_integration.rs` | GPX import → route pack FFI |
 | `tiles_integration.rs` | Scenery config + synthetic 3D Tiles session |
 | `bike_integration.rs` | Bike import, list, active bike |
-| `workout_integration.rs` | Sample workout start, live state, ERG target |
+| `workout_integration.rs` | Custom workout start, validation, live state, ERG target |
 
 ## Milestone
 

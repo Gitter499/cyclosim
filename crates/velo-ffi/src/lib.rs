@@ -9,7 +9,7 @@ use velo_bikegen::{
 };
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
-    save_scenery_config, SceneryConfig, VeloApp, Workout,
+    save_scenery_config, SceneryConfig, VeloApp, Workout, WorkoutInterval, WorkoutTarget,
 };
 use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
 use velo_render::{forward_from_enu, RouteFollow, Renderer};
@@ -116,6 +116,26 @@ pub struct WorkoutLiveDto {
     pub workout_elapsed_s: f64,
     pub target_watts: Option<f64>,
     pub finished: bool,
+}
+
+#[derive(uniffi::Enum, Clone, Debug, PartialEq)]
+pub enum WorkoutTargetDto {
+    ErgWatts { watts: f64 },
+    FtpPercent { percent: f64 },
+    FreeRide,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct WorkoutIntervalDto {
+    pub name: String,
+    pub duration_s: f64,
+    pub target: WorkoutTargetDto,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct WorkoutDto {
+    pub name: String,
+    pub intervals: Vec<WorkoutIntervalDto>,
 }
 
 #[derive(uniffi::Record, Clone, Debug, Default)]
@@ -725,6 +745,13 @@ impl VeloHandle {
             .start_workout(Workout::sample_threshold());
     }
 
+    pub fn start_workout(&self, workout: WorkoutDto) -> Result<(), VeloError> {
+        let workout = map_workout_dto(workout)?;
+        workout.validate().map_err(|message| VeloError::RideError { message })?;
+        self.inner.lock().unwrap().app.start_workout(workout);
+        Ok(())
+    }
+
     pub fn clear_workout(&self) {
         self.inner.lock().unwrap().app.clear_workout();
     }
@@ -1003,6 +1030,29 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         workout_target_w,
         attribution,
     }
+}
+
+fn map_workout_target_dto(target: WorkoutTargetDto) -> WorkoutTarget {
+    match target {
+        WorkoutTargetDto::ErgWatts { watts } => WorkoutTarget::ErgWatts(watts),
+        WorkoutTargetDto::FtpPercent { percent } => WorkoutTarget::FtpPercent(percent),
+        WorkoutTargetDto::FreeRide => WorkoutTarget::FreeRide,
+    }
+}
+
+fn map_workout_dto(dto: WorkoutDto) -> Result<Workout, VeloError> {
+    Ok(Workout {
+        name: dto.name,
+        intervals: dto
+            .intervals
+            .into_iter()
+            .map(|i| WorkoutInterval {
+                name: i.name,
+                duration_s: i.duration_s,
+                target: map_workout_target_dto(i.target),
+            })
+            .collect(),
+    })
 }
 
 fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {
