@@ -24,5 +24,5 @@ if git rev-parse --verify HEAD >/dev/null 2>&1; then
 else
   new="$(printf '%s\n' "$msg" | git commit-tree "$tree")"
 fi
-git reset --hard "$new"
+git update-ref HEAD "$new"
 echo "$new"
