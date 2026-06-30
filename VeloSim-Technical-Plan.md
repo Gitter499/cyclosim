@@ -616,16 +616,17 @@ alternative — upload imagery, get a GS tileset Cesium Native streams.)*
 to mesh/3D-Tiles elsewhere, within the storage budget. **Not required to ship a photorealistic product —
 Tiers A+B already deliver that.**
 
-**M5 — Workouts + Liquid Glass shell + highlight clips.** *(partial — #10)*
+**M5 — Workouts + Liquid Glass shell + highlight clips.** *(#10 — `.zwo` import shipped; cinematic replay camera deferred)*
 Workout builder/engine, structured-workout ERG control, Liquid Glass setup/summary UI, and
 **highlight video clips** (ring-buffer capture + VideoToolbox H.264 encode) attached to the ride summary.
 *Done when:* you can build a structured workout, ride it with auto ERG targets, and review a saved
 summary with an auto-generated highlight clip.
 
 **Shipped:** `WorkoutEngine` + sample template, ERG auto-target, FFI `workout_live` /
-`start_sample_workout` / `start_workout(WorkoutDto)`, in-app workout builder, Liquid Glass setup chrome
-and ride summary sheet, `plan_highlight_clips` + schema v2 `highlight_clip_path` + shell encode on finish.
-**Remaining:** `.zwo` import, cinematic replay camera for clips.
+`start_sample_workout` / `start_workout(WorkoutDto)` / `parse_zwo_xml`, in-app workout builder with
+`.zwo` import, Liquid Glass setup chrome and ride summary sheet, `plan_highlight_clips` + schema v2
+`highlight_clip_path` + shell encode on finish.
+**Remaining:** cinematic replay camera for clips.
 
 **M6 — Apple Music + AirPods (lowest priority).**
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
