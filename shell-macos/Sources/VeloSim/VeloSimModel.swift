@@ -45,6 +45,10 @@ final class VeloSimModel: ObservableObject {
     @Published var tiles3dEnabled: Bool = false
     @Published var tilesAttribution: String = ""
 
+    @Published var availableBikes: [BikeInfoDto] = []
+    @Published var activeBikeId: String?
+    @Published var bikeImportStatus: String = ""
+
     private var tickTimer: Timer?
     private var rideStore: LocalRideStoreHandle?
 
@@ -61,6 +65,7 @@ final class VeloSimModel: ObservableObject {
         }
         refreshRideHistory()
         refreshRoutes()
+        refreshBikes()
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
@@ -108,6 +113,61 @@ final class VeloSimModel: ObservableObject {
     func refreshRoutes() {
         availableRoutes = (try? handle.listRoutes()) ?? []
         activeRouteId = handle.activeRouteId()
+    }
+
+    func refreshBikes() {
+        availableBikes = (try? handle.listBikes()) ?? []
+        activeBikeId = handle.activeBikeId()
+    }
+
+    func selectBike(_ bikeId: String) {
+        do {
+            try handle.setActiveBike(bikeId: bikeId)
+            activeBikeId = bikeId
+            bikeImportStatus = "Riding: \(bikeId)"
+        } catch {
+            bikeImportStatus = "Failed to load bike: \(error)"
+        }
+    }
+
+    func clearBike() {
+        handle.clearActiveBike()
+        activeBikeId = nil
+        bikeImportStatus = "No custom bike"
+    }
+
+    func importBikePhotos() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.message = "Select 1–4 bike photos"
+        guard panel.runModal() == .OK else { return }
+
+        let urls = panel.urls
+        guard (1...4).contains(urls.count) else {
+            bikeImportStatus = "Need 1–4 images"
+            return
+        }
+
+        let stem = urls[0].deletingPathExtension().lastPathComponent
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        let bikeId = stem.isEmpty ? "my-bike" : stem
+        bikeImportStatus = "Importing \(bikeId)…"
+
+        do {
+            try handle.importBikeFromImages(
+                imagePaths: urls.map(\.path),
+                bikeId: bikeId,
+                name: urls[0].deletingPathExtension().lastPathComponent
+            )
+            activeBikeId = bikeId
+            bikeImportStatus = "Imported \(bikeId)"
+            refreshBikes()
+        } catch {
+            bikeImportStatus = "Import failed: \(error)"
+        }
     }
 
     func selectRoute(_ routeId: String) {

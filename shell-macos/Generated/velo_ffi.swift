@@ -697,12 +697,18 @@ public func FfiConverterTypeRideLibraryHandle_lower(_ value: RideLibraryHandle) 
 
 public protocol VeloHandleProtocol: AnyObject, Sendable {
     
+    func activeBikeId()  -> String?
+    
     func activeRouteId()  -> String?
+    
+    func bikesDir()  -> String
     
     /**
      * Grab the current framebuffer as raw RGBA8 (shell encodes PNG).
      */
     func captureFramebufferRgba() throws  -> FramebufferDto
+    
+    func clearActiveBike() 
     
     func clearActiveRoute() 
     
@@ -722,6 +728,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func getRide(id: String) throws  -> RideRecordDto?
     
+    func importBikeFromImages(imagePaths: [String], bikeId: String, name: String?) throws 
+    
     func importGpxRoute(gpxPath: String, routeId: String, name: String?) throws 
     
     func initRenderer(metalLayerPtr: UInt64, width: UInt32, height: UInt32) throws 
@@ -729,6 +737,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func isRideRecording()  -> Bool
     
     func lastRideSummary()  -> RideSummaryDto?
+    
+    func listBikes() throws  -> [BikeInfoDto]
     
     func listRides() throws  -> [RideRecordDto]
     
@@ -745,6 +755,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func rideState()  -> RideStateDto
     
     func routeTiles3dEnabled()  -> Bool
+    
+    func setActiveBike(bikeId: String) throws 
     
     func setActiveRoute(routeId: String) throws 
     
@@ -833,9 +845,23 @@ public convenience init() {
     
 
     
+open func activeBikeId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_active_bike_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func activeRouteId() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_active_route_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func bikesDir() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_bikes_dir(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -848,6 +874,12 @@ open func captureFramebufferRgba()throws  -> FramebufferDto  {
     uniffi_velo_ffi_fn_method_velohandle_capture_framebuffer_rgba(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+open func clearActiveBike()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_clear_active_bike(self.uniffiClonePointer(),$0
+    )
+}
 }
     
 open func clearActiveRoute()  {try! rustCall() {
@@ -902,6 +934,15 @@ open func getRide(id: String)throws  -> RideRecordDto?  {
 })
 }
     
+open func importBikeFromImages(imagePaths: [String], bikeId: String, name: String?)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_import_bike_from_images(self.uniffiClonePointer(),
+        FfiConverterSequenceString.lower(imagePaths),
+        FfiConverterString.lower(bikeId),
+        FfiConverterOptionString.lower(name),$0
+    )
+}
+}
+    
 open func importGpxRoute(gpxPath: String, routeId: String, name: String?)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_import_gpx_route(self.uniffiClonePointer(),
         FfiConverterString.lower(gpxPath),
@@ -930,6 +971,13 @@ open func isRideRecording() -> Bool  {
 open func lastRideSummary() -> RideSummaryDto?  {
     return try!  FfiConverterOptionTypeRideSummaryDto.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_last_ride_summary(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func listBikes()throws  -> [BikeInfoDto]  {
+    return try  FfiConverterSequenceTypeBikeInfoDto.lift(try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_list_bikes(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -989,6 +1037,13 @@ open func routeTiles3dEnabled() -> Bool  {
     uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+open func setActiveBike(bikeId: String)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_set_active_bike(self.uniffiClonePointer(),
+        FfiConverterString.lower(bikeId),$0
+    )
+}
 }
     
 open func setActiveRoute(routeId: String)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
@@ -1132,6 +1187,76 @@ public func FfiConverterTypeVeloHandle_lower(_ value: VeloHandle) -> UnsafeMutab
 }
 
 
+
+
+public struct BikeInfoDto {
+    public var bikeId: String
+    public var name: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(bikeId: String, name: String) {
+        self.bikeId = bikeId
+        self.name = name
+    }
+}
+
+#if compiler(>=6)
+extension BikeInfoDto: Sendable {}
+#endif
+
+
+extension BikeInfoDto: Equatable, Hashable {
+    public static func ==(lhs: BikeInfoDto, rhs: BikeInfoDto) -> Bool {
+        if lhs.bikeId != rhs.bikeId {
+            return false
+        }
+        if lhs.name != rhs.name {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(bikeId)
+        hasher.combine(name)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBikeInfoDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BikeInfoDto {
+        return
+            try BikeInfoDto(
+                bikeId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BikeInfoDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.bikeId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBikeInfoDto_lift(_ buf: RustBuffer) throws -> BikeInfoDto {
+    return try FfiConverterTypeBikeInfoDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBikeInfoDto_lower(_ value: BikeInfoDto) -> RustBuffer {
+    return FfiConverterTypeBikeInfoDto.lower(value)
+}
 
 
 public struct FramebufferDto {
@@ -2747,6 +2872,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBikeInfoDto: FfiConverterRustBuffer {
+    typealias SwiftType = [BikeInfoDto]
+
+    public static func write(_ value: [BikeInfoDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBikeInfoDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BikeInfoDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BikeInfoDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBikeInfoDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRideRecordDto: FfiConverterRustBuffer {
     typealias SwiftType = [RideRecordDto]
 
@@ -2852,10 +3002,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_ridelibraryhandle_list_rides() != 64918) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_active_bike_id() != 50056) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_active_route_id() != 41776) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_bikes_dir() != 30638) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_capture_framebuffer_rgba() != 61190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_clear_active_bike() != 3290) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_clear_active_route() != 37496) {
@@ -2876,6 +3035,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_get_ride() != 8523) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_import_bike_from_images() != 15967) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_import_gpx_route() != 14984) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2886,6 +3048,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_last_ride_summary() != 18506) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_list_bikes() != 18383) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_list_rides() != 2080) {
@@ -2910,6 +3075,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled() != 60041) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_active_bike() != 44708) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_active_route() != 53968) {

@@ -11,6 +11,7 @@ glam = { workspace = true }
 glyphon = "0.8"
 thiserror = { workspace = true }
 velo-cesium = { workspace = true, features = ["network"] }
+velo-bikegen = { workspace = true }
 velo-core = { workspace = true }
 velo-terrain = { workspace = true }
 wgpu = "24"

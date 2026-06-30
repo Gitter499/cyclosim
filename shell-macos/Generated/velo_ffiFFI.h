@@ -379,14 +379,29 @@ void*_Nonnull uniffi_velo_ffi_fn_constructor_velohandle_new(RustCallStatus *_Non
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ACTIVE_BIKE_ID
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ACTIVE_BIKE_ID
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_active_bike_id(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ACTIVE_ROUTE_ID
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ACTIVE_ROUTE_ID
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_active_route_id(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKES_DIR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKES_DIR
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_bikes_dir(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CAPTURE_FRAMEBUFFER_RGBA
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CAPTURE_FRAMEBUFFER_RGBA
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_capture_framebuffer_rgba(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_ACTIVE_BIKE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_ACTIVE_BIKE
+void uniffi_velo_ffi_fn_method_velohandle_clear_active_bike(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_ACTIVE_ROUTE
@@ -419,6 +434,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_finish_ride_and_publish(void*_No
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_get_ride(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_IMPORT_BIKE_FROM_IMAGES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_IMPORT_BIKE_FROM_IMAGES
+void uniffi_velo_ffi_fn_method_velohandle_import_bike_from_images(void*_Nonnull ptr, RustBuffer image_paths, RustBuffer bike_id, RustBuffer name, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_IMPORT_GPX_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_IMPORT_GPX_ROUTE
 void uniffi_velo_ffi_fn_method_velohandle_import_gpx_route(void*_Nonnull ptr, RustBuffer gpx_path, RustBuffer route_id, RustBuffer name, RustCallStatus *_Nonnull out_status
@@ -437,6 +457,11 @@ int8_t uniffi_velo_ffi_fn_method_velohandle_is_ride_recording(void*_Nonnull ptr,
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_last_ride_summary(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LIST_BIKES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LIST_BIKES
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_list_bikes(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LIST_RIDES
@@ -477,6 +502,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_ride_state(void*_Nonnull ptr, Ru
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 int8_t uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
+void uniffi_velo_ffi_fn_method_velohandle_set_active_bike(void*_Nonnull ptr, RustBuffer bike_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ACTIVE_ROUTE
@@ -869,15 +899,33 @@ uint16_t uniffi_velo_ffi_checksum_method_ridelibraryhandle_list_rides(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ACTIVE_BIKE_ID
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ACTIVE_BIKE_ID
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_active_bike_id(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ACTIVE_ROUTE_ID
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ACTIVE_ROUTE_ID
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_active_route_id(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKES_DIR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKES_DIR
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_bikes_dir(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CAPTURE_FRAMEBUFFER_RGBA
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CAPTURE_FRAMEBUFFER_RGBA
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_capture_framebuffer_rgba(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_ACTIVE_BIKE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_ACTIVE_BIKE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_active_bike(void
     
 );
 #endif
@@ -917,6 +965,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_get_ride(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_IMPORT_BIKE_FROM_IMAGES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_IMPORT_BIKE_FROM_IMAGES
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_import_bike_from_images(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_IMPORT_GPX_ROUTE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_IMPORT_GPX_ROUTE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_import_gpx_route(void
@@ -938,6 +992,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_is_ride_recording(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_last_ride_summary(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LIST_BIKES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LIST_BIKES
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_list_bikes(void
     
 );
 #endif
@@ -986,6 +1046,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_ride_state(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ACTIVE_BIKE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_bike(void
     
 );
 #endif

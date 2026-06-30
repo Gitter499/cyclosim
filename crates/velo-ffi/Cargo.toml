@@ -19,10 +19,12 @@ velo-rides = { workspace = true }
 velo-route-import = { workspace = true }
 velo-terrain = { workspace = true }
 velo-cesium = { workspace = true }
+velo-bikegen = { workspace = true }
 velo-units = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+png = { workspace = true }
 velo-route-import = { workspace = true }
 velo-terrain = { workspace = true }
 
