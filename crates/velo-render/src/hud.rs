@@ -15,6 +15,10 @@ pub struct HudSnapshot {
     pub elapsed_s: f64,
     pub grade: f64,
     pub mode: &'static str,
+    /// Active structured-workout interval label (M5).
+    pub workout_interval: Option<String>,
+    /// Resolved ERG target for the current interval (None = free ride).
+    pub workout_target_w: Option<f64>,
     /// Shown when Tier B 3D Tiles mode is active (ToS attribution).
     pub attribution: Option<String>,
 }
@@ -31,7 +35,15 @@ impl HudSnapshot {
         let speed_kmh = self.speed_mps * 3.6;
         let mins = (self.elapsed_s / 60.0).floor() as u32;
         let secs = (self.elapsed_s % 60.0).floor() as u32;
-        let mut lines = vec![
+        let mut lines = Vec::new();
+        if let Some(interval) = &self.workout_interval {
+            let target = match self.workout_target_w {
+                Some(w) => format!("{:.0} W", w),
+                None => "Free ride".into(),
+            };
+            lines.push(format!("Interval: {interval}  Target: {target}"));
+        }
+        lines.extend([
             format!("Mode: {}  Grade: {:.1}%", self.mode, self.grade * 100.0),
             Self::format_line("Power", self.power_w, "W"),
             Self::format_line("Cadence", self.cadence_rpm, "rpm"),
@@ -39,7 +51,7 @@ impl HudSnapshot {
             format!("Speed: {:.1} km/h", speed_kmh),
             format!("Distance: {:.0} m", self.distance_m),
             format!("Time: {mins:02}:{secs:02}"),
-        ];
+        ]);
         if let Some(attr) = &self.attribution {
             lines.push(attr.clone());
         }
@@ -151,5 +163,23 @@ impl HudRenderer {
 
     pub fn trim(&mut self) {
         self.text_atlas.trim();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn workout_interval_line_prepended_when_active() {
+        let hud = HudSnapshot {
+            workout_interval: Some("Warmup".into()),
+            workout_target_w: Some(137.5),
+            mode: "ERG",
+            ..Default::default()
+        };
+        let lines = hud.lines();
+        assert!(lines[0].contains("Warmup"));
+        assert!(lines[0].contains("138 W"));
     }
 }
