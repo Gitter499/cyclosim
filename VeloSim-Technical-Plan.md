@@ -492,7 +492,7 @@ So the trait is `AudioDirector`, not "AudioMixer."
 playlists/queues, swaps tracks at boundaries, and uses MusicKit's playback controls
 (play/skip/volume duck) to transition. Track selection uses whatever tempo/energy metadata is
 available — best-effort, not true BPM-locked mixing. Ship this as "smart segment-aware playback,"
-which is honest and still good.
+which is honest and still good. **Shipped in M6** via `AudioDirectorCallback` + `VeloMusicDirector`.
 
 ---
 
@@ -542,6 +542,7 @@ M2b saves FIT + PNG to ad-hoc folders (`LocalRideStore`). **M2c** replaces that 
 - Deadzone + low-pass filter + an explicit **recenter gesture** (drift is real). Only active on routes
   that support steering offset. Keyboard/gamepad implement the same `SteeringInput` trait as the default.
 - Treat as a fun optional input, never a required control path.
+- **M6:** filtering and yaw integration live in `velo-core::SteeringController`; shell supplies raw axis from keyboard or `CMHeadphoneMotionManager`.
 
 ---
 
@@ -628,9 +629,11 @@ summary with an auto-generated highlight clip.
 `highlight_clip_path` + shell encode on finish.
 **Remaining:** cinematic replay camera for clips.
 
-**M6 — Apple Music + AirPods (lowest priority).**
+**M6 — Apple Music + AirPods (lowest priority).** ✅
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
 *Done when:* music shifts energy at interval boundaries and head-turn nudges steering on supported routes.
+
+**Shipped:** `SteeringController` in core (deadzone + low-pass + yaw integration); chase camera yaw offset in `velo-render`; UniFFI `SteeringInputCallback` + `AudioDirectorCallback`; keyboard default + `CMHeadphoneMotionManager` shell; MusicKit playlist search by segment energy; Liquid Glass setup toggles.
 
 ---
 

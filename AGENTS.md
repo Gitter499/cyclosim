@@ -15,6 +15,7 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M3b** — Google 3D Tiles (spike) | ✅ | [#7](https://github.com/Gitter499/cyclosim/issues/7) |
 | **M3c** — Bike model import | ✅ | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
 | **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import |
+| **M6** — Apple Music + AirPods | ✅ | [#11](https://github.com/Gitter499/cyclosim/issues/11) — segment MusicKit, keyboard/AirPods steering |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 
