@@ -23,7 +23,7 @@ Schema in `schema.rs`; migrations in `store.rs`.
 ## Test
 
 ```bash
-cargo test -p velo-rides    # schema, insert/query, migration, edge cases
+cargo test -p velo-rides    # schema, insert/query, migration, edge cases, FIT artifacts
 ```
 
 ## Milestone
