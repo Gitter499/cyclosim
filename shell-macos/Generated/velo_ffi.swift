@@ -712,6 +712,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func clearActiveRoute() 
     
+    func clearWorkout() 
+    
     /**
      * Open or create the ride library at custom paths (for tests).
      */
@@ -725,6 +727,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
      * Stop ride, capture screenshot, export FIT, publish via shell callback.
      */
     func finishRideAndPublish(media: MediaCaptureCallback, publisher: ActivityPublisherCallback) throws  -> PublishResultDto
+    
+    func ftp()  -> Double
     
     func getRide(id: String) throws  -> RideRecordDto?
     
@@ -760,6 +764,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func setActiveRoute(routeId: String) throws 
     
+    func setFtp(ftpW: Double) 
+    
     func setGrade(grade: Double) 
     
     func setRideMode(mode: RideMode) 
@@ -773,6 +779,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func startRide() 
     
+    func startSampleWorkout() 
+    
     func stopRide()  -> RideSummaryDto?
     
     func targetPower()  -> Double
@@ -784,6 +792,10 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func toggle()  -> UInt32
     
     func toggleCount()  -> UInt32
+    
+    func workoutActive()  -> Bool
+    
+    func workoutLive()  -> WorkoutLiveDto
     
 }
 open class VeloHandle: VeloHandleProtocol, @unchecked Sendable {
@@ -888,6 +900,12 @@ open func clearActiveRoute()  {try! rustCall() {
 }
 }
     
+open func clearWorkout()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_clear_workout(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
     /**
      * Open or create the ride library at custom paths (for tests).
      */
@@ -922,6 +940,13 @@ open func finishRideAndPublish(media: MediaCaptureCallback, publisher: ActivityP
     uniffi_velo_ffi_fn_method_velohandle_finish_ride_and_publish(self.uniffiClonePointer(),
         FfiConverterCallbackInterfaceMediaCaptureCallback_lower(media),
         FfiConverterCallbackInterfaceActivityPublisherCallback_lower(publisher),$0
+    )
+})
+}
+    
+open func ftp() -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_ftp(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -1053,6 +1078,13 @@ open func setActiveRoute(routeId: String)throws   {try rustCallWithError(FfiConv
 }
 }
     
+open func setFtp(ftpW: Double)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_ftp(self.uniffiClonePointer(),
+        FfiConverterDouble.lower(ftpW),$0
+    )
+}
+}
+    
 open func setGrade(grade: Double)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_grade(self.uniffiClonePointer(),
         FfiConverterDouble.lower(grade),$0
@@ -1086,6 +1118,12 @@ open func setTargetPower(watts: Double)  {try! rustCall() {
     
 open func startRide()  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_start_ride(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+open func startSampleWorkout()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(self.uniffiClonePointer(),$0
     )
 }
 }
@@ -1129,6 +1167,20 @@ open func toggle() -> UInt32  {
 open func toggleCount() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_toggle_count(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func workoutActive() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_workout_active(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func workoutLive() -> WorkoutLiveDto  {
+    return try!  FfiConverterTypeWorkoutLiveDto_lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_workout_live(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -1946,6 +1998,116 @@ public func FfiConverterTypeTelemetrySampleDto_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeTelemetrySampleDto_lower(_ value: TelemetrySampleDto) -> RustBuffer {
     return FfiConverterTypeTelemetrySampleDto.lower(value)
+}
+
+
+public struct WorkoutLiveDto {
+    public var active: Bool
+    public var workoutName: String
+    public var intervalName: String
+    public var intervalElapsedS: Double
+    public var workoutElapsedS: Double
+    public var targetWatts: Double?
+    public var finished: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(active: Bool, workoutName: String, intervalName: String, intervalElapsedS: Double, workoutElapsedS: Double, targetWatts: Double?, finished: Bool) {
+        self.active = active
+        self.workoutName = workoutName
+        self.intervalName = intervalName
+        self.intervalElapsedS = intervalElapsedS
+        self.workoutElapsedS = workoutElapsedS
+        self.targetWatts = targetWatts
+        self.finished = finished
+    }
+}
+
+#if compiler(>=6)
+extension WorkoutLiveDto: Sendable {}
+#endif
+
+
+extension WorkoutLiveDto: Equatable, Hashable {
+    public static func ==(lhs: WorkoutLiveDto, rhs: WorkoutLiveDto) -> Bool {
+        if lhs.active != rhs.active {
+            return false
+        }
+        if lhs.workoutName != rhs.workoutName {
+            return false
+        }
+        if lhs.intervalName != rhs.intervalName {
+            return false
+        }
+        if lhs.intervalElapsedS != rhs.intervalElapsedS {
+            return false
+        }
+        if lhs.workoutElapsedS != rhs.workoutElapsedS {
+            return false
+        }
+        if lhs.targetWatts != rhs.targetWatts {
+            return false
+        }
+        if lhs.finished != rhs.finished {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(active)
+        hasher.combine(workoutName)
+        hasher.combine(intervalName)
+        hasher.combine(intervalElapsedS)
+        hasher.combine(workoutElapsedS)
+        hasher.combine(targetWatts)
+        hasher.combine(finished)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWorkoutLiveDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WorkoutLiveDto {
+        return
+            try WorkoutLiveDto(
+                active: FfiConverterBool.read(from: &buf), 
+                workoutName: FfiConverterString.read(from: &buf), 
+                intervalName: FfiConverterString.read(from: &buf), 
+                intervalElapsedS: FfiConverterDouble.read(from: &buf), 
+                workoutElapsedS: FfiConverterDouble.read(from: &buf), 
+                targetWatts: FfiConverterOptionDouble.read(from: &buf), 
+                finished: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WorkoutLiveDto, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.active, into: &buf)
+        FfiConverterString.write(value.workoutName, into: &buf)
+        FfiConverterString.write(value.intervalName, into: &buf)
+        FfiConverterDouble.write(value.intervalElapsedS, into: &buf)
+        FfiConverterDouble.write(value.workoutElapsedS, into: &buf)
+        FfiConverterOptionDouble.write(value.targetWatts, into: &buf)
+        FfiConverterBool.write(value.finished, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutLiveDto_lift(_ buf: RustBuffer) throws -> WorkoutLiveDto {
+    return try FfiConverterTypeWorkoutLiveDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorkoutLiveDto_lower(_ value: WorkoutLiveDto) -> RustBuffer {
+    return FfiConverterTypeWorkoutLiveDto.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -3020,6 +3182,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_clear_active_route() != 37496) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_clear_workout() != 17982) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_configure_ride_library() != 26710) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3030,6 +3195,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_finish_ride_and_publish() != 37733) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_ftp() != 29384) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_get_ride() != 8523) {
@@ -3083,6 +3251,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_set_active_route() != 53968) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_ftp() != 51893) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_grade() != 37160) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3096,6 +3267,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_start_ride() != 61337) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout() != 49538) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_stop_ride() != 31002) {
@@ -3114,6 +3288,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_toggle_count() != 44591) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_workout_active() != 7905) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_workout_live() != 13988) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_constructor_ridelibraryhandle_open() != 33527) {

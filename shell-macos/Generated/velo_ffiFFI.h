@@ -409,6 +409,11 @@ void uniffi_velo_ffi_fn_method_velohandle_clear_active_bike(void*_Nonnull ptr, R
 void uniffi_velo_ffi_fn_method_velohandle_clear_active_route(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CLEAR_WORKOUT
+void uniffi_velo_ffi_fn_method_velohandle_clear_workout(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 void uniffi_velo_ffi_fn_method_velohandle_configure_ride_library(void*_Nonnull ptr, RustBuffer db_path, RustBuffer artifacts_base, RustCallStatus *_Nonnull out_status
@@ -427,6 +432,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_export_fit(void*_Nonnull ptr, Ru
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_FINISH_RIDE_AND_PUBLISH
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_FINISH_RIDE_AND_PUBLISH
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_finish_ride_and_publish(void*_Nonnull ptr, uint64_t media, uint64_t publisher, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_FTP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_FTP
+double uniffi_velo_ffi_fn_method_velohandle_ftp(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_GET_RIDE
@@ -514,6 +524,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_active_bike(void*_Nonnull ptr, Rus
 void uniffi_velo_ffi_fn_method_velohandle_set_active_route(void*_Nonnull ptr, RustBuffer route_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_FTP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_FTP
+void uniffi_velo_ffi_fn_method_velohandle_set_ftp(void*_Nonnull ptr, double ftp_w, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_GRADE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_GRADE
 void uniffi_velo_ffi_fn_method_velohandle_set_grade(void*_Nonnull ptr, double grade, RustCallStatus *_Nonnull out_status
@@ -537,6 +552,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_target_power(void*_Nonnull ptr, do
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_RIDE
 void uniffi_velo_ffi_fn_method_velohandle_start_ride(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
+void uniffi_velo_ffi_fn_method_velohandle_start_sample_workout(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_STOP_RIDE
@@ -567,6 +587,16 @@ uint32_t uniffi_velo_ffi_fn_method_velohandle_toggle(void*_Nonnull ptr, RustCall
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TOGGLE_COUNT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TOGGLE_COUNT
 uint32_t uniffi_velo_ffi_fn_method_velohandle_toggle_count(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_WORKOUT_ACTIVE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_WORKOUT_ACTIVE
+int8_t uniffi_velo_ffi_fn_method_velohandle_workout_active(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_WORKOUT_LIVE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_WORKOUT_LIVE
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_workout_live(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_INIT_CALLBACK_VTABLE_ACTIVITYPUBLISHERCALLBACK
@@ -935,6 +965,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_active_route(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CLEAR_WORKOUT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_workout(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_configure_ride_library(void
@@ -956,6 +992,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_export_fit(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_FINISH_RIDE_AND_PUBLISH
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_FINISH_RIDE_AND_PUBLISH
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_finish_ride_and_publish(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_FTP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_FTP
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_ftp(void
     
 );
 #endif
@@ -1061,6 +1103,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_active_route(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_FTP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_FTP
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_ftp(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_GRADE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_GRADE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_grade(void
@@ -1088,6 +1136,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_target_power(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_RIDE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_ride(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_START_SAMPLE_WORKOUT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_start_sample_workout(void
     
 );
 #endif
@@ -1124,6 +1178,18 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_toggle(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TOGGLE_COUNT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TOGGLE_COUNT
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_toggle_count(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_WORKOUT_ACTIVE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_WORKOUT_ACTIVE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_workout_active(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_WORKOUT_LIVE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_WORKOUT_LIVE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_workout_live(void
     
 );
 #endif
