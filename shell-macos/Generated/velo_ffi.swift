@@ -438,6 +438,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
+    typealias FfiType = Float
+    typealias SwiftType = Float
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+        return try lift(readFloat(&buf))
+    }
+
+    public static func write(_ value: Float, into buf: inout [UInt8]) {
+        writeFloat(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
@@ -712,6 +728,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func clearActiveRoute() 
     
+    func clearAudioDirector() 
+    
     func clearWorkout() 
     
     /**
@@ -760,9 +778,16 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func routeTiles3dEnabled()  -> Bool
     
+    func segmentMusicEnabled()  -> Bool
+    
     func setActiveBike(bikeId: String) throws 
     
     func setActiveRoute(routeId: String) throws 
+    
+    /**
+     * Register MusicKit (or mock) segment playback handler for workout intervals.
+     */
+    func setAudioDirector(director: AudioDirectorCallback) 
     
     func setFtp(ftpW: Double) 
     
@@ -775,6 +800,10 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
      */
     func setRouteTiles3d(enabled: Bool) throws 
     
+    func setSegmentMusicEnabled(enabled: Bool) 
+    
+    func setSteeringEnabled(enabled: Bool) 
+    
     func setTargetPower(watts: Double) 
     
     func startRide() 
@@ -783,11 +812,13 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func startWorkout(workout: WorkoutDto) throws 
     
+    func steeringEnabled()  -> Bool
+    
     func stopRide()  -> RideSummaryDto?
     
     func targetPower()  -> Double
     
-    func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback) 
+    func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback, steering: SteeringInputCallback) 
     
     func tilesAttribution()  -> String
     
@@ -898,6 +929,12 @@ open func clearActiveBike()  {try! rustCall() {
     
 open func clearActiveRoute()  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_clear_active_route(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+open func clearAudioDirector()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_clear_audio_director(self.uniffiClonePointer(),$0
     )
 }
 }
@@ -1066,6 +1103,13 @@ open func routeTiles3dEnabled() -> Bool  {
 })
 }
     
+open func segmentMusicEnabled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_segment_music_enabled(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func setActiveBike(bikeId: String)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_set_active_bike(self.uniffiClonePointer(),
         FfiConverterString.lower(bikeId),$0
@@ -1076,6 +1120,16 @@ open func setActiveBike(bikeId: String)throws   {try rustCallWithError(FfiConver
 open func setActiveRoute(routeId: String)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_set_active_route(self.uniffiClonePointer(),
         FfiConverterString.lower(routeId),$0
+    )
+}
+}
+    
+    /**
+     * Register MusicKit (or mock) segment playback handler for workout intervals.
+     */
+open func setAudioDirector(director: AudioDirectorCallback)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_audio_director(self.uniffiClonePointer(),
+        FfiConverterCallbackInterfaceAudioDirectorCallback_lower(director),$0
     )
 }
 }
@@ -1111,6 +1165,20 @@ open func setRouteTiles3d(enabled: Bool)throws   {try rustCallWithError(FfiConve
 }
 }
     
+open func setSegmentMusicEnabled(enabled: Bool)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_segment_music_enabled(self.uniffiClonePointer(),
+        FfiConverterBool.lower(enabled),$0
+    )
+}
+}
+    
+open func setSteeringEnabled(enabled: Bool)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_steering_enabled(self.uniffiClonePointer(),
+        FfiConverterBool.lower(enabled),$0
+    )
+}
+}
+    
 open func setTargetPower(watts: Double)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_target_power(self.uniffiClonePointer(),
         FfiConverterDouble.lower(watts),$0
@@ -1137,6 +1205,13 @@ open func startWorkout(workout: WorkoutDto)throws   {try rustCallWithError(FfiCo
 }
 }
     
+open func steeringEnabled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_steering_enabled(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func stopRide() -> RideSummaryDto?  {
     return try!  FfiConverterOptionTypeRideSummaryDto.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_stop_ride(self.uniffiClonePointer(),$0
@@ -1151,10 +1226,11 @@ open func targetPower() -> Double  {
 })
 }
     
-open func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback)  {try! rustCall() {
+open func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback, steering: SteeringInputCallback)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_tick(self.uniffiClonePointer(),
         FfiConverterCallbackInterfaceSensorSourceCallback_lower(sensors),
-        FfiConverterCallbackInterfaceTrainerControlCallback_lower(trainer),$0
+        FfiConverterCallbackInterfaceTrainerControlCallback_lower(trainer),
+        FfiConverterCallbackInterfaceSteeringInputCallback_lower(steering),$0
     )
 }
 }
@@ -1721,10 +1797,12 @@ public struct RideStateDto {
     public var powerW: Double?
     public var cadenceRpm: Double?
     public var heartRateBpm: Double?
+    public var steerAxis: Float
+    public var steerYawRad: Float
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(mode: RideMode, distanceM: Double, speedMps: Double, elapsedS: Double, grade: Double, powerW: Double?, cadenceRpm: Double?, heartRateBpm: Double?) {
+    public init(mode: RideMode, distanceM: Double, speedMps: Double, elapsedS: Double, grade: Double, powerW: Double?, cadenceRpm: Double?, heartRateBpm: Double?, steerAxis: Float, steerYawRad: Float) {
         self.mode = mode
         self.distanceM = distanceM
         self.speedMps = speedMps
@@ -1733,6 +1811,8 @@ public struct RideStateDto {
         self.powerW = powerW
         self.cadenceRpm = cadenceRpm
         self.heartRateBpm = heartRateBpm
+        self.steerAxis = steerAxis
+        self.steerYawRad = steerYawRad
     }
 }
 
@@ -1767,6 +1847,12 @@ extension RideStateDto: Equatable, Hashable {
         if lhs.heartRateBpm != rhs.heartRateBpm {
             return false
         }
+        if lhs.steerAxis != rhs.steerAxis {
+            return false
+        }
+        if lhs.steerYawRad != rhs.steerYawRad {
+            return false
+        }
         return true
     }
 
@@ -1779,6 +1865,8 @@ extension RideStateDto: Equatable, Hashable {
         hasher.combine(powerW)
         hasher.combine(cadenceRpm)
         hasher.combine(heartRateBpm)
+        hasher.combine(steerAxis)
+        hasher.combine(steerYawRad)
     }
 }
 
@@ -1798,7 +1886,9 @@ public struct FfiConverterTypeRideStateDto: FfiConverterRustBuffer {
                 grade: FfiConverterDouble.read(from: &buf), 
                 powerW: FfiConverterOptionDouble.read(from: &buf), 
                 cadenceRpm: FfiConverterOptionDouble.read(from: &buf), 
-                heartRateBpm: FfiConverterOptionDouble.read(from: &buf)
+                heartRateBpm: FfiConverterOptionDouble.read(from: &buf), 
+                steerAxis: FfiConverterFloat.read(from: &buf), 
+                steerYawRad: FfiConverterFloat.read(from: &buf)
         )
     }
 
@@ -1811,6 +1901,8 @@ public struct FfiConverterTypeRideStateDto: FfiConverterRustBuffer {
         FfiConverterOptionDouble.write(value.powerW, into: &buf)
         FfiConverterOptionDouble.write(value.cadenceRpm, into: &buf)
         FfiConverterOptionDouble.write(value.heartRateBpm, into: &buf)
+        FfiConverterFloat.write(value.steerAxis, into: &buf)
+        FfiConverterFloat.write(value.steerYawRad, into: &buf)
     }
 }
 
@@ -2015,6 +2107,76 @@ public func FfiConverterTypeRouteInfoDto_lift(_ buf: RustBuffer) throws -> Route
 #endif
 public func FfiConverterTypeRouteInfoDto_lower(_ value: RouteInfoDto) -> RustBuffer {
     return FfiConverterTypeRouteInfoDto.lower(value)
+}
+
+
+public struct SteerStateDto {
+    public var axis: Float
+    public var recenter: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(axis: Float, recenter: Bool) {
+        self.axis = axis
+        self.recenter = recenter
+    }
+}
+
+#if compiler(>=6)
+extension SteerStateDto: Sendable {}
+#endif
+
+
+extension SteerStateDto: Equatable, Hashable {
+    public static func ==(lhs: SteerStateDto, rhs: SteerStateDto) -> Bool {
+        if lhs.axis != rhs.axis {
+            return false
+        }
+        if lhs.recenter != rhs.recenter {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(axis)
+        hasher.combine(recenter)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSteerStateDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SteerStateDto {
+        return
+            try SteerStateDto(
+                axis: FfiConverterFloat.read(from: &buf), 
+                recenter: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SteerStateDto, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.axis, into: &buf)
+        FfiConverterBool.write(value.recenter, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSteerStateDto_lift(_ buf: RustBuffer) throws -> SteerStateDto {
+    return try FfiConverterTypeSteerStateDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSteerStateDto_lower(_ value: SteerStateDto) -> RustBuffer {
+    return FfiConverterTypeSteerStateDto.lower(value)
 }
 
 
@@ -2372,6 +2534,83 @@ public func FfiConverterTypeWorkoutLiveDto_lower(_ value: WorkoutLiveDto) -> Rus
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
+public enum PlaybackIntentDto {
+    
+    case start
+    case transition
+    case duck
+}
+
+
+#if compiler(>=6)
+extension PlaybackIntentDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePlaybackIntentDto: FfiConverterRustBuffer {
+    typealias SwiftType = PlaybackIntentDto
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PlaybackIntentDto {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .start
+        
+        case 2: return .transition
+        
+        case 3: return .duck
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PlaybackIntentDto, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .start:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .transition:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .duck:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePlaybackIntentDto_lift(_ buf: RustBuffer) throws -> PlaybackIntentDto {
+    return try FfiConverterTypePlaybackIntentDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePlaybackIntentDto_lower(_ value: PlaybackIntentDto) -> RustBuffer {
+    return FfiConverterTypePlaybackIntentDto.lower(value)
+}
+
+
+extension PlaybackIntentDto: Equatable, Hashable {}
+
+
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
 public enum PublishStatus {
     
     case local
@@ -2517,6 +2756,97 @@ public func FfiConverterTypeRideMode_lower(_ value: RideMode) -> RustBuffer {
 
 
 extension RideMode: Equatable, Hashable {}
+
+
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum SegmentEnergyDto {
+    
+    case warmup
+    case build
+    case threshold
+    case recovery
+    case cooldown
+}
+
+
+#if compiler(>=6)
+extension SegmentEnergyDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSegmentEnergyDto: FfiConverterRustBuffer {
+    typealias SwiftType = SegmentEnergyDto
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SegmentEnergyDto {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .warmup
+        
+        case 2: return .build
+        
+        case 3: return .threshold
+        
+        case 4: return .recovery
+        
+        case 5: return .cooldown
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SegmentEnergyDto, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .warmup:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .build:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .threshold:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .recovery:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .cooldown:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSegmentEnergyDto_lift(_ buf: RustBuffer) throws -> SegmentEnergyDto {
+    return try FfiConverterTypeSegmentEnergyDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSegmentEnergyDto_lower(_ value: SegmentEnergyDto) -> RustBuffer {
+    return FfiConverterTypeSegmentEnergyDto.lower(value)
+}
+
+
+extension SegmentEnergyDto: Equatable, Hashable {}
 
 
 
@@ -2825,6 +3155,127 @@ public func FfiConverterCallbackInterfaceActivityPublisherCallback_lower(_ v: Ac
 
 
 /**
+ * Shell maps segment energy to MusicKit queues/playlists (playback control only).
+ */
+public protocol AudioDirectorCallback: AnyObject, Sendable {
+    
+    func onSegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) 
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceAudioDirectorCallback {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceAudioDirectorCallback] = [UniffiVTableCallbackInterfaceAudioDirectorCallback(
+        onSegment: { (
+            uniffiHandle: UInt64,
+            energy: RustBuffer,
+            intent: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceAudioDirectorCallback.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSegment(
+                     energy: try FfiConverterTypeSegmentEnergyDto_lift(energy),
+                     intent: try FfiConverterTypePlaybackIntentDto_lift(intent)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterCallbackInterfaceAudioDirectorCallback.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface AudioDirectorCallback: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitAudioDirectorCallback() {
+    uniffi_velo_ffi_fn_init_callback_vtable_audiodirectorcallback(UniffiCallbackInterfaceAudioDirectorCallback.vtable)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceAudioDirectorCallback {
+    fileprivate static let handleMap = UniffiHandleMap<AudioDirectorCallback>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceAudioDirectorCallback : FfiConverter {
+    typealias SwiftType = AudioDirectorCallback
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceAudioDirectorCallback_lift(_ handle: UInt64) throws -> AudioDirectorCallback {
+    return try FfiConverterCallbackInterfaceAudioDirectorCallback.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceAudioDirectorCallback_lower(_ v: AudioDirectorCallback) -> UInt64 {
+    return FfiConverterCallbackInterfaceAudioDirectorCallback.lower(v)
+}
+
+
+
+
+/**
  * Shell encodes RGBA → PNG and highlight clips (VideoToolbox H.264).
  */
 public protocol MediaCaptureCallback: AnyObject, Sendable {
@@ -3088,6 +3539,120 @@ public func FfiConverterCallbackInterfaceSensorSourceCallback_lift(_ handle: UIn
 #endif
 public func FfiConverterCallbackInterfaceSensorSourceCallback_lower(_ v: SensorSourceCallback) -> UInt64 {
     return FfiConverterCallbackInterfaceSensorSourceCallback.lower(v)
+}
+
+
+
+
+public protocol SteeringInputCallback: AnyObject, Sendable {
+    
+    func poll()  -> SteerStateDto
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceSteeringInputCallback {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceSteeringInputCallback] = [UniffiVTableCallbackInterfaceSteeringInputCallback(
+        poll: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> SteerStateDto in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceSteeringInputCallback.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.poll(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeSteerStateDto_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterCallbackInterfaceSteeringInputCallback.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface SteeringInputCallback: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitSteeringInputCallback() {
+    uniffi_velo_ffi_fn_init_callback_vtable_steeringinputcallback(UniffiCallbackInterfaceSteeringInputCallback.vtable)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceSteeringInputCallback {
+    fileprivate static let handleMap = UniffiHandleMap<SteeringInputCallback>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceSteeringInputCallback : FfiConverter {
+    typealias SwiftType = SteeringInputCallback
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceSteeringInputCallback_lift(_ handle: UInt64) throws -> SteeringInputCallback {
+    return try FfiConverterCallbackInterfaceSteeringInputCallback.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceSteeringInputCallback_lower(_ v: SteeringInputCallback) -> UInt64 {
+    return FfiConverterCallbackInterfaceSteeringInputCallback.lower(v)
 }
 
 
@@ -3616,6 +4181,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_clear_active_route() != 37496) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_clear_audio_director() != 46327) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_clear_workout() != 17982) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3679,10 +4247,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled() != 60041) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_segment_music_enabled() != 12547) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_active_bike() != 44708) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_active_route() != 53968) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_audio_director() != 50804) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_ftp() != 51893) {
@@ -3697,6 +4271,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_set_route_tiles_3d() != 17410) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_segment_music_enabled() != 59000) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_steering_enabled() != 63397) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_target_power() != 18399) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3709,13 +4289,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_start_workout() != 64260) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_steering_enabled() != 17797) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_stop_ride() != 31002) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_target_power() != 18424) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_velo_ffi_checksum_method_velohandle_tick() != 23598) {
+    if (uniffi_velo_ffi_checksum_method_velohandle_tick() != 60683) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_tiles_attribution() != 31323) {
@@ -3745,6 +4328,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_activitypublishercallback_publish_ride() != 7099) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_audiodirectorcallback_on_segment() != 57079) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_mediacapturecallback_encode_png_rgba() != 3154) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3752,6 +4338,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_sensorsourcecallback_poll_samples() != 53418) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_steeringinputcallback_poll() != 20241) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_trainercontrolcallback_set_target_power() != 19597) {
@@ -3765,8 +4354,10 @@ private let initializationResult: InitializationResult = {
     }
 
     uniffiCallbackInitActivityPublisherCallback()
+    uniffiCallbackInitAudioDirectorCallback()
     uniffiCallbackInitMediaCaptureCallback()
     uniffiCallbackInitSensorSourceCallback()
+    uniffiCallbackInitSteeringInputCallback()
     uniffiCallbackInitTrainerControlCallback()
     return InitializationResult.ok
 }()

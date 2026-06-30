@@ -3,7 +3,7 @@ mod common;
 
 use velo_ffi::{PublishStatus, VeloHandle};
 
-use common::{MockMedia, MockPublisher, NoopTrainer, TickSensors};
+use common::{MockMedia, MockPublisher, NoopSteering, NoopTrainer, TickSensors};
 
 #[test]
 fn finish_ride_persists_to_library() {
@@ -26,6 +26,7 @@ fn finish_ride_persists_to_library() {
         handle.tick(
             Box::new(TickSensors { elapsed_ms }),
             Box::new(NoopTrainer),
+            Box::new(NoopSteering),
         );
     }
 
@@ -62,6 +63,7 @@ fn strava_publish_records_activity_id() {
         handle.tick(
             Box::new(TickSensors { elapsed_ms: ms }),
             Box::new(NoopTrainer),
+            Box::new(NoopSteering),
         );
     }
 
@@ -96,6 +98,7 @@ fn finish_ride_plans_and_encodes_highlight_clips() {
         handle.tick(
             Box::new(TickSensors { elapsed_ms: ms }),
             Box::new(NoopTrainer),
+            Box::new(NoopSteering),
         );
     }
 
