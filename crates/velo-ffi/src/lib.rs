@@ -9,7 +9,8 @@ use velo_bikegen::{
 };
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
-    save_scenery_config, SceneryConfig, VeloApp, Workout, WorkoutInterval, WorkoutTarget,
+    parse_zwo_xml as parse_zwo_xml_core, save_scenery_config, SceneryConfig, VeloApp, Workout,
+    WorkoutInterval, WorkoutTarget,
 };
 use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
 use velo_render::{forward_from_enu, RouteFollow, Renderer};
@@ -1104,6 +1105,36 @@ fn map_workout_dto(dto: WorkoutDto) -> Result<Workout, VeloError> {
             })
             .collect(),
     })
+}
+
+fn map_workout_to_dto(workout: Workout) -> WorkoutDto {
+    WorkoutDto {
+        name: workout.name,
+        intervals: workout
+            .intervals
+            .into_iter()
+            .map(|i| WorkoutIntervalDto {
+                name: i.name,
+                duration_s: i.duration_s,
+                target: match i.target {
+                    WorkoutTarget::ErgWatts(w) => WorkoutTargetDto::ErgWatts { watts: w },
+                    WorkoutTarget::FtpPercent(p) => WorkoutTargetDto::FtpPercent { percent: p },
+                    WorkoutTarget::FreeRide => WorkoutTargetDto::FreeRide,
+                },
+            })
+            .collect(),
+    }
+}
+
+#[uniffi::export]
+pub fn parse_zwo_xml(xml: String) -> Result<WorkoutDto, VeloError> {
+    let workout = parse_zwo_xml_core(&xml).map_err(|e| VeloError::RideError {
+        message: e.to_string(),
+    })?;
+    workout
+        .validate()
+        .map_err(|message| VeloError::RideError { message })?;
+    Ok(map_workout_to_dto(workout))
 }
 
 fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {

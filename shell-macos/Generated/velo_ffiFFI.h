@@ -632,6 +632,11 @@ void uniffi_velo_ffi_fn_init_callback_vtable_sensorsourcecallback(const UniffiVT
 void uniffi_velo_ffi_fn_init_callback_vtable_trainercontrolcallback(const UniffiVTableCallbackInterfaceTrainerControlCallback* _Nonnull vtable
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_PARSE_ZWO_XML
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_PARSE_ZWO_XML
+RustBuffer uniffi_velo_ffi_fn_func_parse_zwo_xml(RustBuffer xml, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_VERSION
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_FUNC_VERSION
 RustBuffer uniffi_velo_ffi_fn_func_version(RustCallStatus *_Nonnull out_status
@@ -916,6 +921,12 @@ void ffi_velo_ffi_rust_future_free_void(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_VELO_FFI_RUST_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FFI_VELO_FFI_RUST_FUTURE_COMPLETE_VOID
 void ffi_velo_ffi_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_PARSE_ZWO_XML
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_PARSE_ZWO_XML
+uint16_t uniffi_velo_ffi_checksum_func_parse_zwo_xml(void
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_FUNC_VERSION

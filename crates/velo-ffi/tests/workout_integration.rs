@@ -6,7 +6,8 @@ mod common;
 use std::sync::{Arc, Mutex};
 
 use velo_ffi::{
-    SensorSourceCallback, VeloError, VeloHandle, WorkoutDto, WorkoutIntervalDto, WorkoutTargetDto,
+    parse_zwo_xml, SensorSourceCallback, VeloError, VeloHandle, WorkoutDto, WorkoutIntervalDto,
+    WorkoutTargetDto,
 };
 
 use common::{RecordingTrainerCallback};
@@ -98,4 +99,23 @@ fn start_workout_rejects_empty_intervals() {
         })
         .expect_err("empty intervals");
     assert!(matches!(err, VeloError::RideError { .. }));
+}
+
+#[test]
+fn parse_zwo_xml_round_trip() {
+    let xml = r#"<workout_file>
+  <name>Import test</name>
+  <workout>
+    <SteadyState Duration="120" Power="0.85" />
+    <FreeRide Duration="60" />
+  </workout>
+</workout_file>"#;
+    let dto = parse_zwo_xml(xml.to_string()).expect("parse");
+    assert_eq!(dto.name, "Import test");
+    assert_eq!(dto.intervals.len(), 2);
+    assert!(matches!(
+        dto.intervals[0].target,
+        WorkoutTargetDto::FtpPercent { percent } if (percent - 85.0).abs() < 0.1
+    ));
+    assert!(matches!(dto.intervals[1].target, WorkoutTargetDto::FreeRide));
 }
