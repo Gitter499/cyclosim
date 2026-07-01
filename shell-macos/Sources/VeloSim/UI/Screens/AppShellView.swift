@@ -53,7 +53,7 @@ struct AppShellView: View {
     private var destinationContent: some View {
         switch model.shellDestination {
         case .home:
-            HomeDashboardView(model: model)
+            DashboardView(model: model)
         case .activities:
             ActivitiesCatalogView(model: model)
         case .history:
