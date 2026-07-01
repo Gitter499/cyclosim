@@ -45,8 +45,8 @@ VeloSim adopts (does not duplicate) these established guides:
 ## Liquid Glass
 
 - Gate with `#if VELO_LIQUID_GLASS` (defined in `Package.swift` when macOS 26 SDK is available).
-- Use shared helpers in `VeloGlass.swift` — no copy-pasted availability checks.
-- Glass on **chrome only** (toolbars, sheets, action bars) — not Metal viewport or in-game HUD.
+- Use shared helpers in `UI/Components/VeloGlass.swift` and `UI/Components/HUDSurface.swift` — no copy-pasted availability checks.
+- Follow [docs/VeloSim-UI-and-Zwift-Parity-Guide.md](../../../docs/VeloSim-UI-and-Zwift-Parity-Guide.md) — never `.ultraThinMaterial` as fake glass.
 
 ## Package.swift
 

@@ -4,7 +4,45 @@ Running record of cross-cutting cleanup on the `dev` branch. See [.cursor/skills
 
 | Date | Trigger | Summary | Commits |
 |------|---------|---------|---------|
-| 2026-06-30 | Pre headless app testing | M6 doc sync; headless scenario tests (core + FFI + Swift); `docs/HEADLESS_TESTING.md`; workout builder extracted to Support | see PR |
+| 2026-06-30 | UI cleanup prep (#34) | Anti-pattern removal, UI folder restructure, HUDModel ~8 Hz skeleton | see PR |
+
+---
+
+# Quality pass — 2026-06-30 (UI cleanup prep #34)
+
+## Scope
+Milestone / trigger: **UI cleanup prep** before implementing `docs/VeloSim-UI-and-Zwift-Parity-Guide.md`.
+
+## Changes made
+- Restructured `shell-macos/Sources/VeloSim/UI/` into `Design/`, `HUD/`, `Screens/`, `Components/`.
+- Removed `.ultraThinMaterial` fake-glass fallbacks; added `HUDSurface` (guide §8) and solid `.quaternary` chrome fallback.
+- Documented single HUD path: Swift overlay live, Rust glyphon disabled at init.
+- Added `HUDModel` + `HUDCoordinator` (~8 Hz throttling skeleton).
+- Added `PowerZone`, `Tok`, `Typo` design tokens; `PowerZoneTests`, `HUDCoordinatorTests`.
+- Updated `velo-ui-parity` skill, `UI_PARITY_PLAN.md` (superseded notice), `lint-shell-ui.sh` (flags `.ultraThinMaterial` in HUD/Components).
+
+## Findings (deferred — for implementation agent)
+- **HUD layout rewrite** — current overlay is MyWhoosh-inspired placeholders; rebuild to guide §5.2 zones with real glass cards.
+- **Power zone tint** — `PowerZone` exists but overlay does not tint the power card yet.
+- **Rider weight / w/kg** — `HUDCoordinator` accepts weight but shell has no profile weight field yet.
+- **Chrome glass** — pre-macOS-26 uses solid `.quaternary`, not glass; full Liquid Glass requires macOS 26 SDK locally.
+- **Pairing screen, FTP tests, dashboard §7 layouts** — explicitly out of scope for this prep PR.
+
+## Doc sync
+- `velo-ui-parity` skill now points to parity guide §11 checklist.
+- `UI_PARITY_PLAN.md` marked superseded; architecture diagram updated for Swift HUD path.
+
+## Test coverage added
+- `PowerZoneTests.swift` — Coggan zone boundaries.
+- `HUDCoordinatorTests.swift` — 8 Hz throttle (single write per burst).
+
+## Verification
+- `cargo test --workspace`
+- `./scripts/lint-apple-symbols.sh`
+- `./scripts/lint-shell-ui.sh`
+- `./scripts/build.sh`
+
+---
 | 2026-06-30 | Post-M5 complete (#10 closed) | Agent skills (rust/swift best practices); M5 doc sync; quality-pass skill cross-ref | see below |
 | 2026-06-30 | Initial bootstrap | Doc sync (plan M2c done, workspace layout); FFI callback + FIT catalog integration tests; test-helper warning cleanup | `a1b2c3d`… (see git log before this pass) |
 | 2026-06-30 | Post-M5 partial + multi-agent desync | Plan/README sync (M3b/M3c done, M5 partial); unified `RecordingTrainerControl`; doc refresh | see below |

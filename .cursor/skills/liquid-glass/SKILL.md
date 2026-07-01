@@ -23,20 +23,7 @@ Content stays on solid or subtle materials (`.background(.quaternary)`). Glass w
 
 ## API (macOS 26 / Xcode 26)
 
-Gate with availability; fall back on macOS 14–25:
-
-```swift
-@ViewBuilder
-func veloGlassChrome<S: Shape>(_ shape: S = Capsule()) -> some View {
-    if #available(macOS 26, *) {
-        self.glassEffect(.regular, in: shape)
-    } else {
-        self.background(.ultraThinMaterial, in: shape)
-    }
-}
-```
-
-Prefer shared helpers in `shell-macos/Sources/VeloSim/UI/VeloGlass.swift` — do not copy-paste availability checks.
+Gate with `#if VELO_LIQUID_GLASS`; use `UI/Components/VeloGlass.swift` and `HUDSurface.swift`. See [VeloSim-UI-and-Zwift-Parity-Guide.md](../../../docs/VeloSim-UI-and-Zwift-Parity-Guide.md) — no fake glass.
 
 ### Core rules (Apple WWDC 2025)
 
@@ -67,8 +54,9 @@ HSplitView
 
 | Helper | Purpose |
 |--------|---------|
-| `VeloGlass.swift` | Availability-safe modifiers |
-| `SetupChromeView` | Pre-ride: sensors, route, bike, FTP, workout entry |
+| `UI/Components/VeloGlass.swift` | Availability-safe chrome modifiers |
+| `UI/Components/HUDSurface.swift` | HUD legibility (glass or solid fallback) |
+| `UI/Screens/PreRidePanel.swift` | Pre-ride: sensors, route, bike, FTP, workout entry |
 | `RideSummarySheet` | Post-ride stats + publish badge + open folder |
 
 Extract new chrome into `shell-macos/Sources/VeloSim/UI/` — keep `ContentView` thin.

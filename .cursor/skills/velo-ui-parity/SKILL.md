@@ -1,42 +1,53 @@
 ---
 name: velo-ui-parity
 description: >-
-  VeloSim shell navigation parity (Zwift/MyWhoosh v1): multi-page TabView,
-  dashboard quick starts, fullscreen ride + Swift HUD overlay, dedicated Settings.
-  Use when restructuring shell chrome or adding pre-ride / in-ride UI.
+  VeloSim shell UI and Zwift parity — follow docs/VeloSim-UI-and-Zwift-Parity-Guide.md.
+  Use when restructuring shell chrome, HUD, or pre-ride / in-ride UI.
 ---
 
-# VeloSim UI parity v1
+# VeloSim UI parity
 
-## Navigation
+**Source of truth:** [docs/VeloSim-UI-and-Zwift-Parity-Guide.md](../../../docs/VeloSim-UI-and-Zwift-Parity-Guide.md)
+
+Read the guide first. It overrides older navigation sketches and this skill's prior v1 TabView layout.
+
+## Shell layout (current)
 
 ```
-TabView
-├── Home (DashboardView) — quick start cards, recent rides
-├── Activities — Routes | Workouts | History
-├── Ride (RideView) — full-bleed Metal + RideHUDOverlay
-└── Settings (SettingsView) — Keychain secrets, preferences
+ContentView
+├── shellPhase == .browse → AppShellView (Home · Activities · History · Settings)
+└── shellPhase == .riding → RideModeView (Metal + Swift HUD + control bar)
 ```
 
-Pre-ride BLE / steering / music / ERG → **PreRideSetupSheet** from Ride tab, not a permanent sidebar.
+Pre-ride setup lives on **Activities** (`PreRidePanel`), not a persistent sidebar.
 
-## HUD
+## UI folder map
 
-- **Live ride:** Swift `RideHUDOverlay` on `MetalRideView` (corners + workout banner + tiles attribution in status bar).
-- **Rust glyphon HUD:** disabled via `setHudDrawEnabled(false)` after renderer init; still drawn on screenshot capture.
-- Formatting: `RideHUDFormatting.swift` (tested).
+| Path | Purpose |
+|------|---------|
+| `UI/Design/` | `Tok`, `Typo`, `PowerZone` tokens |
+| `UI/HUD/` | `RideHUDOverlay`, `RideHUDFormatting`, `HUDModel`, `HUDCoordinator` |
+| `UI/Screens/` | Shell pages, `MetalRideView`, settings, summary |
+| `UI/Components/` | `VeloGlass`, `HUDSurface` |
 
-## Tiles
+## HUD (single path)
 
-- Google path-only URIs resolve against `https://tile.googleapis.com` with `session` + `key`.
-- Errors surface on Ride tab status bar (`tilesLastError`, `tilesProviderStatus`).
+- **Live ride:** Swift `RideHUDOverlay` on `MetalRideView`; values from throttled `HUDModel` (~8 Hz).
+- **Rust glyphon HUD:** disabled at init (`setHudDrawEnabled(false)`); retained for screenshot capture only.
+- **Never** fake glass with `.ultraThinMaterial` — use `hudSurface` / `.glassEffect` per guide §8.
 
-## P1 deferrals
+## Compliance checklist (§11)
 
-- Gaussian splatting scenery
-- Hosted Meshy bikegen HTTP
-- Deep tile LOD streaming / frustum culling
-- Morphing Liquid Glass chrome between tabs
+Before marking UI work done, verify every box in guide §11:
+
+- [ ] No `.ultraThinMaterial`/custom blur; glass via `.glassEffect` or solid HUD fallback
+- [ ] No glass-on-glass; no full-screen/content glass
+- [ ] `GlassEffectContainer` per multi-element glass region
+- [ ] Only power card tinted by zone
+- [ ] HUD metrics match §5; layout matches §5.2
+- [ ] HUD bound to ~8 Hz `HUDModel`, not tick/packet stream
+- [ ] `.monospacedDigit()` + `.contentTransition(.numericText())` on numbers
+- [ ] Accessibility: Reduce Transparency, Reduce Motion, Dynamic Type, VoiceOver
 
 ## Verification
 
@@ -45,3 +56,7 @@ cargo test --workspace
 ./scripts/lint-shell-ui.sh
 ./scripts/build.sh
 ```
+
+## Superseded
+
+- [docs/UI_PARITY_PLAN.md](../../../docs/UI_PARITY_PLAN.md) v1 TabView / Rust-HUD-primary plan — historical only.
