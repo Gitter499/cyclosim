@@ -597,6 +597,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_ftp(void*_Nonnull ptr, double ftp_
 void uniffi_velo_ffi_fn_method_velohandle_set_grade(void*_Nonnull ptr, double grade, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
+void uniffi_velo_ffi_fn_method_velohandle_set_hud_draw_enabled(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_RIDE_MODE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_RIDE_MODE
 void uniffi_velo_ffi_fn_method_velohandle_set_ride_mode(void*_Nonnull ptr, RustBuffer mode, RustCallStatus *_Nonnull out_status
@@ -1256,6 +1261,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_ftp(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_GRADE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_GRADE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_grade(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_hud_draw_enabled(void
     
 );
 #endif
