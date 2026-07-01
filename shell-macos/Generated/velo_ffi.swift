@@ -800,6 +800,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func setGrade(grade: Double) 
     
+    /**
+     * When false, live frames skip the in-canvas HUD (shell draws Swift overlay).
+     */
+    func setHudDrawEnabled(enabled: Bool) 
+    
     func setRideMode(mode: RideMode) 
     
     /**
@@ -1172,6 +1177,16 @@ open func setFtp(ftpW: Double)  {try! rustCall() {
 open func setGrade(grade: Double)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_grade(self.uniffiClonePointer(),
         FfiConverterDouble.lower(grade),$0
+    )
+}
+}
+    
+    /**
+     * When false, live frames skip the in-canvas HUD (shell draws Swift overlay).
+     */
+open func setHudDrawEnabled(enabled: Bool)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_hud_draw_enabled(self.uniffiClonePointer(),
+        FfiConverterBool.lower(enabled),$0
     )
 }
 }
@@ -4400,6 +4415,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_grade() != 37160) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_hud_draw_enabled() != 30357) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_ride_mode() != 33821) {

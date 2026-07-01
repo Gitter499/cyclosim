@@ -45,7 +45,7 @@ struct SetupChromeView: View {
             }
             Spacer()
             Button {
-                model.showSettings = true
+                model.selectedTab = .settings
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }

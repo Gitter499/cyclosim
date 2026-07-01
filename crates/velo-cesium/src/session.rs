@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use thiserror::Error;
 use url::Url;
@@ -13,6 +13,7 @@ use crate::tileset::{TilesetDocument, TilesetError};
 use crate::DEV_ION_ASSET_ID;
 
 const GOOGLE_ROOT_TILESET: &str = "https://tile.googleapis.com/v1/3dtiles/root.json";
+const GOOGLE_TILES_ORIGIN: &str = "https://tile.googleapis.com";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ViewCorridor {
@@ -63,14 +64,37 @@ impl FetchAuth {
         let joined = base
             .join(href)
             .map_err(|e| SessionError::Network(e.to_string()))?;
-        let mut url = joined;
-        if self.google_api_key.is_some() {
-            if let Some(key) = &self.google_api_key {
+        Self::append_google_key(joined, self.google_api_key.as_deref())
+    }
+
+    /// Google returns path-only URIs (`/v1/3dtiles/...?session=…`) that must be resolved
+    /// against `tile.googleapis.com`, preserving `session` and appending `key`.
+    fn resolve_google_url(&self, href: &str) -> Result<String, SessionError> {
+        let combined = if href.starts_with("http://") || href.starts_with("https://") {
+            href.to_string()
+        } else if href.starts_with('/') {
+            format!("{GOOGLE_TILES_ORIGIN}{href}")
+        } else {
+            format!("{GOOGLE_TILES_ORIGIN}/{href}")
+        };
+        let url = Url::parse(&combined).map_err(|e| SessionError::Network(e.to_string()))?;
+        Self::append_google_key(url, self.google_api_key.as_deref())
+    }
+
+    fn append_google_key(mut url: Url, key: Option<&str>) -> Result<String, SessionError> {
+        if let Some(key) = key {
+            let has_key = url.query_pairs().any(|(k, _)| k == "key");
+            if !has_key {
                 url.query_pairs_mut().append_pair("key", key);
             }
         }
         Ok(url.to_string())
     }
+}
+
+fn looks_like_tileset_ref(uri: &str) -> bool {
+    let path = uri.split('?').next().unwrap_or(uri);
+    path.ends_with(".json")
 }
 
 /// In-memory 3D Tiles session. Never persists tile bytes to disk.
@@ -188,20 +212,7 @@ impl TilesSession {
             return Err(SessionError::MissingApiKey);
         };
 
-        let tileset_json =
-            fetch_bytes_in_memory(&tileset_url, &mut self.memory_cache, &self.fetch_auth)?;
-        let doc = TilesetDocument::parse_json(
-            std::str::from_utf8(&tileset_json).map_err(|e| SessionError::Network(e.to_string()))?,
-        )?;
-
-        let base = Url::parse(&tileset_url).map_err(|e| SessionError::Network(e.to_string()))?;
-
-        for uri in doc.content_uris(2).into_iter().take(2) {
-            let tile_url = self.fetch_auth.resolve_tile_url(&base, &uri)?;
-            let bytes = fetch_bytes_in_memory(&tile_url, &mut self.memory_cache, &self.fetch_auth)?;
-            let mesh = decode_gltf_bytes(&bytes, &uri)?;
-            self.loaded_meshes.push(mesh);
-        }
+        self.load_meshes_from_tileset(&tileset_url, 0)?;
 
         if self.loaded_meshes.is_empty() {
             return Err(SessionError::Network(
@@ -209,6 +220,70 @@ impl TilesSession {
             ));
         }
         self.last_error = None;
+        Ok(())
+    }
+
+    /// Breadth-first tileset traversal: follow external `.json` tilesets, decode GLB/GLTF leaves.
+    fn load_meshes_from_tileset(
+        &mut self,
+        tileset_url: &str,
+        depth: u32,
+    ) -> Result<(), SessionError> {
+        if depth > 6 {
+            return Err(SessionError::Network(
+                "tileset nesting exceeded max depth".into(),
+            ));
+        }
+
+        let tileset_json =
+            fetch_bytes_in_memory(tileset_url, &mut self.memory_cache, &self.fetch_auth)?;
+        let doc = TilesetDocument::parse_json(
+            std::str::from_utf8(&tileset_json).map_err(|e| SessionError::Network(e.to_string()))?,
+        )?;
+
+        let ion_base = Url::parse(tileset_url).map_err(|e| SessionError::Network(e.to_string()))?;
+        let mut pending: Vec<String> = doc.content_uris(4);
+        let mut seen: HashSet<String> = HashSet::new();
+
+        while let Some(uri) = pending.pop() {
+            if self.loaded_meshes.len() >= 2 {
+                break;
+            }
+            if !seen.insert(uri.clone()) {
+                continue;
+            }
+
+            let tile_url = match self.provider {
+                TileProvider::GooglePhotorealistic => self.fetch_auth.resolve_google_url(&uri)?,
+                _ => self.fetch_auth.resolve_tile_url(&ion_base, &uri)?,
+            };
+
+            if looks_like_tileset_ref(&uri) {
+                if self.load_meshes_from_tileset(&tile_url, depth + 1).is_ok()
+                    && !self.loaded_meshes.is_empty()
+                {
+                    continue;
+                }
+            }
+
+            let bytes = fetch_bytes_in_memory(&tile_url, &mut self.memory_cache, &self.fetch_auth)?;
+            if bytes.first() == Some(&b'{') {
+                if let Ok(nested) = std::str::from_utf8(&bytes) {
+                    if let Ok(nested_doc) = TilesetDocument::parse_json(nested) {
+                        pending.extend(nested_doc.content_uris(3));
+                        continue;
+                    }
+                }
+            }
+
+            match decode_gltf_bytes(&bytes, &uri) {
+                Ok(mesh) => self.loaded_meshes.push(mesh),
+                Err(e) => {
+                    self.last_error = Some(format!("decode {uri}: {e}"));
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -329,5 +404,27 @@ mod tests {
         let url = auth.google_root_url().unwrap();
         assert!(url.contains("tile.googleapis.com"));
         assert!(url.contains("key=abc123"));
+    }
+
+    #[test]
+    fn google_child_url_preserves_session_and_adds_key() {
+        let auth = FetchAuth {
+            google_api_key: Some("my-key".into()),
+            ..Default::default()
+        };
+        let url = auth
+            .resolve_google_url("/v1/3dtiles/datasets/CgA/files/foo.glb?session=abc")
+            .unwrap();
+        assert!(url.starts_with("https://tile.googleapis.com/v1/3dtiles/"));
+        assert!(url.contains("session=abc"));
+        assert!(url.contains("key=my-key"));
+    }
+
+    #[test]
+    fn looks_like_tileset_ref_detects_json() {
+        assert!(looks_like_tileset_ref(
+            "/v1/3dtiles/datasets/x/files/y.json?session=s"
+        ));
+        assert!(!looks_like_tileset_ref("tile.glb"));
     }
 }

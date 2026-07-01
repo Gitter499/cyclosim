@@ -10,10 +10,11 @@ description: >-
 
 Post-milestone cleanup. Consumes the **entire** codebase and restores cohesion after parallel milestone work.
 
-**Companion skills** — apply all three on a full pass:
+**Companion skills** — apply all four on a full pass:
 
 - [rust-best-practices](../rust-best-practices/SKILL.md) — portable crates, tests, lint
 - [swift-best-practices](../swift-best-practices/SKILL.md) — shell UI, UniFFI, Package.swift
+- [velo-ui-parity](../velo-ui-parity/SKILL.md) — multi-page shell IA, dashboard, ride HUD layout (required for shell chrome work)
 
 ## When to run
 
@@ -39,7 +40,7 @@ Copy and track:
 
 ```
 Quality pass progress:
-- [ ] Read quality-pass + rust-best-practices + swift-best-practices skills
+- [ ] Read quality-pass + rust-best-practices + swift-best-practices (+ velo-ui-parity if shell changed)
 - [ ] Read VeloSim-Technical-Plan.md + root README + every crate README
 - [ ] Map crate boundaries vs actual deps (Cargo.toml, Package.swift)
 - [ ] Find dead code, duplicate logic, inconsistent naming
@@ -51,7 +52,7 @@ Quality pass progress:
 - [ ] Granular commits on dev (refactor / test / docs prefixes)
 ```
 
-Also read [rust-best-practices](../rust-best-practices/SKILL.md) and [swift-best-practices](../swift-best-practices/SKILL.md) when touching those languages.
+Also read [rust-best-practices](../rust-best-practices/SKILL.md) and [swift-best-practices](../swift-best-practices/SKILL.md) when touching those languages. For shell navigation or ride layout changes, read [velo-ui-parity](../velo-ui-parity/SKILL.md) and [docs/UI_PARITY_PLAN.md](../../../docs/UI_PARITY_PLAN.md).
 
 ## Priorities (high → low)
 

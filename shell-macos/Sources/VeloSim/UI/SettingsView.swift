@@ -5,6 +5,7 @@ import VeloSimSupport
 @MainActor
 struct SettingsView: View {
     @ObservedObject var model: VeloSimModel
+    var embeddedInTab: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     @State private var googleKey: String = ""
@@ -29,13 +30,25 @@ struct SettingsView: View {
 
             HStack {
                 Spacer()
+                footerActions
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 440, minHeight: embeddedInTab ? 480 : 560)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(embeddedInTab ? Color(nsColor: .windowBackgroundColor) : Color.clear)
+        .onAppear { loadFromStore() }
+    }
+
+    @ViewBuilder
+    private var footerActions: some View {
+        if !embeddedInTab {
+            HStack {
+                Spacer()
                 Button("Done") { dismiss() }
                     .buttonStyle(VeloGlassPrimaryButtonStyle())
             }
         }
-        .padding(16)
-        .frame(width: 440, height: 560)
-        .onAppear { loadFromStore() }
     }
 
     private var headerChrome: some View {

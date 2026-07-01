@@ -1068,6 +1068,13 @@ impl VeloHandle {
         Ok(())
     }
 
+    /// When false, live frames skip the in-canvas HUD (shell draws Swift overlay).
+    pub fn set_hud_draw_enabled(&self, enabled: bool) {
+        if let Some(renderer) = self.inner.lock().unwrap().renderer.as_mut() {
+            renderer.set_hud_draw_enabled(enabled);
+        }
+    }
+
     pub fn render_frame(&self) -> Result<(), VeloError> {
         let mut inner = self.inner.lock().unwrap();
         let ride = inner.app.ride.clone();

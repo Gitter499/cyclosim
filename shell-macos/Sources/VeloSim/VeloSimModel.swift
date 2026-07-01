@@ -48,7 +48,9 @@ final class VeloSimModel: ObservableObject {
     @Published var tilesProviderStatus: String = ""
     @Published var tilesLastError: String?
     @Published var bikegenModeStatus: String = ""
-    @Published var showSettings: Bool = false
+    @Published var selectedTab: AppTab = .home
+    @Published var activitiesTab: ActivitiesTab = .routes
+    @Published var showPreRideSetup: Bool = false
 
     @Published var availableBikes: [BikeInfoDto] = []
     @Published var activeBikeId: String?
@@ -179,6 +181,13 @@ final class VeloSimModel: ObservableObject {
         case .airpods:
             return airPodsSteering.isAvailable ? airPodsSteering : noopSteering
         }
+    }
+
+    func beginFreeRide() {
+        clearRoute()
+        clearWorkout()
+        applyRideMode(.free)
+        selectedTab = .ride
     }
 
     func applyRuntimeSecrets() {
@@ -420,6 +429,7 @@ final class VeloSimModel: ObservableObject {
                 width: UInt32(max(size.width, 1)),
                 height: UInt32(max(size.height, 1))
             )
+            handle.setHudDrawEnabled(enabled: false)
             rendererReady = true
         } catch {
             rendererReady = false
@@ -523,6 +533,9 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
+        if tiles3dEnabled {
+            refreshServiceStatus()
+        }
         renderFrame()
     }
 

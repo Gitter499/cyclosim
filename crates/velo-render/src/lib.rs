@@ -73,6 +73,8 @@ pub struct Renderer {
     tiles_attribution: String,
     rider_z: f32,
     bike: Option<BikeScene>,
+    /// When false, shell draws Swift HUD overlay instead of glyphon text pass.
+    hud_draw_enabled: bool,
 }
 
 impl Renderer {
@@ -306,7 +308,17 @@ impl Renderer {
             tiles_attribution: String::new(),
             rider_z: 0.0,
             bike: None,
+            hud_draw_enabled: true,
         })
+    }
+
+    /// Disable in-canvas HUD when the shell draws a Swift overlay on the Metal view.
+    pub fn set_hud_draw_enabled(&mut self, enabled: bool) {
+        self.hud_draw_enabled = enabled;
+    }
+
+    pub fn hud_draw_enabled(&self) -> bool {
+        self.hud_draw_enabled
     }
 
     /// Load rider bike glTF for the foreground-object pass.
@@ -460,15 +472,17 @@ impl Renderer {
         self.queue
             .write_buffer(&self.scene_uniforms, 0, bytemuck::bytes_of(&uniforms));
 
-        self.hud
-            .prepare(
-                &self.device,
-                &self.queue,
-                hud,
-                self.config.width,
-                self.config.height,
-            )
-            .map_err(|e| RenderError::Hud(e.to_string()))?;
+        if self.hud_draw_enabled {
+            self.hud
+                .prepare(
+                    &self.device,
+                    &self.queue,
+                    hud,
+                    self.config.width,
+                    self.config.height,
+                )
+                .map_err(|e| RenderError::Hud(e.to_string()))?;
+        }
 
         let mut encoder = self
             .device
@@ -525,7 +539,7 @@ impl Renderer {
             }
         }
 
-        {
+        if self.hud_draw_enabled {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("hud"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -546,7 +560,9 @@ impl Renderer {
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
-        self.hud.trim();
+        if self.hud_draw_enabled {
+            self.hud.trim();
+        }
         frame.present();
         Ok(())
     }
