@@ -14,7 +14,7 @@ swift build --product VeloSimSupport 2>&1
 
 echo "lint-shell-ui: checking Liquid Glass helper exists…"
 if [[ ! -f "$SOURCES/UI/Components/VeloGlass.swift" ]]; then
-  echo "error: missing $SOURCES/UI/Components/VeloGlass.swift (add shared glass helpers per docs/VeloSim-UI-and-Zwift-Parity-Guide.md)" >&2
+  echo "error: missing $SOURCES/UI/Components/VeloGlass.swift (add shared glass helpers per VeloSim-Roadmap.md Part II)" >&2
   exit 1
 fi
 

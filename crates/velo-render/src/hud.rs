@@ -3,7 +3,7 @@
 //! **Single HUD path:** live ride metrics are drawn by the Swift shell (`RideHUDOverlay`).
 //! This renderer is disabled during normal riding (`hud_draw_enabled = false` at init) and
 //! retained for screenshot/capture paths that need baked-in stats. See
-//! `docs/VeloSim-UI-and-Zwift-Parity-Guide.md` §2 and `shell-macos/.../HUD/RideHUDOverlay.swift`.
+//! `VeloSim-Roadmap.md` Part II §5 and `shell-macos/.../HUD/RideHUDOverlay.swift`.
 
 use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,

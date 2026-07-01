@@ -1,7 +1,7 @@
 import SwiftUI
 import VeloFFI
 
-// Shared Liquid Glass helpers — see docs/VeloSim-UI-and-Zwift-Parity-Guide.md §4 and §8.
+// Shared Liquid Glass helpers — see VeloSim-Roadmap.md Part II §2–4.
 //
 // Real `.glassEffect` on macOS 26+ only. Pre-26 / CI uses solid `.quaternary` — no fake glass.
 

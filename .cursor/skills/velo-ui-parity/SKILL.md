@@ -1,13 +1,13 @@
 ---
 name: velo-ui-parity
 description: >-
-  VeloSim shell UI and Zwift parity — follow docs/VeloSim-UI-and-Zwift-Parity-Guide.md.
+  VeloSim shell UI and Zwift parity — follow VeloSim-Roadmap.md Part II.
   Use when restructuring shell chrome, HUD, or pre-ride / in-ride UI.
 ---
 
 # VeloSim UI parity
 
-**Source of truth:** [docs/VeloSim-UI-and-Zwift-Parity-Guide.md](../../../docs/VeloSim-UI-and-Zwift-Parity-Guide.md)
+**Source of truth:** [VeloSim-Roadmap.md](../../../VeloSim-Roadmap.md) Part II (UI agent specification)
 
 Read the guide first. It overrides older navigation sketches and this skill's prior v1 TabView layout.
 
@@ -57,6 +57,6 @@ cargo test --workspace
 ./scripts/build.sh
 ```
 
-## Superseded
+## Historical
 
-- [docs/UI_PARITY_PLAN.md](../../../docs/UI_PARITY_PLAN.md) v1 TabView / Rust-HUD-primary plan — historical only.
+Prior UI plans were consolidated into [VeloSim-Roadmap.md](../../../VeloSim-Roadmap.md).
