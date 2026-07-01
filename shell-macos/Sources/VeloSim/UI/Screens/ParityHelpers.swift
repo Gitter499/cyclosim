@@ -231,8 +231,14 @@ struct RouteSelectView: View {
 
 struct RouteElevationSparkline: View {
     let routeId: String
+    private let samples: [CGFloat]
 
-    private var samples: [CGFloat] {
+    init(routeId: String) {
+        self.routeId = routeId
+        self.samples = Self.makeSamples(routeId: routeId)
+    }
+
+    private static func makeSamples(routeId: String) -> [CGFloat] {
         var hash: UInt64 = 14695981039346656037
         for byte in routeId.utf8 {
             hash = (hash ^ UInt64(byte)) &* 1099511628211

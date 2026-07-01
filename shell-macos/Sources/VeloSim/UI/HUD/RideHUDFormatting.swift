@@ -37,10 +37,7 @@ public enum RideHUDFormatting {
     }
 
     public static func formatDistance(_ meters: Double) -> String {
-        if meters >= 1000 {
-            return String(format: "%.2f km", meters / 1000)
-        }
-        return String(format: "%.0f m", meters)
+        RideSummaryFormatting.formatDistance(meters)
     }
 
     public static func formatElapsed(_ seconds: Double) -> String {
