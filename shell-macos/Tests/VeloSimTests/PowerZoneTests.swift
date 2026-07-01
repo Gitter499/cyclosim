@@ -17,7 +17,8 @@ final class PowerZoneTests: XCTestCase {
         XCTAssertEqual(PowerZone.of(watts: 240, ftp: 200), .z5)
         XCTAssertEqual(PowerZone.of(watts: 242, ftp: 200), .z6)
         XCTAssertEqual(PowerZone.of(watts: 300, ftp: 200), .z6)
-        XCTAssertEqual(PowerZone.of(watts: 301, ftp: 200), .z7)
+        XCTAssertEqual(PowerZone.of(watts: 301, ftp: 200), .z6)
+        XCTAssertEqual(PowerZone.of(watts: 302, ftp: 200), .z7)
     }
 
     func testZeroFtpFallsBackToZ1() {
