@@ -21,6 +21,7 @@ struct AppShellView: View {
         .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
+    #if VELO_LIQUID_GLASS
     @available(macOS 26, *)
     private var modernTabShell: some View {
         TabView(selection: $model.shellDestination) {
@@ -39,6 +40,7 @@ struct AppShellView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
     }
+    #endif
 
     private var legacyTabShell: some View {
         TabView(selection: $model.shellDestination) {
