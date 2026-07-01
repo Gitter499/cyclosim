@@ -67,6 +67,7 @@ final class VeloSimModel: ObservableObject {
 
     @Published var steeringMode: SteeringInputMode = .off
     @Published var segmentMusicEnabled: Bool = false
+    @Published var rustHudDrawEnabled: Bool = false
     @Published var musicStatus: String = "Music off"
 
     private var tickTimer: Timer?
@@ -89,9 +90,20 @@ final class VeloSimModel: ObservableObject {
         refreshRoutes()
         refreshBikes()
         applyRuntimeSecrets()
+        setSegmentMusicEnabled(AppSettingsStore.segmentMusicEnabled)
+        setSteeringMode(AppSettingsStore.defaultSteeringMode)
 
         handle.setAudioDirector(director: musicDirector)
+        musicDirector.onStatusChange = { [weak self] status in
+            Task { @MainActor [weak self] in
+                self?.musicStatus = status
+            }
+        }
         musicStatus = musicDirector.status
+        Task {
+            await musicDirector.refreshAuthorizationStatus()
+            musicStatus = musicDirector.status
+        }
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
@@ -159,11 +171,17 @@ final class VeloSimModel: ObservableObject {
         musicStatus = musicDirector.status
     }
 
+    func setRustHudDrawEnabled(_ enabled: Bool) {
+        rustHudDrawEnabled = enabled
+        handle.setHudDrawEnabled(enabled: enabled)
+    }
+
     func connectAppleMusic() {
         Task {
             await musicDirector.requestAuthorization()
-            await MainActor.run {
-                musicStatus = musicDirector.status
+            musicStatus = musicDirector.status
+            if musicDirector.authorized && segmentMusicEnabled {
+                handle.resyncSegmentMusic()
             }
         }
     }
