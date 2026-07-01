@@ -717,6 +717,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func activeRouteId()  -> String?
     
+    func bikegenModeStatus()  -> String
+    
     func bikesDir()  -> String
     
     /**
@@ -736,6 +738,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
      * Open or create the ride library at custom paths (for tests).
      */
     func configureRideLibrary(dbPath: String, artifactsBase: String) throws 
+    
+    /**
+     * Apply shell Keychain secrets before ride / 3D Tiles use.
+     */
+    func configureRuntimeSecrets(secrets: RuntimeSecretsDto) 
     
     func deleteRide(id: String) throws  -> Bool
     
@@ -822,6 +829,10 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func tilesAttribution()  -> String
     
+    func tilesLastError()  -> String?
+    
+    func tilesProviderStatus()  -> String
+    
     func toggle()  -> UInt32
     
     func toggleCount()  -> UInt32
@@ -904,6 +915,13 @@ open func activeRouteId() -> String?  {
 })
 }
     
+open func bikegenModeStatus() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_bikegen_mode_status(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func bikesDir() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_bikes_dir(self.uniffiClonePointer(),$0
@@ -952,6 +970,16 @@ open func configureRideLibrary(dbPath: String, artifactsBase: String)throws   {t
     uniffi_velo_ffi_fn_method_velohandle_configure_ride_library(self.uniffiClonePointer(),
         FfiConverterString.lower(dbPath),
         FfiConverterString.lower(artifactsBase),$0
+    )
+}
+}
+    
+    /**
+     * Apply shell Keychain secrets before ride / 3D Tiles use.
+     */
+open func configureRuntimeSecrets(secrets: RuntimeSecretsDto)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_configure_runtime_secrets(self.uniffiClonePointer(),
+        FfiConverterTypeRuntimeSecretsDto_lower(secrets),$0
     )
 }
 }
@@ -1238,6 +1266,20 @@ open func tick(sensors: SensorSourceCallback, trainer: TrainerControlCallback, s
 open func tilesAttribution() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_tiles_attribution(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func tilesLastError() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_tiles_last_error(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func tilesProviderStatus() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_tiles_provider_status(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -2107,6 +2149,95 @@ public func FfiConverterTypeRouteInfoDto_lift(_ buf: RustBuffer) throws -> Route
 #endif
 public func FfiConverterTypeRouteInfoDto_lower(_ value: RouteInfoDto) -> RustBuffer {
     return FfiConverterTypeRouteInfoDto.lower(value)
+}
+
+
+/**
+ * Runtime API keys/tokens injected by the macOS shell (Keychain → FFI). Never persisted by Rust.
+ */
+public struct RuntimeSecretsDto {
+    public var googleMapTilesApiKey: String?
+    public var cesiumIonAccessToken: String?
+    public var meshyApiKey: String?
+    public var preferHostedBikeGeneration: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(googleMapTilesApiKey: String?, cesiumIonAccessToken: String?, meshyApiKey: String?, preferHostedBikeGeneration: Bool) {
+        self.googleMapTilesApiKey = googleMapTilesApiKey
+        self.cesiumIonAccessToken = cesiumIonAccessToken
+        self.meshyApiKey = meshyApiKey
+        self.preferHostedBikeGeneration = preferHostedBikeGeneration
+    }
+}
+
+#if compiler(>=6)
+extension RuntimeSecretsDto: Sendable {}
+#endif
+
+
+extension RuntimeSecretsDto: Equatable, Hashable {
+    public static func ==(lhs: RuntimeSecretsDto, rhs: RuntimeSecretsDto) -> Bool {
+        if lhs.googleMapTilesApiKey != rhs.googleMapTilesApiKey {
+            return false
+        }
+        if lhs.cesiumIonAccessToken != rhs.cesiumIonAccessToken {
+            return false
+        }
+        if lhs.meshyApiKey != rhs.meshyApiKey {
+            return false
+        }
+        if lhs.preferHostedBikeGeneration != rhs.preferHostedBikeGeneration {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(googleMapTilesApiKey)
+        hasher.combine(cesiumIonAccessToken)
+        hasher.combine(meshyApiKey)
+        hasher.combine(preferHostedBikeGeneration)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRuntimeSecretsDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RuntimeSecretsDto {
+        return
+            try RuntimeSecretsDto(
+                googleMapTilesApiKey: FfiConverterOptionString.read(from: &buf), 
+                cesiumIonAccessToken: FfiConverterOptionString.read(from: &buf), 
+                meshyApiKey: FfiConverterOptionString.read(from: &buf), 
+                preferHostedBikeGeneration: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RuntimeSecretsDto, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.googleMapTilesApiKey, into: &buf)
+        FfiConverterOptionString.write(value.cesiumIonAccessToken, into: &buf)
+        FfiConverterOptionString.write(value.meshyApiKey, into: &buf)
+        FfiConverterBool.write(value.preferHostedBikeGeneration, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuntimeSecretsDto_lift(_ buf: RustBuffer) throws -> RuntimeSecretsDto {
+    return try FfiConverterTypeRuntimeSecretsDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuntimeSecretsDto_lower(_ value: RuntimeSecretsDto) -> RustBuffer {
+    return FfiConverterTypeRuntimeSecretsDto.lower(value)
 }
 
 
@@ -4169,6 +4300,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_active_route_id() != 41776) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_bikegen_mode_status() != 22974) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_bikes_dir() != 30638) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4188,6 +4322,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_configure_ride_library() != 26710) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_configure_runtime_secrets() != 24393) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_delete_ride() != 23288) {
@@ -4302,6 +4439,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_tiles_attribution() != 31323) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_tiles_last_error() != 58420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_tiles_provider_status() != 15144) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_toggle() != 46353) {

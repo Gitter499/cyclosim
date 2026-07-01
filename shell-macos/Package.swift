@@ -10,6 +10,7 @@ let supportExclude = [
     "VeloSimModel.swift",
     "WorkoutBuilderView.swift",
     "UI/SetupChromeView.swift",
+    "UI/SettingsView.swift",
     "UI/RideSummarySheet.swift",
     "BLE",
     "Strava/StravaAuthCoordinator.swift",
@@ -106,6 +107,8 @@ let package = Package(
             dependencies: ["VeloFFI", "VeloSimBLE", "VeloSimSupport"],
             path: "Sources/VeloSim",
             exclude: [
+                "AppSecretsStore.swift",
+                "AppSettingsStore.swift",
                 "Strava/StravaConfig.swift",
                 "Strava/StravaOAuth.swift",
                 "Strava/StravaTokenStore.swift",
