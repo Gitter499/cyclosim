@@ -12,11 +12,14 @@ struct RideModeView: View {
 
             RideHUDOverlay(model: model)
 
-            VStack {
-                rideControlBar
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                Spacer()
+            if !model.hudMinimalMode {
+                VStack(spacing: 0) {
+                    rideControlBar
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                    Spacer()
+                    tilesStatusBar
+                }
             }
         }
     }
@@ -45,6 +48,28 @@ struct RideModeView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var tilesStatusBar: some View {
+        if model.tiles3dEnabled, let err = model.tilesLastError {
+            Text(err)
+                .font(.caption2)
+                .foregroundStyle(.orange)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.45))
+        } else if !model.rideFlowStatus.isEmpty, model.rideFlowStatus != "idle", model.rideFlowStatus != "recording" {
+            Text(model.rideFlowStatus)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.75))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.45))
+        }
     }
 }
 

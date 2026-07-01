@@ -15,4 +15,32 @@ final class AppSettingsStoreTests: XCTestCase {
         AppSettingsStore.segmentMusicEnabled = true
         XCTAssertTrue(AppSettingsStore.segmentMusicEnabled)
     }
+
+    func testHudMinimalModeRoundTrip() {
+        let prior = AppSettingsStore.hudMinimalMode
+        defer { AppSettingsStore.hudMinimalMode = prior }
+        AppSettingsStore.hudMinimalMode = true
+        XCTAssertTrue(AppSettingsStore.hudMinimalMode)
+        AppSettingsStore.hudMinimalMode = false
+        XCTAssertFalse(AppSettingsStore.hudMinimalMode)
+    }
+
+    func testPinnedRouteAndWorkoutRoundTrip() {
+        let priorRoute = AppSettingsStore.pinnedRouteId
+        let priorWorkout = AppSettingsStore.pinnedWorkoutName
+        defer {
+            AppSettingsStore.pinnedRouteId = priorRoute
+            AppSettingsStore.pinnedWorkoutName = priorWorkout
+        }
+
+        AppSettingsStore.pinnedRouteId = "alpe-du-zwift"
+        AppSettingsStore.pinnedWorkoutName = "2x20 Threshold"
+        XCTAssertEqual(AppSettingsStore.pinnedRouteId, "alpe-du-zwift")
+        XCTAssertEqual(AppSettingsStore.pinnedWorkoutName, "2x20 Threshold")
+
+        AppSettingsStore.pinnedRouteId = nil
+        AppSettingsStore.pinnedWorkoutName = nil
+        XCTAssertNil(AppSettingsStore.pinnedRouteId)
+        XCTAssertNil(AppSettingsStore.pinnedWorkoutName)
+    }
 }

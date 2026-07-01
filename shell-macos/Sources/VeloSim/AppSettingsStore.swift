@@ -5,6 +5,9 @@ public enum AppSettingsStore {
     private static let preferHostedBikeGenerationKey = "velosim.preferHostedBikeGeneration"
     private static let defaultSteeringModeKey = "velosim.defaultSteeringMode"
     private static let segmentMusicEnabledKey = "velosim.segmentMusicEnabled"
+    private static let hudMinimalModeKey = "velosim.hudMinimalMode"
+    private static let pinnedRouteIdKey = "velosim.pinnedRouteId"
+    private static let pinnedWorkoutNameKey = "velosim.pinnedWorkoutName"
 
     public static var preferHostedBikeGeneration: Bool {
         get { UserDefaults.standard.bool(forKey: preferHostedBikeGenerationKey) }
@@ -23,5 +26,32 @@ public enum AppSettingsStore {
     public static var segmentMusicEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: segmentMusicEnabledKey) }
         set { UserDefaults.standard.set(newValue, forKey: segmentMusicEnabledKey) }
+    }
+
+    public static var hudMinimalMode: Bool {
+        get { UserDefaults.standard.bool(forKey: hudMinimalModeKey) }
+        set { UserDefaults.standard.set(newValue, forKey: hudMinimalModeKey) }
+    }
+
+    public static var pinnedRouteId: String? {
+        get { UserDefaults.standard.string(forKey: pinnedRouteIdKey) }
+        set {
+            if let newValue {
+                UserDefaults.standard.set(newValue, forKey: pinnedRouteIdKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: pinnedRouteIdKey)
+            }
+        }
+    }
+
+    public static var pinnedWorkoutName: String? {
+        get { UserDefaults.standard.string(forKey: pinnedWorkoutNameKey) }
+        set {
+            if let newValue {
+                UserDefaults.standard.set(newValue, forKey: pinnedWorkoutNameKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: pinnedWorkoutNameKey)
+            }
+        }
     }
 }

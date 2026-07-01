@@ -9,17 +9,49 @@ final class RideHUDFormattingTests: XCTestCase {
         XCTAssertEqual(RideHUDFormatting.formatPower(200.4), "200 W")
     }
 
+    func testFormatElevationAndGrade() {
+        XCTAssertEqual(RideHUDFormatting.formatElevation(nil), "—")
+        XCTAssertEqual(RideHUDFormatting.formatElevation(842.6), "843 m")
+        XCTAssertEqual(RideHUDFormatting.formatGradePercent(0.052), "5.2%")
+    }
+
+    func testIntervalFractionAndRemaining() {
+        XCTAssertNil(RideHUDFormatting.intervalFraction(durationS: 0, elapsedS: 30))
+        XCTAssertEqual(RideHUDFormatting.intervalFraction(durationS: 120, elapsedS: 30), 0.25, accuracy: 0.0001)
+        XCTAssertEqual(RideHUDFormatting.intervalRemainingS(durationS: 120, elapsedS: 30), 90, accuracy: 0.0001)
+    }
+
+    func testIntervalBarActiveWorkout() {
+        let live = WorkoutLiveDto(
+            active: true,
+            workoutName: "Threshold",
+            intervalName: "Block 1",
+            intervalElapsedS: 30,
+            intervalDurationS: 120,
+            workoutElapsedS: 300,
+            targetWatts: 250,
+            finished: false
+        )
+        let bar = RideHUDFormatting.intervalBar(live: live)
+        XCTAssertNotNil(bar)
+        XCTAssertEqual(bar?.fraction ?? 0, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(bar?.remainingS ?? 0, 90, accuracy: 0.0001)
+        XCTAssertEqual(bar?.intervalName, "Block 1")
+        XCTAssertEqual(bar?.targetLabel, "250 W")
+    }
+
     func testWorkoutBannerActive() {
         let live = WorkoutLiveDto(
             active: true,
             workoutName: "Threshold",
             intervalName: "Block 1",
             intervalElapsedS: 60,
+            intervalDurationS: 120,
             workoutElapsedS: 300,
             targetWatts: 250,
             finished: false
         )
-        XCTAssertEqual(RideHUDFormatting.workoutBanner(live: live), "Block 1 · 250 W")
+        XCTAssertEqual(RideHUDFormatting.workoutBanner(live: live), "Block 1 · 250 W · 1:00")
     }
 
     func testSteeringHintKeyboardOnRoute() {

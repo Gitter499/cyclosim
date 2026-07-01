@@ -134,6 +134,7 @@ pub struct RideStateDto {
     pub speed_mps: f64,
     pub elapsed_s: f64,
     pub grade: f64,
+    pub elevation_m: Option<f64>,
     pub power_w: Option<f64>,
     pub cadence_rpm: Option<f64>,
     pub heart_rate_bpm: Option<f64>,
@@ -147,6 +148,7 @@ pub struct WorkoutLiveDto {
     pub workout_name: String,
     pub interval_name: String,
     pub interval_elapsed_s: f64,
+    pub interval_duration_s: f64,
     pub workout_elapsed_s: f64,
     pub target_watts: Option<f64>,
     pub finished: bool,
@@ -1028,12 +1030,17 @@ impl VeloHandle {
     pub fn ride_state(&self) -> RideStateDto {
         let app = &self.inner.lock().unwrap().app;
         let ride = &app.ride;
+        let elevation_m = app.route.as_ref().map(|route| {
+            let (_, _, elev) = route.lat_lon_elev_at(ride.distance_m);
+            elev
+        });
         RideStateDto {
             mode: map_ride_mode(ride.mode),
             distance_m: ride.distance_m,
             speed_mps: ride.speed_mps,
             elapsed_s: ride.elapsed_s,
             grade: ride.grade,
+            elevation_m,
             power_w: ride.power_w,
             cadence_rpm: ride.cadence_rpm,
             heart_rate_bpm: ride.heart_rate_bpm,
@@ -1237,13 +1244,23 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         velo_core::ride::RideMode::Erg => "ERG",
         velo_core::ride::RideMode::Sim => "SIM",
     };
-    let (workout_interval, workout_target_w) = match app.workout_engine.as_ref() {
-        Some(engine) if !engine.state().finished => (
-            engine.current_interval().map(|i| i.name.clone()),
-            engine.target_watts().map(|w| w.0),
-        ),
-        _ => (None, None),
-    };
+    let (workout_interval, workout_target_w, interval_duration_s, interval_elapsed_s) =
+        match app.workout_engine.as_ref() {
+            Some(engine) if !engine.state().finished => {
+                let interval = engine.current_interval();
+                (
+                    interval.map(|i| i.name.clone()),
+                    engine.target_watts().map(|w| w.0),
+                    interval.map(|i| i.duration_s),
+                    Some(engine.state().interval_elapsed_s),
+                )
+            }
+            _ => (None, None, None, None),
+        };
+    let elevation_m = app.route.as_ref().map(|route| {
+        let (_, _, elev) = route.lat_lon_elev_at(ride.distance_m);
+        elev
+    });
     velo_render::HudSnapshot {
         power_w: ride.power_w,
         cadence_rpm: ride.cadence_rpm,
@@ -1252,9 +1269,12 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         distance_m: ride.distance_m,
         elapsed_s: ride.elapsed_s,
         grade: ride.grade,
+        elevation_m,
         mode,
         workout_interval,
         workout_target_w,
+        interval_duration_s,
+        interval_elapsed_s,
         attribution,
     }
 }
@@ -1323,6 +1343,7 @@ fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {
         workout_name: engine.workout().name.clone(),
         interval_name: interval.map(|i| i.name.clone()).unwrap_or_default(),
         interval_elapsed_s: state.interval_elapsed_s,
+        interval_duration_s: interval.map(|i| i.duration_s).unwrap_or(0.0),
         workout_elapsed_s: state.workout_elapsed_s,
         target_watts: engine.target_watts().map(|w| w.0),
         finished: state.finished,
