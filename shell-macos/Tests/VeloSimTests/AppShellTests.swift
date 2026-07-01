@@ -7,6 +7,13 @@ final class AppShellTests: XCTestCase {
         XCTAssertEqual(ShellDestination.allCases.map(\.title), ["Home", "Activities", "History", "Settings"])
     }
 
+    func testDestinationSystemImages() {
+        XCTAssertEqual(ShellDestination.home.systemImage, "house")
+        XCTAssertEqual(ShellDestination.activities.systemImage, "map")
+        XCTAssertEqual(ShellDestination.history.systemImage, "clock")
+        XCTAssertEqual(ShellDestination.settings.systemImage, "gearshape")
+    }
+
     func testActivitiesTabExcludesHistory() {
         XCTAssertEqual(ActivitiesTab.allCases.count, 2)
         XCTAssertFalse(ActivitiesTab.allCases.contains(where: { $0.title == "History" }))

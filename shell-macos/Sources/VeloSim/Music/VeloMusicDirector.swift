@@ -112,6 +112,28 @@ public final class VeloMusicDirector: AudioDirectorCallback, @unchecked Sendable
         return try await request.response().songs.first
     }
 
+    /// Lightweight catalog probe for Settings connection wizard.
+    public enum CatalogTestOutcome: Equatable {
+        case success(count: Int, firstTitle: String?)
+        case failure(String)
+    }
+
+    public func testCatalogSearch(term: String = "cycling warmup") async -> CatalogTestOutcome {
+        guard authorized else {
+            return .failure("Apple Music not authorized.")
+        }
+        do {
+            var request = MusicCatalogSearchRequest(term: term, types: [Song.self])
+            request.limit = 5
+            let response = try await request.response()
+            let songs = response.songs
+            let first = songs.first?.title
+            return .success(count: songs.count, firstTitle: first)
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+
     private func readyStatus() -> String {
         enabled ? "Ready — segment music on" : "Apple Music authorized"
     }

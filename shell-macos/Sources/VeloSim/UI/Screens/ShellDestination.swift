@@ -1,7 +1,7 @@
 import Foundation
 
 /// Browse-mode shell destinations (no dedicated Ride tab — ride is a phase).
-public enum ShellDestination: String, CaseIterable, Identifiable {
+public enum ShellDestination: String, CaseIterable, Identifiable, Hashable {
     case home
     case activities
     case history
@@ -15,6 +15,15 @@ public enum ShellDestination: String, CaseIterable, Identifiable {
         case .activities: return "Activities"
         case .history: return "History"
         case .settings: return "Settings"
+        }
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .home: return "house"
+        case .activities: return "map"
+        case .history: return "clock"
+        case .settings: return "gearshape"
         }
     }
 }
