@@ -47,7 +47,7 @@
 |-----------|-------------|-------------|--------|
 | **P1-1 Nav animations** | Cross-fade / matched geometry on destination change; `@Namespace` glass morph per liquid-glass skill | `ContentView.swift`, `VeloGlass.swift` | ✅ |
 | **P1-2 HUD layout** | Richer HUD: power zones, elevation strip, workout interval bar (MyWhoosh-inspired) | `RideHUDOverlay.swift`, `RideHUDFormatting.swift`, `crates/velo-render/src/hud.rs` | ✅ |
-| **P1-3 HUD minimal mode** | Keyboard toggle (`U`) hiding HUD + chrome for screenshots | `VeloSimModel.swift`, `RideView.swift`, `AppSettingsStore.swift` | ✅ |
+| **P1-3 HUD minimal mode** | Keyboard toggle (`U`) hiding HUD + chrome for screenshots | `VeloSimModel.swift`, `RideModeView.swift`, `AppSettingsStore.swift` | ✅ |
 | **P1-4 Home personalization** | Pin last route/workout on dashboard (My List lite) | `DashboardView.swift`, `AppSettingsStore.swift`, `VeloSimModel.swift` | ✅ |
 | **P1-5 Social placeholders** | Disabled “Events” / “Nearby” cards with copy — no backend | `ActivitiesCatalogView.swift` | |
 | **P1-6 Post-ride flow** | Ride summary as full-screen or large sheet from ride exit → Home | `RideSummarySheet.swift`, `ContentView.swift`, `VeloSimModel.swift` | ✅ |
