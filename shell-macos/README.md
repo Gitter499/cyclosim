@@ -25,6 +25,16 @@ Requires Xcode Swift toolchain and a built `target/release/libvelo_ffi.dylib`.
 
 ## Milestone
 
-**M0–M2c** (trainer, HUD, Strava, ride history UI) · **M5** (Liquid Glass setup/summary, workout builder, `.zwo` import, highlight clip encode)
+**M0–M2c** (trainer, HUD, Strava, ride history UI) · **M5** (Liquid Glass, workout builder, `.zwo`, highlight clips) · **M6** (Apple Music, steering) · **M7** (Zwift parity UI — in progress)
+
+## UI layout (`Sources/VeloSim/UI/`)
+
+| Folder | Contents |
+|--------|----------|
+| `Screens/` | App shell, dashboard, activities, ride flow |
+| `HUD/` | In-ride overlay, controls, FTP test engine |
+| `Settings/` | Settings tab + chrome helpers |
+| `Components/` | Liquid Glass + HUD surface helpers |
+| `Design/` | Tokens (`Tok`, `Typo`, `PowerZone`) |
 
 Architecture: [VeloSim-Technical-Plan.md](../VeloSim-Technical-Plan.md) · UI patterns: [.cursor/skills/liquid-glass/SKILL.md](../.cursor/skills/liquid-glass/SKILL.md)

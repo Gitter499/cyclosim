@@ -4,7 +4,42 @@ Running record of cross-cutting cleanup on the `dev` branch. See [.cursor/skills
 
 | Date | Trigger | Summary | Commits |
 |------|---------|---------|---------|
+| 2026-07-01 | Post-M7 UI sprint (#42) | Split `ParityHelpers`; `Settings/` folder; remove `HomeDashboardView`; unify duration/distance formatting | see PR #42 |
 | 2026-06-30 | UI cleanup prep (#34) | Anti-pattern removal, UI folder restructure, HUDModel ~8 Hz skeleton | see PR |
+
+---
+
+# Quality pass — 2026-07-01 (post-M7 UI sprint #42)
+
+## Scope
+Milestone / trigger: **Post-M7 UI parity sprint** — `ParityHelpers.swift` monolith, redundant `HomeDashboardView`, duplicate HUD/summary formatters.
+
+## Changes made
+- Deleted `ParityHelpers.swift` (~390 lines); split into focused files under `UI/HUD/` (`RideControls.swift`) and `UI/Screens/` (`QuickStartRow`, `PairingView`, `RouteSelectView`, `WorkoutLibraryView`, `FTPTestViews`).
+- Moved settings UI to `UI/Settings/` (`SettingsView.swift`, `SettingsChrome.swift` for badges and ride-blocked gate).
+- Removed pass-through `HomeDashboardView`; `AppShellView` uses `DashboardView` directly.
+- Unified `RideHUDFormatting.formatDistance` and `HUDDurationFormat.hms` to delegate to `RideSummaryFormatting` (single elapsed/distance implementation).
+- Updated `Package.swift` `supportExclude` for new file paths; `shell-macos/README.md` UI folder table + M6/M7 milestone row.
+
+## Findings (deferred)
+- **HUD layout rewrite** — overlay still placeholder vs guide §5.2 zones; power zone tint not wired.
+- **Route sparklines** — `RouteElevationSparkline` uses deterministic hash stub, not real elevation data.
+- **Pairing screen** — cadence/HR rows are static placeholders (#35).
+- **Cinematic replay camera** for highlight clips — unchanged.
+- **Apple-symbol lint** still scans only `velo-core`, `velo-units`, `velo-platform`.
+- **Swift CI** — `swift test` not in default GitHub Actions job.
+
+## Doc sync
+- `shell-macos/README.md` — M6/M7 status, `Screens/` / `HUD/` / `Settings/` layout table.
+- `AGENTS.md` milestone table already current (M7 🚧).
+
+## Test coverage added
+- `RideHUDFormattingTests` — `formatDistance` and `formatElapsed` delegation to `RideSummaryFormatting`.
+
+## Verification
+- `cargo test --workspace`
+- `./scripts/lint-apple-symbols.sh`
+- `./scripts/lint-shell-ui.sh`
 
 ---
 
