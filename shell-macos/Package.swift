@@ -20,6 +20,8 @@ let supportExclude = [
     "UI/Screens/RideHistoryView.swift",
     "UI/Screens/RideModeView.swift",
     "UI/Screens/PreRidePanel.swift",
+    "UI/Screens/ParityHelpers.swift",
+    "UI/HUD/FTPTestEngine.swift",
     "BLE",
     "Strava/StravaAuthCoordinator.swift",
 ]

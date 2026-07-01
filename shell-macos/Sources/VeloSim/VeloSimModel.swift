@@ -71,11 +71,19 @@ final class VeloSimModel: ObservableObject {
     @Published var musicStatus: String = "Music off"
 
     @Published var hudMinimalMode: Bool = false
+    @Published var ridePaused: Bool = false
+    @Published var chaseCameraWide: Bool = false
+    @Published var showPairingSheet: Bool = false
+    @Published var showFTPTestPicker: Bool = false
+    @Published var pendingFTPAnnouncement: FTPAnnouncement?
     @Published var riderName: String = AppSettingsStore.riderName
     @Published var riderWeightKg: Double = AppSettingsStore.riderWeightKg
     @Published var highlightedRideId: String?
     @Published var pinnedRouteId: String?
     @Published var pinnedWorkoutName: String?
+
+    private var activeRampTest: RampTestEngine?
+    private var rampTestTickAccumulator: TimeInterval = 0
 
     /// Throttled in-ride readouts (~8 Hz). Views bind here instead of `rideState` per guide §5.3.
     let hudModel = HUDModel()
@@ -270,6 +278,119 @@ final class VeloSimModel: ObservableObject {
         clearWorkout()
         applyRideMode(.free)
         shellDestination = .activities
+    }
+
+    /// Quick-start Just Ride: flat SIM, no workout, start immediately when pre-ride checks pass.
+    func beginJustRide() {
+        clearRoute()
+        clearWorkout()
+        activeRampTest = nil
+        applyRideMode(.sim)
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+        }
+    }
+
+    func pauseRide() {
+        guard isRideRecording else { return }
+        ridePaused = true
+    }
+
+    func resumeRide() {
+        ridePaused = false
+    }
+
+    func discardRide() {
+        guard isRideRecording else { return }
+        _ = handle.stopRide()
+        hudCoordinator.reset()
+        isRideRecording = false
+        ridePaused = false
+        activeRampTest = nil
+        shellPhase = .browse
+        rideFlowStatus = "discarded"
+    }
+
+    func toggleChaseCamera() {
+        chaseCameraWide.toggle()
+        logs.append(chaseCameraWide ? "camera: wide chase" : "camera: narrow chase")
+    }
+
+    func captureRideScreenshot() {
+        guard rendererReady, let fb = try? handle.captureFramebufferRgba() else { return }
+        do {
+            let png = try PngEncoder.encode(
+                width: Int(fb.width),
+                height: Int(fb.height),
+                rgba: fb.rgbaPixels
+            )
+            let url = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Pictures")
+                .appendingPathComponent("VeloSim-\(Int(Date().timeIntervalSince1970)).png")
+            try png.write(to: url)
+            logs.append("screenshot saved: \(url.lastPathComponent)")
+        } catch {
+            logs.append("screenshot failed: \(error)")
+        }
+    }
+
+    func requestUTurn() {
+        switch steeringMode {
+        case .keyboard:
+            keyboardSteering.requestRecenter()
+        case .airpods:
+            airPodsSteering.requestRecenter()
+        case .off:
+            break
+        }
+        logs.append("U-turn requested")
+    }
+
+    func startFTPTest(_ kind: RampTestEngine.ProtocolKind) {
+        switch kind {
+        case .ramp, .rampLite:
+            clearWorkout()
+            activeRampTest = RampTestEngine(kind: kind, previousFTP: Int(ftp.rounded()))
+            applyRideMode(.erg)
+            if preRideBlockReason == nil {
+                startRide()
+            } else {
+                shellDestination = .activities
+            }
+        case .twentyMin:
+            // TODO: dedicated 20-min protocol workout; sample workout is a stand-in.
+            startSampleWorkout()
+            if preRideBlockReason == nil {
+                startRide()
+            } else {
+                shellDestination = .activities
+            }
+        }
+    }
+
+    private func tickRampTestIfNeeded() {
+        guard let engine = activeRampTest, isRideRecording, !ridePaused else { return }
+        rampTestTickAccumulator += 1.0 / 30.0
+        guard rampTestTickAccumulator >= 1.0 else { return }
+        rampTestTickAccumulator = 0
+
+        let power = rideState.powerW ?? 0
+        let cadence = rideState.cadenceRpm ?? 0
+        let result = engine.tick(power: power, cadence: cadence)
+        applyTargetPower(Double(result.target))
+
+        if result.failed {
+            let oldFTP = Int(ftp.rounded())
+            let outcome = engine.finish()
+            activeRampTest = nil
+            applyFtp(Double(outcome.ftp))
+            if outcome.changed {
+                pendingFTPAnnouncement = FTPAnnouncement(oldFTP: oldFTP, newFTP: outcome.ftp)
+            }
+            stopRideAndPublish()
+        }
     }
 
     func applySecretsToCore() {
@@ -493,6 +614,7 @@ final class VeloSimModel: ObservableObject {
         hudCoordinator.reset()
         isRideRecording = handle.isRideRecording()
         shellPhase = .riding
+        ridePaused = false
         lastPublishResult = nil
         rideFlowStatus = "recording"
     }
@@ -678,7 +800,8 @@ final class VeloSimModel: ObservableObject {
         }
         logs = handle.recentLogs(limit: 12)
         if tiles3dEnabled, shellPhase == .browse || isRideRecording { refreshServiceStatus() }
-        renderFrame()
+        if !ridePaused { renderFrame() }
+        tickRampTestIfNeeded()
     }
 
     private func activeTrainer() -> TrainerControlCallback {
@@ -695,4 +818,11 @@ final class VeloSimModel: ObservableObject {
         }
         ftmsBridge.disconnect()
     }
+}
+
+/// Shown after an FTP test updates the rider's FTP (guide §6.3).
+struct FTPAnnouncement: Identifiable {
+    let id = UUID()
+    let oldFTP: Int
+    let newFTP: Int
 }
