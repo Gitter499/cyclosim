@@ -16,7 +16,6 @@ struct AppShellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
     private var topNav: some View {
@@ -47,6 +46,7 @@ struct AppShellView: View {
             }
             Spacer()
         }
+        .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
     @ViewBuilder
