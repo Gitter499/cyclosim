@@ -1,19 +1,26 @@
-import AppKit
 import SwiftUI
-import QuartzCore
-import Metal
-import VeloFFI
 import VeloSimSupport
 
 struct ContentView: View {
     @ObservedObject var model: VeloSimModel
 
     var body: some View {
-        HSplitView {
-            MetalRideView(model: model)
-                .frame(minWidth: 640)
+        TabView(selection: $model.selectedTab) {
+            DashboardView(model: model)
+                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
+                .tag(AppTab.home)
 
-            SetupChromeView(model: model)
+            ActivitiesView(model: model)
+                .tabItem { Label(AppTab.activities.title, systemImage: AppTab.activities.systemImage) }
+                .tag(AppTab.activities)
+
+            RideView(model: model)
+                .tabItem { Label(AppTab.ride.title, systemImage: AppTab.ride.systemImage) }
+                .tag(AppTab.ride)
+
+            SettingsView(model: model, embeddedInTab: true)
+                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
+                .tag(AppTab.settings)
         }
         .sheet(isPresented: $model.showRideSummarySheet) {
             if let summary = model.lastRideSummary {
@@ -24,55 +31,10 @@ struct ContentView: View {
                 )
             }
         }
-        .sheet(isPresented: $model.showSettings) {
-            SettingsView(model: model)
-        }
         .onAppear {
             model.startSimLoop()
             model.refreshRideHistory()
         }
         .onDisappear { model.stopSimLoop() }
-    }
-}
-
-struct MetalRideView: NSViewRepresentable {
-    @ObservedObject var model: VeloSimModel
-
-    func makeNSView(context: Context) -> MetalHostView {
-        let view = MetalHostView()
-        view.onLayerReady = { layer, size in
-            model.initRenderer(layer: layer, size: size)
-        }
-        view.onResize = { size in
-            model.resizeRenderer(size: size)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: MetalHostView, context: Context) {}
-}
-
-final class MetalHostView: NSView {
-    var onLayerReady: ((CAMetalLayer, CGSize) -> Void)?
-    var onResize: ((CGSize) -> Void)?
-
-    override func makeBackingLayer() -> CALayer {
-        let layer = CAMetalLayer()
-        layer.device = MTLCreateSystemDefaultDevice()
-        layer.pixelFormat = .bgra8Unorm
-        layer.framebufferOnly = false
-        self.layer = layer
-        self.wantsLayer = true
-        return layer
-    }
-
-    override func layout() {
-        super.layout()
-        guard let metalLayer = layer as? CAMetalLayer else { return }
-        let scale = window?.backingScaleFactor ?? 2.0
-        let size = bounds.size
-        metalLayer.drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
-        onResize?(metalLayer.drawableSize)
-        onLayerReady?(metalLayer, metalLayer.drawableSize)
     }
 }
