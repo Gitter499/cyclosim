@@ -17,8 +17,12 @@ final class RideHUDFormattingTests: XCTestCase {
 
     func testIntervalFractionAndRemaining() {
         XCTAssertNil(RideHUDFormatting.intervalFraction(durationS: 0, elapsedS: 30))
-        let fraction = RideHUDFormatting.intervalFraction(durationS: 120, elapsedS: 30)
-        let remaining = RideHUDFormatting.intervalRemainingS(durationS: 120, elapsedS: 30)
+        guard
+            let fraction = RideHUDFormatting.intervalFraction(durationS: 120, elapsedS: 30),
+            let remaining = RideHUDFormatting.intervalRemainingS(durationS: 120, elapsedS: 30)
+        else {
+            return XCTFail("expected interval fraction and remaining")
+        }
         XCTAssertEqual(fraction, 0.25, accuracy: 0.0001)
         XCTAssertEqual(remaining, 90, accuracy: 0.0001)
     }
