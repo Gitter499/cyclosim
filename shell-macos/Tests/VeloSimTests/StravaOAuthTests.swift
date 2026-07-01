@@ -49,4 +49,20 @@ final class StravaOAuthTests: XCTestCase {
         XCTAssertEqual(tokens.refreshToken, "rt")
         XCTAssertEqual(tokens.expiresAt, 9_999_999_999)
     }
+
+    func testFetchAthleteParsesFixtureJSON() async throws {
+        let fixture = """
+        {"id":42,"firstname":"Ada","lastname":"Lovelace"}
+        """
+        MockURLProtocol.requestHandler = { request in
+            XCTAssertTrue(request.url?.absoluteString.contains("/athlete") ?? false)
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data(fixture.utf8))
+        }
+        let session = MockURLProtocol.makeSession()
+        let athlete = try await StravaOAuth.fetchAthlete(accessToken: "test-token", session: session)
+        XCTAssertEqual(athlete.id, 42)
+        XCTAssertEqual(athlete.displayName, "Ada Lovelace")
+    }
 }
