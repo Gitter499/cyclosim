@@ -4,65 +4,78 @@ import VeloSimSupport
 @MainActor
 struct AppShellView: View {
     @ObservedObject var model: VeloSimModel
-    @Namespace private var navNamespace
 
     var body: some View {
-        VStack(spacing: 0) {
-            topNav
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-
-            destinationContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            #if VELO_LIQUID_GLASS
+            if #available(macOS 26, *) {
+                modernTabShell
+            } else {
+                legacyTabShell
+            }
+            #else
+            legacyTabShell
+            #endif
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
-    private var topNav: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(ShellDestination.allCases.enumerated()), id: \.element.id) { index, destination in
-                if index > 0 {
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 10)
-                }
-                Button {
-                    model.shellDestination = destination
-                } label: {
-                    Text(destination.title)
-                        .font(.subheadline.weight(model.shellDestination == destination ? .semibold : .regular))
-                        .foregroundStyle(model.shellDestination == destination ? Color.accentColor : Color.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background {
-                            if model.shellDestination == destination {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.accentColor.opacity(0.12))
-                                    .matchedGeometryEffect(id: "navSelection", in: navNamespace)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
+    @available(macOS 26, *)
+    private var modernTabShell: some View {
+        TabView(selection: $model.shellDestination) {
+            Tab(ShellDestination.home.title, systemImage: ShellDestination.home.systemImage, value: ShellDestination.home) {
+                destinationView(.home)
             }
-            Spacer()
+            Tab(ShellDestination.activities.title, systemImage: ShellDestination.activities.systemImage, value: ShellDestination.activities) {
+                destinationView(.activities)
+            }
+            Tab(ShellDestination.history.title, systemImage: ShellDestination.history.systemImage, value: ShellDestination.history) {
+                destinationView(.history)
+            }
+            Tab(ShellDestination.settings.title, systemImage: ShellDestination.settings.systemImage, value: ShellDestination.settings) {
+                destinationView(.settings)
+            }
+        }
+        .tabViewStyle(.sidebarAdaptable)
+    }
+
+    private var legacyTabShell: some View {
+        TabView(selection: $model.shellDestination) {
+            destinationView(.home)
+                .tabItem { Label(ShellDestination.home.title, systemImage: ShellDestination.home.systemImage) }
+                .tag(ShellDestination.home)
+            destinationView(.activities)
+                .tabItem { Label(ShellDestination.activities.title, systemImage: ShellDestination.activities.systemImage) }
+                .tag(ShellDestination.activities)
+            destinationView(.history)
+                .tabItem { Label(ShellDestination.history.title, systemImage: ShellDestination.history.systemImage) }
+                .tag(ShellDestination.history)
+            destinationView(.settings)
+                .tabItem { Label(ShellDestination.settings.title, systemImage: ShellDestination.settings.systemImage) }
+                .tag(ShellDestination.settings)
         }
     }
 
     @ViewBuilder
-    private var destinationContent: some View {
-        switch model.shellDestination {
-        case .home:
-            HomeDashboardView(model: model)
-        case .activities:
-            ActivitiesCatalogView(model: model)
-        case .history:
-            RideHistoryView(model: model)
-        case .settings:
-            SettingsBlockedView(isBlocked: model.shellPhase == .riding) {
-                SettingsView(model: model, embeddedInTab: true)
+    private func destinationView(_ destination: ShellDestination) -> some View {
+        Group {
+            switch destination {
+            case .home:
+                HomeDashboardView(model: model)
+            case .activities:
+                ActivitiesCatalogView(model: model)
+            case .history:
+                RideHistoryView(model: model)
+            case .settings:
+                SettingsBlockedView(isBlocked: model.shellPhase == .riding) {
+                    SettingsView(model: model, embeddedInTab: true)
+                }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity)
+        .id(destination)
     }
 }
 
