@@ -1851,6 +1851,7 @@ public struct RideStateDto {
     public var speedMps: Double
     public var elapsedS: Double
     public var grade: Double
+    public var elevationM: Double?
     public var powerW: Double?
     public var cadenceRpm: Double?
     public var heartRateBpm: Double?
@@ -1859,12 +1860,13 @@ public struct RideStateDto {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(mode: RideMode, distanceM: Double, speedMps: Double, elapsedS: Double, grade: Double, powerW: Double?, cadenceRpm: Double?, heartRateBpm: Double?, steerAxis: Float, steerYawRad: Float) {
+    public init(mode: RideMode, distanceM: Double, speedMps: Double, elapsedS: Double, grade: Double, elevationM: Double?, powerW: Double?, cadenceRpm: Double?, heartRateBpm: Double?, steerAxis: Float, steerYawRad: Float) {
         self.mode = mode
         self.distanceM = distanceM
         self.speedMps = speedMps
         self.elapsedS = elapsedS
         self.grade = grade
+        self.elevationM = elevationM
         self.powerW = powerW
         self.cadenceRpm = cadenceRpm
         self.heartRateBpm = heartRateBpm
@@ -1895,6 +1897,9 @@ extension RideStateDto: Equatable, Hashable {
         if lhs.grade != rhs.grade {
             return false
         }
+        if lhs.elevationM != rhs.elevationM {
+            return false
+        }
         if lhs.powerW != rhs.powerW {
             return false
         }
@@ -1919,6 +1924,7 @@ extension RideStateDto: Equatable, Hashable {
         hasher.combine(speedMps)
         hasher.combine(elapsedS)
         hasher.combine(grade)
+        hasher.combine(elevationM)
         hasher.combine(powerW)
         hasher.combine(cadenceRpm)
         hasher.combine(heartRateBpm)
@@ -1941,6 +1947,7 @@ public struct FfiConverterTypeRideStateDto: FfiConverterRustBuffer {
                 speedMps: FfiConverterDouble.read(from: &buf), 
                 elapsedS: FfiConverterDouble.read(from: &buf), 
                 grade: FfiConverterDouble.read(from: &buf), 
+                elevationM: FfiConverterOptionDouble.read(from: &buf), 
                 powerW: FfiConverterOptionDouble.read(from: &buf), 
                 cadenceRpm: FfiConverterOptionDouble.read(from: &buf), 
                 heartRateBpm: FfiConverterOptionDouble.read(from: &buf), 
@@ -1955,6 +1962,7 @@ public struct FfiConverterTypeRideStateDto: FfiConverterRustBuffer {
         FfiConverterDouble.write(value.speedMps, into: &buf)
         FfiConverterDouble.write(value.elapsedS, into: &buf)
         FfiConverterDouble.write(value.grade, into: &buf)
+        FfiConverterOptionDouble.write(value.elevationM, into: &buf)
         FfiConverterOptionDouble.write(value.powerW, into: &buf)
         FfiConverterOptionDouble.write(value.cadenceRpm, into: &buf)
         FfiConverterOptionDouble.write(value.heartRateBpm, into: &buf)
@@ -2573,17 +2581,19 @@ public struct WorkoutLiveDto {
     public var workoutName: String
     public var intervalName: String
     public var intervalElapsedS: Double
+    public var intervalDurationS: Double
     public var workoutElapsedS: Double
     public var targetWatts: Double?
     public var finished: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(active: Bool, workoutName: String, intervalName: String, intervalElapsedS: Double, workoutElapsedS: Double, targetWatts: Double?, finished: Bool) {
+    public init(active: Bool, workoutName: String, intervalName: String, intervalElapsedS: Double, intervalDurationS: Double, workoutElapsedS: Double, targetWatts: Double?, finished: Bool) {
         self.active = active
         self.workoutName = workoutName
         self.intervalName = intervalName
         self.intervalElapsedS = intervalElapsedS
+        self.intervalDurationS = intervalDurationS
         self.workoutElapsedS = workoutElapsedS
         self.targetWatts = targetWatts
         self.finished = finished
@@ -2609,6 +2619,9 @@ extension WorkoutLiveDto: Equatable, Hashable {
         if lhs.intervalElapsedS != rhs.intervalElapsedS {
             return false
         }
+        if lhs.intervalDurationS != rhs.intervalDurationS {
+            return false
+        }
         if lhs.workoutElapsedS != rhs.workoutElapsedS {
             return false
         }
@@ -2626,6 +2639,7 @@ extension WorkoutLiveDto: Equatable, Hashable {
         hasher.combine(workoutName)
         hasher.combine(intervalName)
         hasher.combine(intervalElapsedS)
+        hasher.combine(intervalDurationS)
         hasher.combine(workoutElapsedS)
         hasher.combine(targetWatts)
         hasher.combine(finished)
@@ -2645,6 +2659,7 @@ public struct FfiConverterTypeWorkoutLiveDto: FfiConverterRustBuffer {
                 workoutName: FfiConverterString.read(from: &buf), 
                 intervalName: FfiConverterString.read(from: &buf), 
                 intervalElapsedS: FfiConverterDouble.read(from: &buf), 
+                intervalDurationS: FfiConverterDouble.read(from: &buf), 
                 workoutElapsedS: FfiConverterDouble.read(from: &buf), 
                 targetWatts: FfiConverterOptionDouble.read(from: &buf), 
                 finished: FfiConverterBool.read(from: &buf)
@@ -2656,6 +2671,7 @@ public struct FfiConverterTypeWorkoutLiveDto: FfiConverterRustBuffer {
         FfiConverterString.write(value.workoutName, into: &buf)
         FfiConverterString.write(value.intervalName, into: &buf)
         FfiConverterDouble.write(value.intervalElapsedS, into: &buf)
+        FfiConverterDouble.write(value.intervalDurationS, into: &buf)
         FfiConverterDouble.write(value.workoutElapsedS, into: &buf)
         FfiConverterOptionDouble.write(value.targetWatts, into: &buf)
         FfiConverterBool.write(value.finished, into: &buf)

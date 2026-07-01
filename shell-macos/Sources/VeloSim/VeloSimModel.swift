@@ -70,7 +70,13 @@ final class VeloSimModel: ObservableObject {
     @Published var rustHudDrawEnabled: Bool = false
     @Published var musicStatus: String = "Music off"
 
+    @Published var hudMinimalMode: Bool = false
+    @Published var highlightedRideId: String?
+    @Published var pinnedRouteId: String?
+    @Published var pinnedWorkoutName: String?
+
     private var tickTimer: Timer?
+    private var rideKeyMonitor: Any?
     private var rideStore: LocalRideStoreHandle?
 
     init() {
@@ -90,7 +96,12 @@ final class VeloSimModel: ObservableObject {
         refreshRoutes()
         refreshBikes()
         applyRuntimeSecrets()
+        hudMinimalMode = AppSettingsStore.hudMinimalMode
+        pinnedRouteId = AppSettingsStore.pinnedRouteId
+        pinnedWorkoutName = AppSettingsStore.pinnedWorkoutName
         setSegmentMusicEnabled(AppSettingsStore.segmentMusicEnabled)
+        setSteeringMode(AppSettingsStore.defaultSteeringMode)
+        installRideKeyMonitor()
 
         handle.setAudioDirector(director: musicDirector)
         musicStatus = musicDirector.status
@@ -156,6 +167,7 @@ final class VeloSimModel: ObservableObject {
 
     func setSegmentMusicEnabled(_ enabled: Bool) {
         segmentMusicEnabled = enabled
+        AppSettingsStore.segmentMusicEnabled = enabled
         handle.setSegmentMusicEnabled(enabled: enabled)
         musicDirector.setEnabled(enabled)
         musicStatus = musicDirector.status
@@ -164,6 +176,61 @@ final class VeloSimModel: ObservableObject {
     func setRustHudDrawEnabled(_ enabled: Bool) {
         rustHudDrawEnabled = enabled
         handle.setHudDrawEnabled(enabled: enabled)
+    }
+
+    func toggleHudMinimalMode() {
+        hudMinimalMode.toggle()
+        AppSettingsStore.hudMinimalMode = hudMinimalMode
+    }
+
+    func pinRoute(_ routeId: String) {
+        pinnedRouteId = routeId
+        AppSettingsStore.pinnedRouteId = routeId
+    }
+
+    func unpinRoute() {
+        pinnedRouteId = nil
+        AppSettingsStore.pinnedRouteId = nil
+    }
+
+    func pinWorkout(_ name: String) {
+        pinnedWorkoutName = name
+        AppSettingsStore.pinnedWorkoutName = name
+    }
+
+    func unpinWorkout() {
+        pinnedWorkoutName = nil
+        AppSettingsStore.pinnedWorkoutName = nil
+    }
+
+    func beginPinnedRouteRide() {
+        guard let routeId = pinnedRouteId ?? AppSettingsStore.pinnedRouteId else { return }
+        selectRoute(routeId)
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+            activitiesTab = .routes
+        }
+    }
+
+    func beginPinnedWorkout() {
+        guard let name = pinnedWorkoutName ?? AppSettingsStore.pinnedWorkoutName else { return }
+        if name == "2x20 Threshold" {
+            startSampleWorkout()
+        } else if workoutLive.active, workoutLive.workoutName == name {
+            // Workout already loaded.
+        } else {
+            shellDestination = .activities
+            activitiesTab = .workouts
+            return
+        }
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+            activitiesTab = .workouts
+        }
     }
 
     func connectAppleMusic() {
@@ -226,6 +293,9 @@ final class VeloSimModel: ObservableObject {
         workoutLive = handle.workoutLive()
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
+        if workoutLive.active {
+            pinWorkout(workoutLive.workoutName)
+        }
     }
 
     func startCustomWorkout(_ workout: WorkoutDto) throws {
@@ -233,6 +303,9 @@ final class VeloSimModel: ObservableObject {
         workoutLive = handle.workoutLive()
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
+        if workoutLive.active {
+            pinWorkout(workoutLive.workoutName)
+        }
     }
 
     func clearWorkout() {
@@ -312,6 +385,7 @@ final class VeloSimModel: ObservableObject {
             routeImportStatus = "Riding: \(routeId)"
             rideState = handle.rideState()
             simGrade = rideState.grade
+            pinRoute(routeId)
         } catch {
             routeImportStatus = "Failed to load route: \(error)"
         }
@@ -425,6 +499,7 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                highlightedRideId = result.rideId
                 shellPhase = .browse
                 shellDestination = .home
                 showRideSummarySheet = lastRideSummary != nil
@@ -510,6 +585,21 @@ final class VeloSimModel: ObservableObject {
         shellDestination = .home
     }
 
+    private func installRideKeyMonitor() {
+        rideKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            guard self.shellPhase == .riding,
+                  !self.showRideSummarySheet,
+                  event.keyCode == 32,
+                  !event.modifierFlags.contains(.command)
+            else {
+                return event
+            }
+            self.toggleHudMinimalMode()
+            return nil
+        }
+    }
+
     func openHighlightClip() {
         guard let path = lastPublishResult?.highlightClipPath, !path.isEmpty else { return }
         let url = URL(fileURLWithPath: path)
@@ -567,7 +657,7 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
-        if tiles3dEnabled {
+        if tiles3dEnabled, shellPhase == .browse || isRideRecording {
             refreshServiceStatus()
         }
         renderFrame()
@@ -582,6 +672,9 @@ final class VeloSimModel: ObservableObject {
 
     deinit {
         tickTimer?.invalidate()
+        if let rideKeyMonitor {
+            NSEvent.removeMonitor(rideKeyMonitor)
+        }
         ftmsBridge.disconnect()
     }
 }

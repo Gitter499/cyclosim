@@ -10,6 +10,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 welcomeHeader
+                pinnedListSection
                 quickStartSection
                 recentRidesSection
             }
@@ -35,6 +36,72 @@ struct DashboardView: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .veloGlassRoundedRect(cornerRadius: 14)
+    }
+
+    private var pinnedListSection: some View {
+        Group {
+            if model.pinnedRouteId != nil || model.pinnedWorkoutName != nil {
+                VeloGlassSection("My list") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let routeId = model.pinnedRouteId {
+                            pinnedRow(
+                                title: pinnedRouteTitle(routeId),
+                                subtitle: "Pinned route",
+                                systemImage: "map.fill",
+                                tint: .green
+                            ) {
+                                model.beginPinnedRouteRide()
+                            }
+                        }
+
+                        if let workout = model.pinnedWorkoutName {
+                            pinnedRow(
+                                title: workout,
+                                subtitle: "Pinned workout",
+                                systemImage: "bolt.fill",
+                                tint: .orange
+                            ) {
+                                model.beginPinnedWorkout()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func pinnedRouteTitle(_ routeId: String) -> String {
+        model.availableRoutes.first(where: { $0.routeId == routeId })?.name ?? routeId
+    }
+
+    private func pinnedRow(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .foregroundStyle(tint)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "play.circle.fill")
+                    .foregroundStyle(tint)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
     }
 
     private var quickStartSection: some View {
@@ -126,6 +193,13 @@ struct DashboardView: View {
                                 Spacer()
                                 VeloPublishBadge(status: ride.publishStatus)
                             }
+                            .padding(8)
+                            .background(
+                                model.highlightedRideId == ride.id
+                                    ? Color.accentColor.opacity(0.15)
+                                    : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 8)
+                            )
                         }
                         .buttonStyle(.plain)
                     }

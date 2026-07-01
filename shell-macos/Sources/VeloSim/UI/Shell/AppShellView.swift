@@ -4,6 +4,7 @@ import VeloSimSupport
 @MainActor
 struct AppShellView: View {
     @ObservedObject var model: VeloSimModel
+    @Namespace private var navNamespace
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,6 +16,7 @@ struct AppShellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
     private var topNav: some View {
@@ -31,6 +33,15 @@ struct AppShellView: View {
                     Text(destination.title)
                         .font(.subheadline.weight(model.shellDestination == destination ? .semibold : .regular))
                         .foregroundStyle(model.shellDestination == destination ? Color.accentColor : Color.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background {
+                            if model.shellDestination == destination {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.accentColor.opacity(0.12))
+                                    .matchedGeometryEffect(id: "navSelection", in: navNamespace)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
             }

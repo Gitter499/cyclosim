@@ -14,20 +14,47 @@ pub struct HudSnapshot {
     pub distance_m: f64,
     pub elapsed_s: f64,
     pub grade: f64,
+    pub elevation_m: Option<f64>,
     pub mode: &'static str,
-    /// Active structured-workout interval label (M5).
     pub workout_interval: Option<String>,
-    /// Resolved ERG target for the current interval (None = free ride).
     pub workout_target_w: Option<f64>,
-    /// Shown when Tier B 3D Tiles mode is active (ToS attribution).
+    pub interval_duration_s: Option<f64>,
+    pub interval_elapsed_s: Option<f64>,
     pub attribution: Option<String>,
 }
 
 impl HudSnapshot {
-    fn format_line(label: &str, value: Option<f64>, suffix: &str) -> String {
-        match value {
-            Some(v) => format!("{label}: {:.0} {suffix}", v),
-            None => format!("{label}: —"),
+    pub fn interval_fraction(&self) -> Option<f64> {
+        let duration = self.interval_duration_s?;
+        let elapsed = self.interval_elapsed_s?;
+        if duration > 0.0 { Some((elapsed / duration).clamp(0.0, 1.0)) } else { None }
+    }
+
+    pub fn interval_remaining_s(&self) -> Option<f64> {
+        let duration = self.interval_duration_s?;
+        let elapsed = self.interval_elapsed_s?;
+        if duration > 0.0 { Some((duration - elapsed).max(0.0)) } else { None }
+    }
+
+    fn format_interval_bar(&self) -> Option<String> {
+        let name = self.workout_interval.as_ref()?;
+        let remaining = self.interval_remaining_s()?;
+        let mins = (remaining / 60.0).floor() as u32;
+        let secs = (remaining % 60.0).floor() as u32;
+        let target = match self.workout_target_w {
+            Some(w) => format!("{:.0} W", w),
+            None => "Free".into(),
+        };
+        let filled = (self.interval_fraction().unwrap_or(0.0) * 20.0).round() as usize;
+        let bar: String = (0..20).map(|i| if i < filled { '█' } else { '░' }).collect();
+        Some(format!("{name} · {target} · {mins:02}:{secs:02}  [{bar}]"))
+    }
+
+    fn format_grade_elevation(&self) -> String {
+        let grade_pct = self.grade * 100.0;
+        match self.elevation_m {
+            Some(elev) => format!("Elev: {:.0} m  Grade: {grade_pct:.1}%", elev),
+            None => format!("Grade: {grade_pct:.1}%"),
         }
     }
 
@@ -36,25 +63,25 @@ impl HudSnapshot {
         let mins = (self.elapsed_s / 60.0).floor() as u32;
         let secs = (self.elapsed_s % 60.0).floor() as u32;
         let mut lines = Vec::new();
-        if let Some(interval) = &self.workout_interval {
+        if let Some(bar) = self.format_interval_bar() {
+            lines.push(bar);
+        } else if let Some(interval) = &self.workout_interval {
             let target = match self.workout_target_w {
                 Some(w) => format!("{:.0} W", w),
                 None => "Free ride".into(),
             };
             lines.push(format!("Interval: {interval}  Target: {target}"));
         }
-        lines.extend([
-            format!("Mode: {}  Grade: {:.1}%", self.mode, self.grade * 100.0),
-            Self::format_line("Power", self.power_w, "W"),
-            Self::format_line("Cadence", self.cadence_rpm, "rpm"),
-            Self::format_line("HR", self.heart_rate_bpm, "bpm"),
-            format!("Speed: {:.1} km/h", speed_kmh),
-            format!("Distance: {:.0} m", self.distance_m),
-            format!("Time: {mins:02}:{secs:02}"),
-        ]);
-        if let Some(attr) = &self.attribution {
-            lines.push(attr.clone());
-        }
+        lines.push(format!(
+            "POWER {}  |  HR {}  |  CAD {}",
+            self.power_w.map(|w| format!("{:.0} W", w)).unwrap_or_else(|| "—".into()),
+            self.heart_rate_bpm.map(|b| format!("{:.0}", b)).unwrap_or_else(|| "—".into()),
+            self.cadence_rpm.map(|c| format!("{:.0}", c)).unwrap_or_else(|| "—".into()),
+        ));
+        lines.push(format!("Speed: {:.1} km/h  Dist: {:.0} m  Time: {mins:02}:{secs:02}", speed_kmh, self.distance_m));
+        lines.push(self.format_grade_elevation());
+        lines.push(format!("Mode: {}", self.mode));
+        if let Some(attr) = &self.attribution { lines.push(attr.clone()); }
         lines
     }
 }
@@ -171,15 +198,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn workout_interval_line_prepended_when_active() {
+    fn interval_fraction_and_remaining() {
         let hud = HudSnapshot {
-            workout_interval: Some("Warmup".into()),
-            workout_target_w: Some(137.5),
-            mode: "ERG",
+            interval_duration_s: Some(120.0),
+            interval_elapsed_s: Some(30.0),
+            ..Default::default()
+        };
+        assert!((hud.interval_fraction().unwrap() - 0.25).abs() < f64::EPSILON);
+        assert!((hud.interval_remaining_s().unwrap() - 90.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn interval_bar_line_includes_name_and_remaining() {
+        let hud = HudSnapshot {
+            workout_interval: Some("Block 1".into()),
+            workout_target_w: Some(250.0),
+            interval_duration_s: Some(120.0),
+            interval_elapsed_s: Some(30.0),
             ..Default::default()
         };
         let lines = hud.lines();
-        assert!(lines[0].contains("Warmup"));
-        assert!(lines[0].contains("138 W"));
+        let line = lines.first().expect("interval bar line");
+        assert!(line.contains("Block 1"));
+        assert!(line.contains("250 W"));
+        assert!(line.contains("01:30"));
+        assert!(line.contains('█'));
+    }
+
+    #[test]
+    fn grade_elevation_line_when_route_elev_present() {
+        let hud = HudSnapshot {
+            grade: 0.052,
+            elevation_m: Some(842.6),
+            ..Default::default()
+        };
+        let lines = hud.lines();
+        let line = lines
+            .iter()
+            .find(|l| l.contains("Grade"))
+            .expect("grade line");
+        assert!(line.contains("843 m"));
+        assert!(line.contains("5.2%"));
     }
 }

@@ -21,7 +21,7 @@ struct RideSummarySheet: View {
             actionBar
                 .padding(16)
         }
-        .frame(width: 380)
+        .frame(minWidth: 520, minHeight: 560)
     }
 
     private var headerChrome: some View {
