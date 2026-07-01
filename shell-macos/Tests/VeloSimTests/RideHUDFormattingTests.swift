@@ -9,6 +9,15 @@ final class RideHUDFormattingTests: XCTestCase {
         XCTAssertEqual(RideHUDFormatting.formatPower(200.4), "200 W")
     }
 
+    func testFormatDistanceDelegatesToSummary() {
+        XCTAssertEqual(RideHUDFormatting.formatDistance(850), RideSummaryFormatting.formatDistance(850))
+        XCTAssertEqual(RideHUDFormatting.formatDistance(42195), RideSummaryFormatting.formatDistance(42195))
+    }
+
+    func testFormatElapsedDelegatesToSummary() {
+        XCTAssertEqual(RideHUDFormatting.formatElapsed(125), RideSummaryFormatting.formatElapsed(125))
+    }
+
     func testFormatElevationAndGrade() {
         XCTAssertEqual(RideHUDFormatting.formatElevation(nil), "—")
         XCTAssertEqual(RideHUDFormatting.formatElevation(842.6), "843 m")
