@@ -101,6 +101,52 @@ fn user_story_workout_boundary_fires_audio_at_each_interval() {
 }
 
 #[test]
+fn resync_segment_music_refires_current_interval() {
+    let mut app = VeloApp::new();
+    app.set_ftp(200.0);
+    app.set_segment_music_enabled(true);
+    app.start_workout(Workout {
+        name: "resync".into(),
+        intervals: vec![WorkoutInterval {
+            name: "Warmup".into(),
+            duration_s: 10.0,
+            target: WorkoutTarget::FtpPercent(55.0),
+        }],
+    });
+    let audio = RecordingAudioDirector::default();
+    let mut sensors = MockSensorSource::default();
+    let trainer = MockTrainerControl;
+    app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+    assert_eq!(audio.calls().len(), 1);
+    app.resync_segment_music();
+    app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+    assert_eq!(audio.calls().len(), 2);
+}
+
+#[test]
+fn enabling_segment_music_resyncs_pending_interval() {
+    let mut app = VeloApp::new();
+    app.set_ftp(200.0);
+    app.start_workout(Workout {
+        name: "enable".into(),
+        intervals: vec![WorkoutInterval {
+            name: "Build".into(),
+            duration_s: 10.0,
+            target: WorkoutTarget::FtpPercent(80.0),
+        }],
+    });
+    let audio = RecordingAudioDirector::default();
+    let mut sensors = MockSensorSource::default();
+    let trainer = MockTrainerControl;
+    for _ in 0..5 {
+        app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, None::<&RecordingAudioDirector>);
+    }
+    app.set_segment_music_enabled(true);
+    app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+    assert_eq!(audio.calls().len(), 1);
+}
+
+#[test]
 fn workout_engine_advances_interval_index_at_boundary() {
     let mut engine = WorkoutEngine::new(
         Workout {
