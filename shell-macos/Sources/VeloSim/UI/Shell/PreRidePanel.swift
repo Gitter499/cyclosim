@@ -2,38 +2,25 @@ import SwiftUI
 import VeloFFI
 import VeloSimSupport
 
-/// Pre-ride controls moved out of the permanent sidebar (BLE, steering, music, ride mode).
 @MainActor
-struct PreRideSetupSheet: View {
+struct PreRidePanel: View {
     @ObservedObject var model: VeloSimModel
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Pre-ride setup")
-                .font(.title2.bold())
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    inputSection
-                    steeringSection
-                    musicSection
-                    rideModeSection
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            inputSection
+            steeringSection
+            musicSection
+            rideModeSection
+            if model.activeRouteId != nil {
+                tilesSection
             }
-
-            HStack {
-                Spacer()
-                Button("Done") { dismiss() }
-                    .buttonStyle(VeloGlassPrimaryButtonStyle())
-            }
+            startSection
         }
-        .padding(16)
-        .frame(width: 420, height: 520)
     }
 
     private var inputSection: some View {
-        VeloGlassSection("Sensors") {
+        VeloGlassSection("Trainer & sensors") {
             Picker("Input", selection: Binding(
                 get: { model.sensorMode },
                 set: { model.setSensorMode($0) }
@@ -132,6 +119,43 @@ struct PreRideSetupSheet: View {
                         .frame(width: 56, alignment: .trailing)
                 }
             }
+        }
+    }
+
+    private var tilesSection: some View {
+        VeloGlassSection("3D Tiles") {
+            Toggle("Photorealistic tiles (online)", isOn: Binding(
+                get: { model.tiles3dEnabled },
+                set: { model.setTiles3d($0) }
+            ))
+
+            Text(model.tilesProviderStatus)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            if let err = model.tilesLastError, model.tiles3dEnabled {
+                Text(err)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+            }
+        }
+    }
+
+    private var startSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let reason = model.preRideBlockReason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button("Start ride") {
+                model.startRideFromActivities()
+            }
+            .buttonStyle(VeloGlassPrimaryButtonStyle())
+            .disabled(model.isFinishingRide || model.preRideBlockReason != nil)
         }
     }
 }

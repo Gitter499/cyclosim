@@ -3,7 +3,7 @@ import VeloFFI
 import VeloSimSupport
 
 @MainActor
-struct ActivitiesView: View {
+struct ActivitiesCatalogView: View {
     @ObservedObject var model: VeloSimModel
 
     var body: some View {
@@ -24,24 +24,24 @@ struct ActivitiesView: View {
             ScrollView {
                 switch model.activitiesTab {
                 case .routes:
-                    routesTab
+                    routesSection
                 case .workouts:
-                    workoutsTab
-                case .history:
-                    historyTab
+                    workoutsSection
                 }
+
+                PreRidePanel(model: model)
+                    .padding(.top, 8)
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var headerChrome: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Activities")
                 .font(.title2.bold())
-            Text("Routes, workouts, and ride history.")
+            Text("Routes, workouts, and pre-ride setup.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -51,7 +51,7 @@ struct ActivitiesView: View {
         .veloGlassRoundedRect(cornerRadius: 14)
     }
 
-    private var routesTab: some View {
+    private var routesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             VeloGlassSection("Routes") {
                 HStack {
@@ -59,8 +59,6 @@ struct ActivitiesView: View {
                     if model.activeRouteId != nil {
                         Button("Clear route") { model.clearRoute() }
                     }
-                    Button("Go to ride") { model.selectedTab = .ride }
-                        .buttonStyle(VeloGlassPrimaryButtonStyle())
                 }
 
                 Text(model.routeImportStatus)
@@ -84,24 +82,6 @@ struct ActivitiesView: View {
                             Text("\(route.name) (\(Int(route.totalDistanceM)) m)")
                                 .tag(route.routeId)
                         }
-                    }
-                }
-
-                if model.activeRouteId != nil {
-                    Toggle("3D Tiles (online)", isOn: Binding(
-                        get: { model.tiles3dEnabled },
-                        set: { model.setTiles3d($0) }
-                    ))
-
-                    Text(model.tilesProviderStatus)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-
-                    if let err = model.tilesLastError, model.tiles3dEnabled {
-                        Text("Tiles: \(err)")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .lineLimit(3)
                     }
                 }
             }
@@ -139,70 +119,27 @@ struct ActivitiesView: View {
         }
     }
 
-    private var workoutsTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VeloGlassSection("FTP & workouts") {
-                HStack {
-                    Text("FTP")
-                    Slider(value: Binding(
-                        get: { model.ftp },
-                        set: { model.applyFtp($0) }
-                    ), in: 100...400, step: 5)
-                    Text("\(Int(model.ftp)) W")
-                        .monospacedDigit()
-                        .frame(width: 56, alignment: .trailing)
-                }
-
-                WorkoutBuilderView(model: model)
-
-                Button("Start ride with workout") {
-                    model.selectedTab = .ride
-                }
-                .buttonStyle(VeloGlassPrimaryButtonStyle())
-                .disabled(!model.workoutLive.active)
+    private var workoutsSection: some View {
+        VeloGlassSection("FTP & workouts") {
+            HStack {
+                Text("FTP")
+                Slider(value: Binding(
+                    get: { model.ftp },
+                    set: { model.applyFtp($0) }
+                ), in: 100...400, step: 5)
+                Text("\(Int(model.ftp)) W")
+                    .monospacedDigit()
+                    .frame(width: 56, alignment: .trailing)
             }
-        }
-    }
 
-    private var historyTab: some View {
-        VeloGlassSection("Ride history") {
-            if model.rideHistory.isEmpty {
-                Text("No rides yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(model.rideHistory, id: \.id) { ride in
-                        Button {
-                            model.openRide(ride)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(RideSummaryFormatting.formatRideDate(ride.startedAtUnix))
-                                        .font(.caption.bold())
-                                    Text("\(RideSummaryFormatting.formatDistance(ride.distanceM)) · \(RideSummaryFormatting.formatElapsed(ride.elapsedS))")
-                                        .font(.caption2)
-                                    if let avg = ride.avgPowerW {
-                                        Text("Avg \(RideSummaryFormatting.formatPower(avg))")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                VeloPublishBadge(status: ride.publishStatus)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            WorkoutBuilderView(model: model)
         }
     }
 }
 
-struct ActivitiesView_Previews: PreviewProvider {
+struct ActivitiesCatalogView_Previews: PreviewProvider {
     static var previews: some View {
-        ActivitiesView(model: VeloSimModel())
+        ActivitiesCatalogView(model: VeloSimModel())
             .frame(width: 640, height: 720)
     }
 }

@@ -220,9 +220,8 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Button("Open pre-ride setup") {
-                model.selectedTab = .ride
-                model.showPreRideSetup = true
+            Button("Open Activities setup") {
+                model.shellDestination = .activities
             }
             .buttonStyle(VeloGlassSecondaryButtonStyle())
         }
