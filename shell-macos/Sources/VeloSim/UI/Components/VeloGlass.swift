@@ -1,24 +1,22 @@
 import SwiftUI
 import VeloFFI
 
-// Shared Liquid Glass helpers — see .cursor/skills/liquid-glass/SKILL.md
+// Shared Liquid Glass helpers — see docs/VeloSim-UI-and-Zwift-Parity-Guide.md §4 and §8.
 //
-// Liquid Glass APIs require the macOS 26 SDK. Package.swift defines VELO_LIQUID_GLASS when
-// `xcrun --show-sdk-version` is 26+ (or SDKROOT points at MacOSX26). CI on macOS 14 uses
-// material fallbacks only.
+// Real `.glassEffect` on macOS 26+ only. Pre-26 / CI uses solid `.quaternary` — no fake glass.
 
 extension View {
-    /// Navigation-layer capsule chrome with Liquid Glass on macOS 26+, material fallback otherwise.
+    /// Navigation-layer capsule chrome with Liquid Glass on macOS 26+, solid fallback otherwise.
     @ViewBuilder
     public func veloGlassCapsule(interactive: Bool = false) -> some View {
         #if VELO_LIQUID_GLASS
         if #available(macOS 26, *) {
             modifier(VeloGlassCapsuleModifier(interactive: interactive))
         } else {
-            background(.ultraThinMaterial, in: Capsule())
+            background(.quaternary, in: Capsule())
         }
         #else
-        background(.ultraThinMaterial, in: Capsule())
+        background(.quaternary, in: Capsule())
         #endif
     }
 
@@ -29,10 +27,10 @@ extension View {
         if #available(macOS 26, *) {
             modifier(VeloGlassRoundedRectModifier(cornerRadius: cornerRadius, interactive: interactive))
         } else {
-            background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+            background(.quaternary, in: RoundedRectangle(cornerRadius: cornerRadius))
         }
         #else
-        background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        background(.quaternary, in: RoundedRectangle(cornerRadius: cornerRadius))
         #endif
     }
 }
@@ -121,7 +119,6 @@ public struct VeloPublishBadge: View {
     }
 }
 
-/// Groups multiple glass controls so they share one sampling region (macOS 26+).
 public struct VeloGlassContainer<Content: View>: View {
     private let spacing: CGFloat
     @ViewBuilder private var content: () -> Content
@@ -142,6 +139,41 @@ public struct VeloGlassContainer<Content: View>: View {
         content()
         #endif
     }
+}
+
+/// HUD region glass grouping (alias per guide §4).
+public typealias VeloHUDGlassContainer = VeloGlassContainer
+
+@ViewBuilder
+public func veloGlassProminentButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    #if VELO_LIQUID_GLASS
+    if #available(macOS 26, *) {
+        Button(title, systemImage: systemImage, action: action)
+            .buttonStyle(.glassProminent)
+    } else {
+        Button(title, systemImage: systemImage, action: action)
+            .buttonStyle(VeloGlassPrimaryButtonStyle())
+    }
+    #else
+    Button(title, systemImage: systemImage, action: action)
+        .buttonStyle(VeloGlassPrimaryButtonStyle())
+    #endif
+}
+
+@ViewBuilder
+public func veloGlassButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    #if VELO_LIQUID_GLASS
+    if #available(macOS 26, *) {
+        Button(title, systemImage: systemImage, action: action)
+            .buttonStyle(.glass)
+    } else {
+        Button(title, systemImage: systemImage, action: action)
+            .buttonStyle(VeloGlassSecondaryButtonStyle())
+    }
+    #else
+    Button(title, systemImage: systemImage, action: action)
+        .buttonStyle(VeloGlassSecondaryButtonStyle())
+    #endif
 }
 
 public struct VeloGlassPrimaryButtonStyle: ButtonStyle {

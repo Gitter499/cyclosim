@@ -8,6 +8,8 @@ public enum AppSettingsStore {
     private static let hudMinimalModeKey = "velosim.hudMinimalMode"
     private static let pinnedRouteIdKey = "velosim.pinnedRouteId"
     private static let pinnedWorkoutNameKey = "velosim.pinnedWorkoutName"
+    private static let riderNameKey = "velosim.riderName"
+    private static let riderWeightKgKey = "velosim.riderWeightKg"
 
     public static var preferHostedBikeGeneration: Bool {
         get { UserDefaults.standard.bool(forKey: preferHostedBikeGenerationKey) }
@@ -47,11 +49,18 @@ public enum AppSettingsStore {
     public static var pinnedWorkoutName: String? {
         get { UserDefaults.standard.string(forKey: pinnedWorkoutNameKey) }
         set {
-            if let newValue {
-                UserDefaults.standard.set(newValue, forKey: pinnedWorkoutNameKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: pinnedWorkoutNameKey)
-            }
+            if let newValue { UserDefaults.standard.set(newValue, forKey: pinnedWorkoutNameKey) }
+            else { UserDefaults.standard.removeObject(forKey: pinnedWorkoutNameKey) }
         }
+    }
+
+    public static var riderName: String {
+        get { UserDefaults.standard.string(forKey: riderNameKey) ?? "Rider" }
+        set { UserDefaults.standard.set(newValue, forKey: riderNameKey) }
+    }
+
+    public static var riderWeightKg: Double {
+        get { let v = UserDefaults.standard.double(forKey: riderWeightKgKey); return v > 0 ? v : 75 }
+        set { UserDefaults.standard.set(newValue, forKey: riderWeightKgKey) }
     }
 }

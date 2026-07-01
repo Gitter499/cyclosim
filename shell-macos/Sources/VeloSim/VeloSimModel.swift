@@ -71,9 +71,17 @@ final class VeloSimModel: ObservableObject {
     @Published var musicStatus: String = "Music off"
 
     @Published var hudMinimalMode: Bool = false
+    @Published var riderName: String = AppSettingsStore.riderName
+    @Published var riderWeightKg: Double = AppSettingsStore.riderWeightKg
     @Published var highlightedRideId: String?
     @Published var pinnedRouteId: String?
     @Published var pinnedWorkoutName: String?
+
+    /// Throttled in-ride readouts (~8 Hz). Views bind here instead of `rideState` per guide §5.3.
+    let hudModel = HUDModel()
+    private lazy var hudCoordinator = HUDCoordinator(model: hudModel) { [weak self] in
+        self?.objectWillChange.send()
+    }
 
     private var tickTimer: Timer?
     private var rideKeyMonitor: Any?
@@ -96,6 +104,7 @@ final class VeloSimModel: ObservableObject {
         refreshRoutes()
         refreshBikes()
         applyRuntimeSecrets()
+        hudModel.ftp = max(1, Int(ftp.rounded()))
         hudMinimalMode = AppSettingsStore.hudMinimalMode
         pinnedRouteId = AppSettingsStore.pinnedRouteId
         pinnedWorkoutName = AppSettingsStore.pinnedWorkoutName
@@ -181,6 +190,7 @@ final class VeloSimModel: ObservableObject {
     func toggleHudMinimalMode() {
         hudMinimalMode.toggle()
         AppSettingsStore.hudMinimalMode = hudMinimalMode
+        hudModel.minimalMode = hudMinimalMode
     }
 
     func pinRoute(_ routeId: String) {
@@ -286,6 +296,7 @@ final class VeloSimModel: ObservableObject {
     func applyFtp(_ watts: Double) {
         ftp = watts
         handle.setFtp(ftpW: watts)
+        hudModel.ftp = max(1, Int(watts.rounded()))
     }
 
     func startSampleWorkout() {
@@ -479,6 +490,7 @@ final class VeloSimModel: ObservableObject {
         }
         mediaCapture.ringBuffer.reset()
         handle.startRide()
+        hudCoordinator.reset()
         isRideRecording = handle.isRideRecording()
         shellPhase = .riding
         lastPublishResult = nil
@@ -539,6 +551,7 @@ final class VeloSimModel: ObservableObject {
             )
             handle.setHudDrawEnabled(enabled: false)
             rendererReady = true
+            rustHudDrawEnabled = false
         } catch {
             rendererReady = false
             logs.append("renderer init failed: \(error)")
@@ -647,6 +660,13 @@ final class VeloSimModel: ObservableObject {
         toggleCount = handle.toggleCount()
         rideState = handle.rideState()
         workoutLive = handle.workoutLive()
+        hudCoordinator.ingest(
+            rideState: rideState,
+            workoutLive: workoutLive,
+            ftp: ftp,
+            riderWeightKg: riderWeightKg,
+            minimalMode: hudMinimalMode
+        )
         isRideRecording = handle.isRideRecording()
         switch sensorMode {
         case .fake, .replay:
@@ -657,9 +677,7 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
-        if tiles3dEnabled, shellPhase == .browse || isRideRecording {
-            refreshServiceStatus()
-        }
+        if tiles3dEnabled, shellPhase == .browse || isRideRecording { refreshServiceStatus() }
         renderFrame()
     }
 

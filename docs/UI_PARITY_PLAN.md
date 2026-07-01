@@ -1,12 +1,15 @@
 # UI Parity Plan — VeloSim macOS Shell
 
-**Tracking:** [#24](https://github.com/Gitter499/cyclosim/issues/24)
+> **Superseded for implementation:** use [VeloSim-UI-and-Zwift-Parity-Guide.md](VeloSim-UI-and-Zwift-Parity-Guide.md) as the source of truth.
+> This document is retained for historical P0/P1 tracking ([#24](https://github.com/Gitter499/cyclosim/issues/24), [#28](https://github.com/Gitter499/cyclosim/issues/28)).
 
-**Goal:** Replace the single-sidebar layout with a Zwift/MyWhoosh-style multi-destination app shell while preserving VeloSim architecture (Rust core, `velo-render` HUD, Liquid Glass chrome only).
+**Tracking:** [#24](https://github.com/Gitter499/cyclosim/issues/24) · cleanup prep [#34](https://github.com/Gitter499/cyclosim/issues/34)
 
-**Skill:** [.cursor/skills/velo-ui-parity/SKILL.md](../.cursor/skills/velo-ui-parity/SKILL.md)
+**Goal:** Replace the single-sidebar layout with a Zwift/MyWhoosh-style multi-destination app shell while preserving VeloSim architecture (Rust core, Swift HUD overlay, Liquid Glass chrome only).
 
-**Baseline:** `HSplitView` + `SetupChromeView` beside always-visible `MetalRideView` (`ContentView.swift`).
+**Skill:** [.cursor/skills/velo-ui-parity/SKILL.md](../.cursor/skills/velo-ui-parity/SKILL.md) → points to the parity guide.
+
+**Baseline (historical):** `HSplitView` + `SetupChromeView` beside always-visible `MetalRideView` — **removed**; current shell uses `AppShellView` + `RideModeView`.
 
 ---
 
@@ -63,7 +66,7 @@
 | App state / ride phase | `VeloSimModel.swift` | `velo-ffi` if adding phase to FFI |
 | Settings & secrets | `SettingsView.swift`, `AppSecretsStore.swift` | Keychain schema |
 | Metal viewport host | `ContentView.swift` (`MetalRideView`) | `velo-render` |
-| In-ride HUD | `crates/velo-render/src/hud.rs` | Shell should not draw metrics |
+| In-ride HUD | `shell-macos/Sources/VeloSim/UI/HUD/` (Swift overlay) | Rust glyphon HUD disabled live; see guide §5 |
 | HUD data assembly | `crates/velo-ffi/src/lib.rs` | `velo-core` session fields |
 | 3D Tiles streaming | `crates/velo-cesium/src/session.rs` | Google ToS — online only |
 | Tiles GPU draw | `crates/velo-render/src/tiles.rs` | Placeholder texture path |
@@ -87,7 +90,7 @@
 │     │     └─ SettingsView                                     │
 │     └─ shellPhase == .riding → RideModeView                   │
 │           ├─ MetalRideView (full bleed)                       │
-│           ├─ velo-render HUD (via FFI render_frame)           │
+│           ├─ Swift HUD (`RideHUDOverlay` + `HUDModel` ~8 Hz)  │
 │           └─ RideControlBar (Stop / optional Pause)           │
 └──────────────────────────────────────────────────────────────┘
 ```

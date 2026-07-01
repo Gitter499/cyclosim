@@ -2,10 +2,15 @@ import SwiftUI
 import VeloFFI
 import VeloSimSupport
 
-/// MyWhoosh-inspired metrics overlay on the Metal viewport.
+/// In-ride metrics overlay on the Metal viewport.
+///
+/// **Single HUD path:** SwiftUI owns all live ride readouts. Rust glyphon HUD (`velo-render/src/hud.rs`)
+/// is disabled at renderer init (`setHudDrawEnabled(false)`) and only drawn for screenshot capture.
+/// Formatting lives in `RideHUDFormatting`; throttled values come from `HUDModel` (~8 Hz via `HUDCoordinator`).
 @MainActor
 struct RideHUDOverlay: View {
     @ObservedObject var model: VeloSimModel
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         if model.hudMinimalMode {
@@ -14,6 +19,8 @@ struct RideHUDOverlay: View {
             hudContent
         }
     }
+
+    private var hud: HUDModel { model.hudModel }
 
     private var hudContent: some View {
         ZStack {
@@ -71,14 +78,14 @@ struct RideHUDOverlay: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
+            .hudSurface(RoundedRectangle(cornerRadius: 12), reduceTransparency: reduceTransparency)
         } else if let banner = RideHUDFormatting.workoutBanner(live: model.workoutLive) {
             Text(banner)
                 .font(.headline.weight(.semibold))
                 .monospacedDigit()
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(.black.opacity(0.45), in: Capsule())
+                .hudSurface(Capsule(), reduceTransparency: reduceTransparency)
         }
     }
 
@@ -88,7 +95,7 @@ struct RideHUDOverlay: View {
                 Text("POWER")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.white.opacity(0.7))
-                Text(RideHUDFormatting.formatPower(model.rideState.powerW))
+                Text(RideHUDFormatting.formatPower(Double(hud.power)))
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
@@ -97,8 +104,8 @@ struct RideHUDOverlay: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 10) {
-                secondaryMetric(title: "HR", value: RideHUDFormatting.formatHeartRate(model.rideState.heartRateBpm))
-                secondaryMetric(title: "CAD", value: RideHUDFormatting.formatCadence(model.rideState.cadenceRpm))
+                secondaryMetric(title: "HR", value: RideHUDFormatting.formatHeartRate(Double(hud.heartRate)))
+                secondaryMetric(title: "CAD", value: RideHUDFormatting.formatCadence(Double(hud.cadence)))
             }
         }
     }
@@ -106,14 +113,14 @@ struct RideHUDOverlay: View {
     private var gradeElevationStrip: some View {
         HStack(spacing: 16) {
             Label {
-                Text(RideHUDFormatting.formatGradePercent(model.rideState.grade))
+                Text(RideHUDFormatting.formatGradePercent(hud.gradient))
                     .monospacedDigit()
             } icon: {
                 Image(systemName: "arrow.up.right")
             }
 
             Label {
-                Text(RideHUDFormatting.formatElevation(model.rideState.elevationM))
+                Text(RideHUDFormatting.formatElevation(hud.elevationM))
                     .monospacedDigit()
             } icon: {
                 Image(systemName: "mountain.2")
@@ -134,23 +141,23 @@ struct RideHUDOverlay: View {
         .foregroundStyle(.white.opacity(0.9))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.black.opacity(0.35), in: Capsule())
+        .hudSurface(Capsule(), reduceTransparency: reduceTransparency)
     }
 
     private var bottomMetricsRow: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(RideHUDFormatting.formatSpeedKmh(model.rideState.speedMps))
+                Text(RideHUDFormatting.formatSpeedKmh(hud.speedMps))
                     .font(.title3.weight(.semibold))
                     .monospacedDigit()
-                Text(RideHUDFormatting.formatDistance(model.rideState.distanceM))
+                Text(RideHUDFormatting.formatDistance(hud.distanceM))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.white.opacity(0.85))
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text(RideHUDFormatting.formatElapsed(model.rideState.elapsedS))
+                Text(RideHUDFormatting.formatElapsed(hud.elapsedS))
                     .font(.title3.weight(.semibold))
                     .monospacedDigit()
                 Text(model.rideMode == .erg ? "ERG" : model.rideMode == .sim ? "SIM" : "FREE")
