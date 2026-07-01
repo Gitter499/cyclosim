@@ -134,6 +134,7 @@ let package = Package(
                 "Music",
                 "Workout",
                 "PlatformCallbacks.swift",
+                "TelemetrySamplePoll.swift",
                 "UI/Components/VeloGlass.swift",
                 "UI/Components/HUDSurface.swift",
                 "UI/RideSummaryFormatting.swift",
