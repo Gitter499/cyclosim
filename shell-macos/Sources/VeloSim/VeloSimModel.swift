@@ -48,9 +48,9 @@ final class VeloSimModel: ObservableObject {
     @Published var tilesProviderStatus: String = ""
     @Published var tilesLastError: String?
     @Published var bikegenModeStatus: String = ""
-    @Published var selectedTab: AppTab = .home
+    @Published var shellDestination: ShellDestination = .home
+    @Published var shellPhase: ShellPhase = .browse
     @Published var activitiesTab: ActivitiesTab = .routes
-    @Published var showPreRideSetup: Bool = false
 
     @Published var availableBikes: [BikeInfoDto] = []
     @Published var activeBikeId: String?
@@ -91,19 +91,9 @@ final class VeloSimModel: ObservableObject {
         refreshBikes()
         applyRuntimeSecrets()
         setSegmentMusicEnabled(AppSettingsStore.segmentMusicEnabled)
-        setSteeringMode(AppSettingsStore.defaultSteeringMode)
 
         handle.setAudioDirector(director: musicDirector)
-        musicDirector.onStatusChange = { [weak self] status in
-            Task { @MainActor [weak self] in
-                self?.musicStatus = status
-            }
-        }
         musicStatus = musicDirector.status
-        Task {
-            await musicDirector.refreshAuthorizationStatus()
-            musicStatus = musicDirector.status
-        }
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
@@ -180,9 +170,6 @@ final class VeloSimModel: ObservableObject {
         Task {
             await musicDirector.requestAuthorization()
             musicStatus = musicDirector.status
-            if musicDirector.authorized && segmentMusicEnabled {
-                handle.resyncSegmentMusic()
-            }
         }
     }
 
@@ -205,7 +192,11 @@ final class VeloSimModel: ObservableObject {
         clearRoute()
         clearWorkout()
         applyRideMode(.free)
-        selectedTab = .ride
+        shellDestination = .activities
+    }
+
+    func applySecretsToCore() {
+        applyRuntimeSecrets()
     }
 
     func applyRuntimeSecrets() {
@@ -326,10 +317,22 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    var tilesKeysConfigured: Bool {
+        AppSecretsStore.load(account: .googleMapTilesApiKey) != nil
+            || AppSecretsStore.load(account: .cesiumIonAccessToken) != nil
+    }
+
+    var preRideBlockReason: String? {
+        PreRideValidation.blockReason(
+            tiles3dEnabled: tiles3dEnabled,
+            tilesKeysConfigured: tilesKeysConfigured,
+            tilesLastError: tilesLastError
+        )
+    }
+
     func setTiles3d(_ enabled: Bool) {
-        if enabled, AppSecretsStore.load(account: .googleMapTilesApiKey) == nil,
-           AppSecretsStore.load(account: .cesiumIonAccessToken) == nil {
-            routeImportStatus = "3D Tiles: no API keys — using ion dev tileset, or add keys in Settings"
+        if enabled {
+            applySecretsToCore()
         }
         do {
             try handle.setRouteTiles3d(enabled: enabled)
@@ -389,11 +392,21 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    func startRideFromActivities() {
+        guard preRideBlockReason == nil else { return }
+        startRide()
+    }
+
     func startRide() {
-        guard !isRideRecording else { return }
+        guard !isRideRecording, preRideBlockReason == nil else { return }
+        applySecretsToCore()
+        if tiles3dEnabled {
+            try? handle.setRouteTiles3d(enabled: true)
+        }
         mediaCapture.ringBuffer.reset()
         handle.startRide()
         isRideRecording = handle.isRideRecording()
+        shellPhase = .riding
         lastPublishResult = nil
         rideFlowStatus = "recording"
     }
@@ -412,6 +425,8 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                shellPhase = .browse
+                shellDestination = .home
                 showRideSummarySheet = lastRideSummary != nil
                 isRideRecording = handle.isRideRecording()
                 rideFlowStatus = result.savedLocally
@@ -492,6 +507,7 @@ final class VeloSimModel: ObservableObject {
 
     func dismissRideSummary() {
         showRideSummarySheet = false
+        shellDestination = .home
     }
 
     func openHighlightClip() {
