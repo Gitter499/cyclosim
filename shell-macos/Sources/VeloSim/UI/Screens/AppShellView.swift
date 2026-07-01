@@ -18,7 +18,6 @@ struct AppShellView: View {
             #endif
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
     #if VELO_LIQUID_GLASS

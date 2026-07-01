@@ -88,7 +88,8 @@ final class VeloSimModel: ObservableObject {
     /// Throttled in-ride readouts (~8 Hz). Views bind here instead of `rideState` per guide §5.3.
     let hudModel = HUDModel()
     private lazy var hudCoordinator = HUDCoordinator(model: hudModel) { [weak self] in
-        self?.objectWillChange.send()
+        guard let self, self.shellPhase == .riding else { return }
+        self.objectWillChange.send()
     }
 
     private var tickTimer: Timer?
@@ -617,6 +618,7 @@ final class VeloSimModel: ObservableObject {
         ridePaused = false
         lastPublishResult = nil
         rideFlowStatus = "recording"
+        startSimLoop()
     }
 
     func stopRideAndPublish() {
@@ -643,6 +645,7 @@ final class VeloSimModel: ObservableObject {
                     : "uploaded to Strava"
                 refreshRideHistory()
                 logs = handle.recentLogs(limit: 12)
+                stopSimLoop()
             } catch {
                 rideFlowStatus = "finish failed: \(error)"
             }
@@ -770,6 +773,8 @@ final class VeloSimModel: ObservableObject {
     }
 
     private func simTick() {
+        guard shellPhase == .riding else { return }
+
         switch sensorMode {
         case .fake:
             handle.tick(sensors: fakeSensors, trainer: activeTrainer(), steering: activeSteering())
@@ -799,7 +804,7 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
-        if tiles3dEnabled, shellPhase == .browse || isRideRecording { refreshServiceStatus() }
+        if tiles3dEnabled { refreshServiceStatus() }
         if !ridePaused { renderFrame() }
         tickRampTestIfNeeded()
     }
