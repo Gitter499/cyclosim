@@ -24,12 +24,10 @@ Optional: [just](https://github.com/casey/just) wraps common tasks (`just build`
 
 | Doc | Description |
 |-----|-------------|
-| [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) | Architecture and milestones |
-| [VeloSim-UI-and-Zwift-Parity-Guide.md](docs/VeloSim-UI-and-Zwift-Parity-Guide.md) | UI / HUD spec |
-| [UI_PARITY_P2_PLAN.md](docs/UI_PARITY_P2_PLAN.md) | P2 cohesion roadmap |
+| [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) | Architecture, milestones, testing, quality log |
+| [VeloSim-Roadmap.md](VeloSim-Roadmap.md) | Product parity vs Zwift/MyWhoosh, UI spec, issue tracker |
 | [AGENTS.md](AGENTS.md) | Agent and contributor guide |
 | [STRAVA.md](STRAVA.md) | Strava OAuth setup |
-| [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md) | Quality pass log |
 
 ## Crates
 

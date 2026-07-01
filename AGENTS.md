@@ -16,9 +16,9 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M3c** — Bike model import | ✅ | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
 | **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import |
 | **M6** — Apple Music + AirPods | ✅ | [#11](https://github.com/Gitter499/cyclosim/issues/11) — segment MusicKit, keyboard/AirPods steering |
-| **M7** — Zwift parity UI | 🚧 | [#35](https://github.com/Gitter499/cyclosim/issues/35) — HUD §5.2, browse screens §7, FTP tests §6.3 per [guide](docs/VeloSim-UI-and-Zwift-Parity-Guide.md) |
+| **M7** — Zwift parity UI | 🚧 | [#35](https://github.com/Gitter499/cyclosim/issues/35) — P2-A shell ✅; HUD P2-B open [#48](https://github.com/Gitter499/cyclosim/issues/48) · [roadmap](VeloSim-Roadmap.md) |
 
-See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
+See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for architecture and [VeloSim-Roadmap.md](VeloSim-Roadmap.md) for product/integration plan.
 
 ## Crates
 
@@ -59,7 +59,7 @@ All work uses [GitHub issues](https://github.com/Gitter499/cyclosim/issues) and 
 
 - Land on `dev` quickly; run `cargo test` locally before push.
 - Release to `main` only when the `test` check is green.
-- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md) · [rust-best-practices](.cursor/skills/rust-best-practices/SKILL.md) · [swift-best-practices](.cursor/skills/swift-best-practices/SKILL.md) · [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md)
+- Post-milestone cleanup: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md) · [VeloSim-Technical-Plan.md §22](VeloSim-Technical-Plan.md)
 - Strava setup: [STRAVA.md](STRAVA.md)
 - **`initial-monolith`** tag: single import commit (M0–M2c baseline)
 

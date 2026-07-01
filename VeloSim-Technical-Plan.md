@@ -663,7 +663,7 @@ summary with an auto-generated highlight clip.
 - **Physics:** unit tests (steady-state, climb, coast-down) + golden-file replay of recorded rides.
 - **Determinism:** same route + same telemetry log + injected `Clock` → identical `RideState` trace.
 - **Trait boundary:** mock implementations of every `velo-platform` trait so core is fully testable
-  headless, no hardware, no Apple frameworks. See [docs/HEADLESS_TESTING.md](docs/HEADLESS_TESTING.md).
+  headless, no hardware, no Apple frameworks. See §21 (Headless testing).
 - **Scenario tests:** user-story named integration tests in `velo-core/tests/scenarios/`, `velo-ffi/tests/app_scenarios.rs`, and `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`.
 - **Hardware-in-the-loop:** a manual M2 checklist against the real Kickr (pair, ERG hold, SIM grade
   response, dropout/reconnect).
@@ -718,3 +718,43 @@ Fuse in this order; each layer shrinks what FLUX has to invent:
 **Licensing gradient:** open/free (OSM & Overture ODbL; USGS 3DEP no-restriction; Copernicus; WorldCover;
 Mapillary & KartaView CC BY-SA) → paid/restrictive (Maxar/Nearmap; Google 3D Tiles billed + attribution;
 Google Street View — off-limits for derivative use). Personal use is permissive; revisit before any release.
+
+---
+
+## 21. Headless testing (no Kickr)
+
+Automated coverage mirroring rider flows without Wahoo Kickr, MusicKit auth, or live BLE. Uses `velo-platform` trait mocks, FFI doubles, or replay buffers.
+
+```bash
+cargo test --workspace
+./scripts/lint-apple-symbols.sh
+./scripts/lint-shell-ui.sh
+cargo build --release -p velo-ffi && cd shell-macos && swift build --product VeloSim
+cd shell-macos && swift test   # Xcode + Metal; not in default CI
+```
+
+| Real hardware | Test substitute | Where |
+|---------------|-----------------|-------|
+| Kickr ERG/SIM | `RecordingTrainerControl` | `velo-platform`, `velo-ffi/tests/common` |
+| BLE sensors | `MockSensorSource`, `ReplaySensors`, `FakeSensorSource` | core, FFI, shell |
+| Steering | `MockSteeringInput`, `NoopSteeringInput` | core, FFI, shell |
+| Apple Music | `RecordingAudioDirector`, `NoopAudioDirector` | core, FFI, shell |
+| Strava | `MockPublisher` | `velo-ffi/tests/common` |
+| GPX route | `simple_climb.gpx` fixture | `velo-route-import/tests/fixtures/` |
+
+Key scenario tests: `velo-core/tests/scenarios/`, `velo-ffi/tests/app_scenarios.rs`, `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`, `RideFlowTests.swift`.
+
+---
+
+## 22. Quality pass log
+
+Cross-cutting cleanup on `dev` before `main` releases. Workflow: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md).
+
+| Date | Trigger | Summary |
+|------|---------|---------|
+| 2026-06-30 | UI cleanup prep (#34) | UI folder restructure, HUDModel ~8 Hz, lint-shell-ui |
+| 2026-07-01 | Post-M7 sprint (#46) | P2-A UI merged; scroll + HR fixes; formatting unify; ParityHelpers split deferred → #42 |
+
+Run `cargo test --workspace`, `./scripts/lint-apple-symbols.sh`, `./scripts/lint-shell-ui.sh` after each pass.
+
+Product/UI parity tracking: [VeloSim-Roadmap.md](VeloSim-Roadmap.md).

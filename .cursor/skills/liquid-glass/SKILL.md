@@ -23,7 +23,7 @@ Content stays on solid or subtle materials (`.background(.quaternary)`). Glass w
 
 ## API (macOS 26 / Xcode 26)
 
-Gate with `#if VELO_LIQUID_GLASS`; use `UI/Components/VeloGlass.swift` and `HUDSurface.swift`. See [VeloSim-UI-and-Zwift-Parity-Guide.md](../../../docs/VeloSim-UI-and-Zwift-Parity-Guide.md) — no fake glass.
+Gate with `#if VELO_LIQUID_GLASS`; use `UI/Components/VeloGlass.swift` and `HUDSurface.swift`. See [VeloSim-Roadmap.md](../../../VeloSim-Roadmap.md) Part II — no fake glass.
 
 ### Core rules (Apple WWDC 2025)
 

@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Design tokens — spacing and radii per `docs/VeloSim-UI-and-Zwift-Parity-Guide.md` §3.
+/// Design tokens — spacing and radii per `VeloSim-Roadmap.md` Part II §2–4.
 public enum Tok {
     public static let s1: CGFloat = 4
     public static let s2: CGFloat = 8

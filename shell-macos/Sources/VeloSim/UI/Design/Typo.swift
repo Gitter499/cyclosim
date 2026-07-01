@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Typography helpers for HUD metrics per `docs/VeloSim-UI-and-Zwift-Parity-Guide.md` §3.
+/// Typography helpers for HUD metrics per `VeloSim-Roadmap.md` Part II §5.
 public enum Typo {
     public static func bigMetric() -> Font {
         .system(size: 64, weight: .bold, design: .rounded)
