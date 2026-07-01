@@ -110,6 +110,59 @@ public enum StravaOAuth {
     )
   }
 
+  public struct AthleteProfile: Decodable, Equatable {
+    public let id: Int
+    public let firstname: String
+    public let lastname: String
+
+    public var displayName: String {
+      "\(firstname) \(lastname)".trimmingCharacters(in: .whitespaces)
+    }
+  }
+
+  public static func fetchAthlete(
+    accessToken: String,
+    session: URLSession = .shared
+  ) async throws -> AthleteProfile {
+    var request = URLRequest(url: URL(string: "https://www.strava.com/api/v3/athlete")!)
+    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    let (data, response) = try await session.data(for: request)
+    try validateHTTP(response)
+    return try JSONDecoder().decode(AthleteProfile.self, from: data)
+  }
+
+  /// Loads stored tokens, refreshes when expired, and validates via GET /athlete.
+  public enum ValidationOutcome: Equatable {
+    case success(AthleteProfile)
+    case failure(String)
+  }
+
+  public static func validateStoredConnection(
+    config: StravaConfig = .load(),
+    session: URLSession = .shared
+  ) async -> ValidationOutcome {
+    guard var tokens = StravaTokenStore.load() else {
+      return .failure("Not connected — complete OAuth first.")
+    }
+    if tokens.expiresAt <= Date().timeIntervalSince1970 + 60 {
+      guard config.isConfigured else {
+        return .failure("Token expired and Strava app credentials are missing.")
+      }
+      do {
+        tokens = try await refresh(tokens: tokens, config: config, session: session)
+        try StravaTokenStore.save(tokens)
+      } catch {
+        return .failure("Token refresh failed.")
+      }
+    }
+    do {
+      let athlete = try await fetchAthlete(accessToken: tokens.accessToken, session: session)
+      return .success(athlete)
+    } catch {
+      return .failure("Athlete API call failed.")
+    }
+  }
+
   private static func validateHTTP(_ response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
       throw StravaOAuthError.httpFailed

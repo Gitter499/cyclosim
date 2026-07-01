@@ -65,195 +65,131 @@ struct SettingsView: View {
     var embeddedInTab: Bool = false
     @Environment(\.dismiss) private var dismiss
 
-    @State private var googleKey: String = ""
-    @State private var cesiumToken: String = ""
-    @State private var meshyKey: String = ""
-    @State private var preferHostedBikegen: Bool = false
-    @State private var saveStatus: String = ""
-    @State private var saveError: String?
-    @State private var advancedExpanded: Bool = false
+    @State private var showStravaWizard = false
+    @State private var showMusicWizard = false
+    @State private var showIntegrationsWizard = false
+    @State private var advancedExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            headerChrome
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    connectedServicesSection
-                    trainerSection
-                    audioSection
-                    steeringSection
-                    advancedSection
-                }
+        NavigationStack {
+            List {
+                profileSection
+                connectionsSection
+                integrationsSection
+                rideDefaultsSection
+                advancedSection
             }
-
-            if !embeddedInTab {
-                HStack {
-                    Spacer()
-                    Button("Done") { dismiss() }
-                        .buttonStyle(VeloGlassPrimaryButtonStyle())
-                }
-            }
-        }
-        .padding(16)
-        .frame(minWidth: 440, minHeight: embeddedInTab ? 480 : 560)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(embeddedInTab ? Color(nsColor: .windowBackgroundColor) : Color.clear)
-        .onAppear { loadFromStore() }
-    }
-
-    private var headerChrome: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Settings")
-                .font(.title2.bold())
-            Text("API keys stay in Keychain on this Mac. Tile and bikegen providers apply on Save.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .veloGlassRoundedRect(cornerRadius: 14)
-    }
-
-    private var connectedServicesSection: some View {
-        VeloGlassSection("Connected services") {
-            serviceRow(
-                title: "Google Photorealistic 3D Tiles",
-                linkTitle: "Google Cloud credentials",
-                linkURL: "https://console.cloud.google.com/apis/credentials",
-                configured: SettingsApplyLogic.googleKeyConfigured() || !googleKey.isEmpty,
-                statusLabel: model.tilesProviderStatus
-            ) {
-                secretField("Map Tiles API key", text: $googleKey)
-                Text("Enable Map Tiles API and restrict the key. Tiles stream online during rides only — never cached to disk.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Attribution © Google appears in the HUD when this provider is active.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            Divider()
-
-            serviceRow(
-                title: "Cesium ion",
-                linkTitle: "ion.cesium.com/tokens",
-                linkURL: "https://ion.cesium.com/tokens",
-                configured: SettingsApplyLogic.cesiumTokenConfigured() || !cesiumToken.isEmpty,
-                statusLabel: cesiumStatusLabel
-            ) {
-                secretField("Access token (optional)", text: $cesiumToken)
-                Text("Used when no Google key is set. Without a token, VeloSim uses the public ion dev tileset.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Meshy (bike generation)")
-                        .font(.subheadline.weight(.medium))
-                    Spacer()
-                    SettingsStatusBadge(
-                        label: meshyBadgeLabel,
-                        kind: meshyBadgeKind
-                    )
-                }
-
-                Link("docs.meshy.ai", destination: URL(string: "https://docs.meshy.ai")!)
-                    .font(.caption)
-
-                Toggle("Prefer hosted generation (Meshy)", isOn: $preferHostedBikegen)
-
-                secretField("Meshy API key", text: $meshyKey)
-
-                Text(model.bikegenModeStatus)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                Text("Offline placeholder import works without a key. Hosted Meshy HTTP wiring is deferred — enabling hosted mode requires a key and shows a clear error until the API lands.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button("Save & apply") { saveAndApply() }
-                .buttonStyle(VeloGlassPrimaryButtonStyle())
-
-            if let saveError {
-                Text(saveError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            } else if !saveStatus.isEmpty {
-                Text(saveStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var trainerSection: some View {
-        VeloGlassSection("Trainer & sensors") {
-            HStack {
-                Text("Bluetooth")
-                Spacer()
-                SettingsStatusBadge(label: bleBadgeLabel, kind: bleBadgeKind)
-            }
-
-            if model.sensorMode == .bluetooth {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("State: \(model.bleState)")
-                    Text("Capabilities: \(model.bleCapabilities)")
-                    Text("Trainer: \(model.bleTrainerStatus)")
-                    if let err = model.bleControlError {
-                        Text("Control error: \(err)")
-                            .foregroundStyle(.red)
+            .listStyle(.inset)
+            .navigationTitle("Settings")
+            .toolbar {
+                if !embeddedInTab {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            } else {
-                Text("Sensor input is \(model.sensorMode.label). Switch to BLE and pair your trainer in pre-ride setup.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-
-            Button("Open Activities setup") {
-                model.shellDestination = .activities
-            }
-            .buttonStyle(VeloGlassSecondaryButtonStyle())
+        }
+        .frame(minWidth: 440, minHeight: embeddedInTab ? 480 : 560)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .popover(isPresented: $showStravaWizard) {
+            StravaConnectionWizard(model: model, isPresented: $showStravaWizard)
+        }
+        .popover(isPresented: $showMusicWizard) {
+            AppleMusicConnectionWizard(model: model, isPresented: $showMusicWizard)
+        }
+        .popover(isPresented: $showIntegrationsWizard) {
+            IntegrationsKeysWizard(model: model, isPresented: $showIntegrationsWizard)
         }
     }
 
-    private var audioSection: some View {
-        VeloGlassSection("Audio") {
-            Toggle("Shift music at workout intervals", isOn: Binding(
-                get: { model.segmentMusicEnabled },
-                set: { enabled in
-                    AppSettingsStore.segmentMusicEnabled = enabled
-                    model.setSegmentMusicEnabled(enabled)
+    private var profileSection: some View {
+        Section("Profile") {
+            TextField("Name", text: Binding(
+                get: { model.riderName },
+                set: {
+                    model.riderName = $0
+                    AppSettingsStore.riderName = $0
                 }
             ))
-
-            Button("Connect Apple Music") { model.connectAppleMusic() }
-                .buttonStyle(VeloGlassSecondaryButtonStyle())
-
-            Text(model.musicStatus)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-
-            Text("Playback control only — MusicKit queues catalog searches by workout interval energy. VeloSim does not mix raw PCM; selection is best-effort, not BPM-locked.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            HStack {
+                Text("Weight")
+                Slider(value: Binding(
+                    get: { model.riderWeightKg },
+                    set: {
+                        model.riderWeightKg = $0
+                        AppSettingsStore.riderWeightKg = $0
+                    }
+                ), in: 45...120, step: 0.5)
+                Text(String(format: "%.1f kg", model.riderWeightKg))
+                    .monospacedDigit()
+                    .frame(width: 64, alignment: .trailing)
+            }
+            HStack {
+                Text("FTP")
+                Slider(value: Binding(
+                    get: { model.ftp },
+                    set: { model.applyFtp($0) }
+                ), in: 100...400, step: 5)
+                Text("\(Int(model.ftp)) W")
+                    .monospacedDigit()
+                    .frame(width: 56, alignment: .trailing)
+            }
         }
     }
 
-    private var steeringSection: some View {
-        VeloGlassSection("Steering") {
-            Picker("Default mode", selection: Binding(
+    private var connectionsSection: some View {
+        Section("Connections") {
+            connectionRow(
+                title: "Strava",
+                systemImage: "figure.outdoor.cycle",
+                status: stravaStatusLabel,
+                kind: stravaStatusKind
+            ) {
+                showStravaWizard = true
+            }
+
+            connectionRow(
+                title: "Apple Music",
+                systemImage: "music.note",
+                status: model.musicStatus,
+                kind: model.musicDirector.authorized ? .ok : .missing
+            ) {
+                showMusicWizard = true
+            }
+
+            connectionRow(
+                title: "Trainer",
+                systemImage: "dot.radiowaves.left.and.right",
+                status: bleBadgeLabel,
+                kind: bleBadgeKind
+            ) {
+                model.shellDestination = .activities
+            }
+        }
+    }
+
+    private var integrationsSection: some View {
+        Section("Integrations") {
+            connectionRow(
+                title: "3D Tiles & bikegen keys",
+                systemImage: "key",
+                status: model.tilesProviderStatus.isEmpty ? "Configure" : model.tilesProviderStatus,
+                kind: SettingsApplyLogic.googleKeyConfigured() ? .ok : .neutral
+            ) {
+                showIntegrationsWizard = true
+            }
+        }
+    }
+
+    private var rideDefaultsSection: some View {
+        Section("Ride defaults") {
+            Toggle("Shift music at workout intervals", isOn: Binding(
+                get: { model.segmentMusicEnabled },
+                set: { model.setSegmentMusicEnabled($0) }
+            ))
+
+            Picker("Default steering", selection: Binding(
                 get: { AppSettingsStore.defaultSteeringMode },
                 set: { AppSettingsStore.defaultSteeringMode = $0 }
             )) {
@@ -261,120 +197,69 @@ struct SettingsView: View {
                     Text(mode.label).tag(mode)
                 }
             }
-            .pickerStyle(.segmented)
 
-            Text("Applied on launch and from pre-ride setup. Current ride uses \(model.steeringMode.label).")
+            Text("Current ride uses \(model.steeringMode.label).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
 
     private var advancedSection: some View {
-        VeloGlassSection("Advanced") {
+        Section("Advanced") {
             DisclosureGroup("Developer tools", isExpanded: $advancedExpanded) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Draw Rust HUD (velo-render)", isOn: Binding(
-                        get: { model.rustHudDrawEnabled },
-                        set: { model.setRustHudDrawEnabled($0) }
-                    ))
+                Toggle("Draw Rust HUD (velo-render)", isOn: Binding(
+                    get: { model.rustHudDrawEnabled },
+                    set: { model.setRustHudDrawEnabled($0) }
+                ))
 
-                    HStack {
-                        Text("Toggle count")
-                        Spacer()
-                        Text("\(model.toggleCount)")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption)
-
-                    Text("Rust log tail")
-                        .font(.caption.weight(.medium))
-
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            if model.logs.isEmpty {
-                                Text("No log lines yet")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(Array(model.logs.enumerated()), id: \.offset) { _, line in
-                                    Text(line)
-                                        .font(.caption.monospaced())
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 160)
+                LabeledContent("Toggle count") {
+                    Text("\(model.toggleCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.top, 6)
+
+                if model.logs.isEmpty {
+                    Text("No log lines yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(model.logs.suffix(12).enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.caption.monospaced())
+                            .lineLimit(2)
+                    }
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private func serviceRow<Fields: View>(
+    private func connectionRow(
         title: String,
-        linkTitle: String,
-        linkURL: String,
-        configured: Bool,
-        statusLabel: String,
-        @ViewBuilder fields: () -> Fields
+        systemImage: String,
+        status: String,
+        kind: SettingsStatusKind,
+        action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Button(action: action) {
             HStack {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
+                Label(title, systemImage: systemImage)
                 Spacer()
-                SettingsStatusBadge(
-                    label: configured ? "Key set" : "No key",
-                    kind: configured ? .ok : .missing
-                )
+                SettingsStatusBadge(label: status, kind: kind)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-
-            if !statusLabel.isEmpty {
-                SettingsStatusBadge(label: statusLabel, kind: .neutral)
-            }
-
-            Link(linkTitle, destination: URL(string: linkURL)!)
-                .font(.caption)
-
-            fields()
         }
+        .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    private func secretField(_ label: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption.weight(.medium))
-            SecureField("Paste key…", text: text)
-                .textFieldStyle(.roundedBorder)
-        }
+    private var stravaStatusLabel: String {
+        if StravaTokenStore.load() != nil { return "Connected" }
+        return model.stravaAuth.status
     }
 
-    private var cesiumStatusLabel: String {
-        if SettingsApplyLogic.googleKeyConfigured() || !googleKey.isEmpty {
-            return "Fallback (Google active)"
-        }
-        if SettingsApplyLogic.cesiumTokenConfigured() || !cesiumToken.isEmpty {
-            return "ion token configured"
-        }
-        return "ion dev tileset"
-    }
-
-    private var meshyBadgeLabel: String {
-        if preferHostedBikegen {
-            return SettingsApplyLogic.meshyKeyConfigured() || !meshyKey.isEmpty ? "Hosted · key set" : "Hosted · no key"
-        }
-        return "Offline import"
-    }
-
-    private var meshyBadgeKind: SettingsStatusKind {
-        if preferHostedBikegen {
-            return SettingsApplyLogic.meshyKeyConfigured() || !meshyKey.isEmpty ? .ok : .warning
-        }
-        return .neutral
+    private var stravaStatusKind: SettingsStatusKind {
+        StravaTokenStore.load() != nil ? .ok : .missing
     }
 
     private var bleBadgeLabel: String {
@@ -391,33 +276,6 @@ struct SettingsView: View {
         if model.bleControlError != nil { return .warning }
         if model.bleState.lowercased().contains("connect") { return .ok }
         return .neutral
-    }
-
-    private func loadFromStore() {
-        let form = SettingsApplyLogic.loadFormState()
-        googleKey = form.googleKey
-        cesiumToken = form.cesiumToken
-        meshyKey = form.meshyKey
-        preferHostedBikegen = form.preferHostedBikegen
-        saveStatus = model.tilesProviderStatus
-    }
-
-    private func saveAndApply() {
-        saveError = nil
-        let form = SettingsApplyLogic.FormState(
-            googleKey: googleKey,
-            cesiumToken: cesiumToken,
-            meshyKey: meshyKey,
-            preferHostedBikegen: preferHostedBikegen
-        )
-        switch SettingsApplyLogic.apply(form, tilesProviderStatus: model.tilesProviderStatus) {
-        case let .success(message, warning):
-            model.applyRuntimeSecrets()
-            saveStatus = message
-            saveError = warning
-        case let .keychainFailed(message):
-            saveError = message
-        }
     }
 }
 
