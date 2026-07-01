@@ -12,7 +12,6 @@ import XCTest
 import VeloFFI
 import VeloSimSupport
 
-@MainActor
 final class AppScenarioTests: XCTestCase {
 
     func testWorkoutBuilderDtoRoundTrip() {
@@ -67,7 +66,7 @@ final class AppScenarioTests: XCTestCase {
 
     func testHeadlessRideStartStopViaFfi() {
         let handle = VeloHandle()
-        handle.setFtp(ftp: 200)
+        handle.setFtp(ftpW: 200)
         handle.startRide()
         let sensors = FakeSensorSource()
         let trainer = MockTrainerControl()
