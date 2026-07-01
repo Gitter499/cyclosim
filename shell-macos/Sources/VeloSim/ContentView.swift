@@ -26,8 +26,8 @@ struct ContentView: View {
             PairingView(model: model)
         }
         .onAppear {
-            model.startSimLoop()
             model.refreshRideHistory()
+            if model.tiles3dEnabled { model.refreshServiceStatus() }
         }
         .onDisappear { model.stopSimLoop() }
     }

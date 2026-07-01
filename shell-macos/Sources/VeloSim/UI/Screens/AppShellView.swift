@@ -16,7 +16,6 @@ struct AppShellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.22), value: model.shellDestination)
     }
 
     private var topNav: some View {
@@ -28,7 +27,9 @@ struct AppShellView: View {
                         .padding(.horizontal, 10)
                 }
                 Button {
-                    model.shellDestination = destination
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        model.shellDestination = destination
+                    }
                 } label: {
                     Text(destination.title)
                         .font(.subheadline.weight(model.shellDestination == destination ? .semibold : .regular))
@@ -53,7 +54,7 @@ struct AppShellView: View {
     private var destinationContent: some View {
         switch model.shellDestination {
         case .home:
-            HomeDashboardView(model: model)
+            DashboardView(model: model)
         case .activities:
             ActivitiesCatalogView(model: model)
         case .history:
