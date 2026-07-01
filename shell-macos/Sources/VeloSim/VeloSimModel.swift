@@ -88,10 +88,12 @@ final class VeloSimModel: ObservableObject {
     /// Throttled in-ride readouts (~8 Hz). Views bind here instead of `rideState` per guide §5.3.
     let hudModel = HUDModel()
     private lazy var hudCoordinator = HUDCoordinator(model: hudModel) { [weak self] in
-        self?.objectWillChange.send()
+        guard let self, self.shellPhase == .riding else { return }
+        self.objectWillChange.send()
     }
 
     private var tickTimer: Timer?
+    private var browseStatusAccumulator: TimeInterval = 0
     private var rideKeyMonitor: Any?
     private var rideStore: LocalRideStoreHandle?
 
@@ -770,13 +772,26 @@ final class VeloSimModel: ObservableObject {
     }
 
     private func simTick() {
-        switch sensorMode {
-        case .fake:
-            handle.tick(sensors: fakeSensors, trainer: activeTrainer(), steering: activeSteering())
-        case .replay:
-            handle.tick(sensors: replaySensors, trainer: loggingTrainer, steering: activeSteering())
-        case .bluetooth:
-            handle.tick(sensors: ftmsBridge, trainer: ftmsBridge, steering: activeSteering())
+        let riding = shellPhase == .riding
+
+        if riding || sensorMode == .bluetooth {
+            switch sensorMode {
+            case .fake:
+                handle.tick(sensors: fakeSensors, trainer: activeTrainer(), steering: activeSteering())
+            case .replay:
+                handle.tick(sensors: replaySensors, trainer: loggingTrainer, steering: activeSteering())
+            case .bluetooth:
+                handle.tick(sensors: ftmsBridge, trainer: ftmsBridge, steering: activeSteering())
+            }
+        }
+
+        guard riding else {
+            browseStatusAccumulator += 1.0 / 30.0
+            if browseStatusAccumulator >= 1.0 {
+                browseStatusAccumulator = 0
+                if tiles3dEnabled { refreshServiceStatus() }
+            }
+            return
         }
 
         toggleCount = handle.toggleCount()
@@ -799,7 +814,7 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
-        if tiles3dEnabled, shellPhase == .browse || isRideRecording { refreshServiceStatus() }
+        if tiles3dEnabled { refreshServiceStatus() }
         if !ridePaused { renderFrame() }
         tickRampTestIfNeeded()
     }
