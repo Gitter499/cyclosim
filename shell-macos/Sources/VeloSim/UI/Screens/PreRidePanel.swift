@@ -20,7 +20,7 @@ struct PreRidePanel: View {
     }
 
     private var inputSection: some View {
-        VeloGlassSection("Trainer & sensors") {
+        VeloBrowseSection("Trainer & sensors") {
             Picker("Input", selection: Binding(
                 get: { model.sensorMode },
                 set: { model.setSensorMode($0) }
@@ -48,7 +48,7 @@ struct PreRidePanel: View {
     }
 
     private var steeringSection: some View {
-        VeloGlassSection("Steering") {
+        VeloBrowseSection("Steering") {
             Picker("Steering", selection: Binding(
                 get: { model.steeringMode },
                 set: { model.setSteeringMode($0) }
@@ -67,7 +67,7 @@ struct PreRidePanel: View {
     }
 
     private var musicSection: some View {
-        VeloGlassSection("Music") {
+        VeloBrowseSection("Music") {
             Toggle("Segment music at intervals", isOn: Binding(
                 get: { model.segmentMusicEnabled },
                 set: { model.setSegmentMusicEnabled($0) }
@@ -83,7 +83,7 @@ struct PreRidePanel: View {
     }
 
     private var rideModeSection: some View {
-        VeloGlassSection("Ride mode") {
+        VeloBrowseSection("Ride mode") {
             Picker("Mode", selection: Binding(
                 get: { model.rideMode },
                 set: { model.applyRideMode($0) }
@@ -123,7 +123,7 @@ struct PreRidePanel: View {
     }
 
     private var tilesSection: some View {
-        VeloGlassSection("3D Tiles") {
+        VeloBrowseSection("3D Tiles") {
             Toggle("Photorealistic tiles (online)", isOn: Binding(
                 get: { model.tiles3dEnabled },
                 set: { model.setTiles3d($0) }

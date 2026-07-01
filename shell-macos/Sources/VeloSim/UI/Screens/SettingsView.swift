@@ -113,11 +113,11 @@ struct SettingsView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .veloGlassRoundedRect(cornerRadius: 14)
+        .veloBrowseHeader(cornerRadius: 14)
     }
 
     private var connectedServicesSection: some View {
-        VeloGlassSection("Connected services") {
+        VeloBrowseSection("Connected services") {
             serviceRow(
                 title: "Google Photorealistic 3D Tiles",
                 linkTitle: "Google Cloud credentials",
@@ -195,7 +195,7 @@ struct SettingsView: View {
     }
 
     private var trainerSection: some View {
-        VeloGlassSection("Trainer & sensors") {
+        VeloBrowseSection("Trainer & sensors") {
             HStack {
                 Text("Bluetooth")
                 Spacer()
@@ -228,7 +228,7 @@ struct SettingsView: View {
     }
 
     private var audioSection: some View {
-        VeloGlassSection("Audio") {
+        VeloBrowseSection("Audio") {
             Toggle("Shift music at workout intervals", isOn: Binding(
                 get: { model.segmentMusicEnabled },
                 set: { enabled in
@@ -252,7 +252,7 @@ struct SettingsView: View {
     }
 
     private var steeringSection: some View {
-        VeloGlassSection("Steering") {
+        VeloBrowseSection("Steering") {
             Picker("Default mode", selection: Binding(
                 get: { AppSettingsStore.defaultSteeringMode },
                 set: { AppSettingsStore.defaultSteeringMode = $0 }
@@ -270,7 +270,7 @@ struct SettingsView: View {
     }
 
     private var advancedSection: some View {
-        VeloGlassSection("Advanced") {
+        VeloBrowseSection("Advanced") {
             DisclosureGroup("Developer tools", isExpanded: $advancedExpanded) {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Draw Rust HUD (velo-render)", isOn: Binding(

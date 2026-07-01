@@ -77,7 +77,7 @@ struct DashboardView: View {
     private var pinnedListSection: some View {
         Group {
             if model.pinnedRouteId != nil || model.pinnedWorkoutName != nil {
-                VeloGlassSection("My list") {
+                VeloBrowseSection("My list") {
                     VStack(alignment: .leading, spacing: 10) {
                         if let routeId = model.pinnedRouteId {
                             pinnedRow(
@@ -141,7 +141,7 @@ struct DashboardView: View {
     }
 
     private var recentRidesSection: some View {
-        VeloGlassSection("Recent rides") {
+        VeloBrowseSection("Recent rides") {
             if model.rideHistory.isEmpty {
                 Text("No rides yet — start from Quick start or Activities.")
                     .font(.caption)
@@ -187,7 +187,7 @@ struct DashboardView: View {
     }
 
     private var lifetimeStatsSection: some View {
-        VeloGlassSection("Lifetime") {
+        VeloBrowseSection("Lifetime") {
             let totalDist = model.rideHistory.reduce(0.0) { $0 + $1.distanceM }
             let totalTime = model.rideHistory.reduce(0.0) { $0 + $1.elapsedS }
             HStack(spacing: Tok.s4) {

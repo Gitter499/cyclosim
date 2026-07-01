@@ -48,12 +48,12 @@ struct ActivitiesCatalogView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .veloGlassRoundedRect(cornerRadius: 14)
+        .veloBrowseHeader(cornerRadius: 14)
     }
 
     private var routesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            VeloGlassSection("Routes") {
+            VeloBrowseSection("Routes") {
                 HStack {
                     Button("Import GPX…") { model.importGpxFile() }
                     if model.activeRouteId != nil {
@@ -69,7 +69,7 @@ struct ActivitiesCatalogView: View {
                 RouteSelectView(model: model)
             }
 
-            VeloGlassSection("Bike") {
+            VeloBrowseSection("Bike") {
                 HStack {
                     Button("Import photos…") { model.importBikePhotos() }
                     if model.activeBikeId != nil {
@@ -103,7 +103,7 @@ struct ActivitiesCatalogView: View {
     }
 
     private var workoutsSection: some View {
-        VeloGlassSection("FTP & workouts") {
+        VeloBrowseSection("FTP & workouts") {
             HStack {
                 Text("FTP")
                 Slider(value: Binding(

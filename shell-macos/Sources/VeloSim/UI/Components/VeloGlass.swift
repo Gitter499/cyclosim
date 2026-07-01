@@ -33,6 +33,11 @@ extension View {
         background(.quaternary, in: RoundedRectangle(cornerRadius: cornerRadius))
         #endif
     }
+
+    /// Plain browse-screen header — no glass (guide §0).
+    public func veloBrowseHeader(cornerRadius: CGFloat = 12) -> some View {
+        background(.quaternary, in: RoundedRectangle(cornerRadius: cornerRadius))
+    }
 }
 
 #if VELO_LIQUID_GLASS
@@ -64,6 +69,33 @@ private struct VeloGlassRoundedRectModifier: ViewModifier {
     }
 }
 #endif
+
+/// Browse-mode section — plain `.quaternary` surfaces only (guide §0: no glass on content).
+public struct VeloBrowseSection<Content: View>: View {
+    let title: String
+    @ViewBuilder private var content: () -> Content
+
+    public init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+
+            content()
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
 
 /// Section with glass header bar and solid `.quaternary` content body.
 public struct VeloGlassSection<Content: View>: View {

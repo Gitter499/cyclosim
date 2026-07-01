@@ -11,7 +11,7 @@ struct RideHistoryView: View {
             headerChrome
 
             ScrollView {
-                VeloGlassSection("Ride history") {
+                VeloBrowseSection("Ride history") {
                     if model.rideHistory.isEmpty {
                         Text("No rides yet — start from Activities.")
                             .font(.caption)
@@ -60,7 +60,7 @@ struct RideHistoryView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .veloGlassRoundedRect(cornerRadius: 14)
+        .veloBrowseHeader(cornerRadius: 14)
     }
 }
 
