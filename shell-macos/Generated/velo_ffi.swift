@@ -781,6 +781,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func resizeRenderer(width: UInt32, height: UInt32) throws 
     
+    func resyncSegmentMusic() 
+    
     func rideState()  -> RideStateDto
     
     func routeTiles3dEnabled()  -> Bool
@@ -1118,6 +1120,12 @@ open func resizeRenderer(width: UInt32, height: UInt32)throws   {try rustCallWit
     uniffi_velo_ffi_fn_method_velohandle_resize_renderer(self.uniffiClonePointer(),
         FfiConverterUInt32.lower(width),
         FfiConverterUInt32.lower(height),$0
+    )
+}
+}
+    
+open func resyncSegmentMusic()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_resync_segment_music(self.uniffiClonePointer(),$0
     )
 }
 }
@@ -4407,6 +4415,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_resize_renderer() != 29586) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_resync_segment_music() != 46855) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_ride_state() != 21549) {

@@ -122,11 +122,19 @@ impl VeloApp {
     }
 
     pub fn set_segment_music_enabled(&mut self, enabled: bool) {
+        let was = self.segment_music_enabled;
         self.segment_music_enabled = enabled;
+        if enabled && !was {
+            self.last_audio_interval = None;
+        }
     }
 
     pub fn segment_music_enabled(&self) -> bool {
         self.segment_music_enabled
+    }
+
+    pub fn resync_segment_music(&mut self) {
+        self.last_audio_interval = None;
     }
 
     pub fn set_steering_enabled(&mut self, enabled: bool) {

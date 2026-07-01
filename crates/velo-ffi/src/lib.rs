@@ -981,6 +981,10 @@ impl VeloHandle {
         self.inner.lock().unwrap().app.segment_music_enabled()
     }
 
+    pub fn resync_segment_music(&self) {
+        self.inner.lock().unwrap().app.resync_segment_music();
+    }
+
     pub fn set_steering_enabled(&self, enabled: bool) {
         self.inner.lock().unwrap().app.set_steering_enabled(enabled);
     }

@@ -412,7 +412,7 @@ struct SettingsView: View {
         )
         switch SettingsApplyLogic.apply(form, tilesProviderStatus: model.tilesProviderStatus) {
         case let .success(message, warning):
-            model.applySecretsToCore()
+            model.applyRuntimeSecrets()
             saveStatus = message
             saveError = warning
         case let .keychainFailed(message):

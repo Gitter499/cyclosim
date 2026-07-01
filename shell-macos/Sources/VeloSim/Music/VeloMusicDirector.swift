@@ -2,84 +2,129 @@ import Foundation
 import MusicKit
 import VeloFFI
 
-/// No-op segment music for tests and when MusicKit is unavailable.
 public final class NoopAudioDirector: AudioDirectorCallback, @unchecked Sendable {
     public init() {}
-
     public func onSegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) {}
 }
 
-/// Maps workout segment energy to Apple Music playback (control only — no raw PCM).
 @MainActor
 public final class VeloMusicDirector: AudioDirectorCallback, @unchecked Sendable {
+    public var onStatusChange: ((String) -> Void)?
     public private(set) var status: String = "Music off"
     public private(set) var authorized = false
-
+    public private(set) var canPlayCatalog = false
+    public private(set) var lastAction: String = ""
+    public private(set) var nowPlayingTitle: String?
     private var enabled = false
 
     public init() {}
 
     public func setEnabled(_ on: Bool) {
         enabled = on
-        status = on ? "Segment music enabled" : "Music off"
+        status = on ? readyStatus() : "Music off"
+        if !on { nowPlayingTitle = nil }
+        publishStatus()
     }
 
-    /// Request Apple Music authorization (minimal setup flow).
-    public func requestAuthorization() async {
-        let current = await MusicAuthorization.currentStatus
-        if current == .authorized {
-            authorized = true
-            status = "Apple Music authorized"
+    public func refreshAuthorizationStatus() async {
+        let auth = MusicAuthorization.currentStatus
+        authorized = auth == .authorized
+        guard authorized else {
+            canPlayCatalog = false
+            status = authorizationStatusMessage(auth)
+            publishStatus()
             return
         }
-        let result = await MusicAuthorization.request()
-        authorized = result == .authorized
-        status = authorized ? "Apple Music authorized" : "Apple Music denied"
-    }
-
-    public func onSegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) {
-        guard enabled, authorized else { return }
-        Task { @MainActor in
-            await applySegment(energy: energy, intent: intent)
-        }
-    }
-
-    private func applySegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) async {
-        let term = searchTerm(for: energy)
-        status = "Playing: \(term)"
-
         do {
-            var request = MusicCatalogSearchRequest(term: term, types: [Playlist.self])
-            request.limit = 1
-            let response = try await request.response()
-            if let playlist = response.playlists.first {
-                let queue = ApplicationMusicPlayer.Queue(for: [playlist])
-                ApplicationMusicPlayer.shared.queue = queue
-                if intent == .start || intent == .transition {
-                    try await ApplicationMusicPlayer.shared.play()
-                }
-                return
-            }
+            let subscription = try await MusicSubscription.current
+            canPlayCatalog = subscription.canPlayCatalogContent
+            status = canPlayCatalog ? readyStatus() : "Apple Music subscription required"
+        } catch {
+            canPlayCatalog = true
+            status = readyStatus()
+        }
+        publishStatus()
+    }
 
-            var songRequest = MusicCatalogSearchRequest(term: term, types: [Song.self])
-            songRequest.limit = 1
-            let songResponse = try await songRequest.response()
-            if let song = songResponse.songs.first {
-                ApplicationMusicPlayer.shared.queue = ApplicationMusicPlayer.Queue(for: [song])
-                try await ApplicationMusicPlayer.shared.play()
+    public func requestAuthorization() async {
+        await refreshAuthorizationStatus()
+        guard !authorized else { return }
+        authorized = await MusicAuthorization.request() == .authorized
+        await refreshAuthorizationStatus()
+    }
+
+    nonisolated public func onSegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) {
+        Task { @MainActor in await handleSegment(energy: energy, intent: intent) }
+    }
+
+    private func handleSegment(energy: SegmentEnergyDto, intent: PlaybackIntentDto) async {
+        guard enabled else {
+            status = "Skipped \(SegmentMusicSearch.energyLabel(for: energy)) — music off"
+            publishStatus(); return
+        }
+        guard authorized else {
+            status = "Skipped \(SegmentMusicSearch.energyLabel(for: energy)) — connect Apple Music"
+            publishStatus(); return
+        }
+        guard canPlayCatalog else {
+            status = "Skipped \(SegmentMusicSearch.energyLabel(for: energy)) — subscription required"
+            publishStatus(); return
+        }
+
+        let term = SegmentMusicSearch.searchTerm(for: energy)
+        let label = SegmentMusicSearch.energyLabel(for: energy)
+        lastAction = intent == .start ? "Started \(label)" : "Switched to \(label)"
+        status = "\(lastAction) — searching \"\(term)\""
+        publishStatus()
+
+        let player = ApplicationMusicPlayer.shared
+        do {
+            if intent == .transition { player.stop() }
+            if let playlist = try await searchPlaylist(term: term) {
+                player.queue = ApplicationMusicPlayer.Queue(for: [playlist])
+                try await player.play()
+                status = "Now playing: \(playlist.name)"
+                publishStatus(); return
             }
+            if let song = try await searchSong(term: term) {
+                player.queue = ApplicationMusicPlayer.Queue(for: [song])
+                try await player.play()
+                status = "Now playing: \(song.title)"
+                publishStatus(); return
+            }
+            status = "No catalog match for \"\(term)\""
+            publishStatus()
         } catch {
             status = "Music error: \(error.localizedDescription)"
+            publishStatus()
         }
     }
 
-    private func searchTerm(for energy: SegmentEnergyDto) -> String {
-        switch energy {
-        case .warmup: return "warm up cycling"
-        case .build: return "workout build"
-        case .threshold: return "high energy cycling"
-        case .recovery: return "recovery chill"
-        case .cooldown: return "cool down ambient"
+    private func searchPlaylist(term: String) async throws -> Playlist? {
+        var request = MusicCatalogSearchRequest(term: term, types: [Playlist.self])
+        request.limit = 5
+        return try await request.response().playlists.first
+    }
+
+    private func searchSong(term: String) async throws -> Song? {
+        var request = MusicCatalogSearchRequest(term: term, types: [Song.self])
+        request.limit = 5
+        return try await request.response().songs.first
+    }
+
+    private func readyStatus() -> String {
+        enabled ? "Ready — segment music on" : "Apple Music authorized"
+    }
+
+    private func authorizationStatusMessage(_ auth: MusicAuthorization.Status) -> String {
+        switch auth {
+        case .authorized: return readyStatus()
+        case .denied: return "Apple Music denied — enable in System Settings"
+        case .restricted: return "Apple Music restricted on this device"
+        case .notDetermined: return "Apple Music not connected"
+        @unknown default: return "Apple Music unavailable"
         }
     }
+
+    private func publishStatus() { onStatusChange?(status) }
 }
