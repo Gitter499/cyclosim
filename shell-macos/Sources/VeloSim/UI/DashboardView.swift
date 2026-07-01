@@ -58,7 +58,7 @@ struct DashboardView: View {
                     systemImage: "map",
                     tint: .green
                 ) {
-                    model.selectedTab = .activities
+                    model.shellDestination = .activities
                     model.activitiesTab = .routes
                 }
 
@@ -68,7 +68,7 @@ struct DashboardView: View {
                     systemImage: "bolt.fill",
                     tint: .orange
                 ) {
-                    model.selectedTab = .activities
+                    model.shellDestination = .activities
                     model.activitiesTab = .workouts
                 }
             }
@@ -106,7 +106,7 @@ struct DashboardView: View {
     private var recentRidesSection: some View {
         VeloGlassSection("Recent rides") {
             if model.rideHistory.isEmpty {
-                Text("No rides yet — start from Quick start or the Ride tab.")
+                Text("No rides yet — start from Quick start or Activities.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -131,8 +131,7 @@ struct DashboardView: View {
                     }
 
                     Button("View all history") {
-                        model.selectedTab = .activities
-                        model.activitiesTab = .history
+                        model.shellDestination = .history
                     }
                     .font(.caption)
                 }
