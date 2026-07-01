@@ -15,7 +15,7 @@
 - [ ] Browse mode shows **no persistent setup sidebar** and **no edge-docked Metal viewport**
 - [ ] Four shell destinations: **Home**, **Activities**, **History**, **Settings**
 - [ ] Ride mode is **full-bleed Metal** + Rust HUD + minimal stop/pause chrome only
-- [ ] Settings and API keys **unreachable** during active ride (except post-ride summary sheet)
+- [x] Settings and API keys **unreachable** during active ride (except post-ride summary sheet)
 - [ ] 3D Tiles toggle and status live on **Activities** (pre-ride), keys in **Settings**
 - [ ] Existing ride flow tests pass; no FFI breaking changes without bindgen
 
@@ -31,7 +31,7 @@
 | **P0-2 Dashboard home** | Last ride summary card, trainer connected badge, quick-start buttons (resume route / start free ride) | `UI/Shell/HomeDashboardView.swift`, `RideSummaryFormatting.swift`, `VeloSimModel.swift` |
 | **P0-3 Activities catalog** | Route picker, GPX import, workout entry, ride mode, pre-ride trainer/music/steering panel, **3D tiles toggle + status** | `UI/Shell/ActivitiesCatalogView.swift`, extract from `SetupChromeView.swift` |
 | **P0-4 History page** | Ride library list from `velo-rides` / `LocalRideStore` | `UI/Shell/RideHistoryView.swift`, `Ride/LocalRideStore.swift` |
-| **P0-5 Settings flow** | Settings as nav destination (push or dedicated column); retain Keychain secrets | `UI/SettingsView.swift`, `AppSettingsStore.swift`, `AppSecretsStore.swift` |
+| **P0-5 Settings flow** ✅ | Settings as nav destination (push or dedicated column); retain Keychain secrets | `UI/SettingsView.swift`, `AppSettingsStore.swift`, `AppSecretsStore.swift` |
 | **P0-6 Ride screen layout** | `RideModeView`: full-window `MetalRideView`, floating stop bar, hide browse chrome | `UI/Shell/RideModeView.swift`, `ContentView.swift`, `VeloSimModel.swift` |
 | **P0-7 HUD overlay basics** | Confirm `HudSnapshot` drives all in-ride metrics; remove Swift duplicate status for tiles in ride view | `crates/velo-render/src/hud.rs`, `crates/velo-ffi/src/lib.rs` (`hud_snapshot`) |
 | **P0-8 Deprecate sidebar** | Delete or gut `SetupChromeView` after migration; keep `WorkoutBuilderView` reachable from Activities | `UI/SetupChromeView.swift` → remove |
@@ -49,7 +49,7 @@
 | **P1-4 Home personalization** | Pin last route/workout on dashboard (My List lite) | `HomeDashboardView.swift`, `AppSettingsStore.swift` |
 | **P1-5 Social placeholders** | Disabled “Events” / “Nearby” cards with copy — no backend | `ActivitiesCatalogView.swift` |
 | **P1-6 Post-ride flow** | Ride summary as full-screen or large sheet from ride exit → Home | `RideSummarySheet.swift`, `RideModeView.swift` |
-| **P1-7 Developer panel** | Rust log tail moved to Settings → Advanced | `SettingsView.swift` |
+| **P1-7 Developer panel** ✅ | Rust log tail moved to Settings → Advanced | `SettingsView.swift` |
 
 ---
 

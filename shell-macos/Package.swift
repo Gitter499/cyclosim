@@ -116,6 +116,7 @@ let package = Package(
             exclude: [
                 "AppSecretsStore.swift",
                 "AppSettingsStore.swift",
+                "SettingsApplyLogic.swift",
                 "Strava/StravaConfig.swift",
                 "Strava/StravaOAuth.swift",
                 "Strava/StravaTokenStore.swift",

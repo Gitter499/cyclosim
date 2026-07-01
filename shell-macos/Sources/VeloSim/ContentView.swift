@@ -18,9 +18,11 @@ struct ContentView: View {
                 .tabItem { Label(AppTab.ride.title, systemImage: AppTab.ride.systemImage) }
                 .tag(AppTab.ride)
 
-            SettingsView(model: model, embeddedInTab: true)
-                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
-                .tag(AppTab.settings)
+            SettingsBlockedView(isBlocked: model.isRideRecording) {
+                SettingsView(model: model, embeddedInTab: true)
+            }
+            .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
+            .tag(AppTab.settings)
         }
         .sheet(isPresented: $model.showRideSummarySheet) {
             if let summary = model.lastRideSummary {
@@ -36,5 +38,10 @@ struct ContentView: View {
             model.refreshRideHistory()
         }
         .onDisappear { model.stopSimLoop() }
+        .onChange(of: model.selectedTab) { _, tab in
+            if tab == .settings, model.isRideRecording {
+                model.selectedTab = .ride
+            }
+        }
     }
 }
