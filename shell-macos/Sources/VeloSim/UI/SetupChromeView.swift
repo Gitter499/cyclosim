@@ -35,12 +35,22 @@ struct SetupChromeView: View {
     }
 
     private var headerChrome: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("VeloSim M6")
-                .font(.title2.bold())
-            Text("core v\(version())")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("VeloSim M6")
+                    .font(.title2.bold())
+                Text("core v\(version())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                model.showSettings = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .buttonStyle(VeloGlassSecondaryButtonStyle())
+            .help("API keys for 3D Tiles, Cesium ion, and bike generation")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -230,10 +240,21 @@ struct SetupChromeView: View {
                 ))
                 .help("Streams photorealistic tiles during the ride. Online-only; attribution shown in HUD.")
 
+                Text(model.tilesProviderStatus)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
                 if model.tiles3dEnabled, !model.tilesAttribution.isEmpty {
                     Text(model.tilesAttribution)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                }
+
+                if let err = model.tilesLastError, model.tiles3dEnabled {
+                    Text("Tile fetch: \(err)")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(3)
                 }
             }
         }
@@ -254,6 +275,11 @@ struct SetupChromeView: View {
 
             Text(model.bikeImportStatus)
                 .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+
+            Text(model.bikegenModeStatus)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
 

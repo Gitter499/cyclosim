@@ -25,6 +25,8 @@ pub enum BikeImportError {
     NotFound(String),
     #[error("invalid bike id")]
     InvalidId,
+    #[error("configuration: {0}")]
+    Config(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -78,7 +80,10 @@ pub fn load_bike_asset(bikes_dir: &Path, bike_id: &str) -> Result<BikeAsset, Bik
     let meta: BikeMeta = serde_json::from_str(&fs::read_to_string(meta_path)?)?;
     let gltf_path = meta.gltf_path(&bike_dir);
     if !gltf_path.is_file() {
-        return Err(BikeImportError::NotFound(format!("{bike_id}/{}", GLTF_FILE)));
+        return Err(BikeImportError::NotFound(format!(
+            "{bike_id}/{}",
+            GLTF_FILE
+        )));
     }
     Ok(meta.to_asset(&bike_dir))
 }
@@ -90,6 +95,9 @@ pub fn import_bike_from_images(
     bike_id: &str,
     name: Option<&str>,
 ) -> Result<BikeAsset, BikeImportError> {
+    if let Some(msg) = crate::credentials::hosted_import_gate_error() {
+        return Err(BikeImportError::Config(msg));
+    }
     validate_bike_id(bike_id)?;
     if image_paths.is_empty() || image_paths.len() > 4 {
         return Err(BikeImportError::ImageCount(image_paths.len()));
@@ -109,10 +117,7 @@ pub fn import_bike_from_images(
 
     let mut stored_sources = Vec::new();
     for (i, src) in image_paths.iter().enumerate() {
-        let ext = src
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("png");
+        let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("png");
         let dest_name = format!("{i}.{ext}");
         let dest = sources_dir.join(&dest_name);
         fs::copy(src, &dest)?;

@@ -45,6 +45,10 @@ final class VeloSimModel: ObservableObject {
     @Published var routeImportStatus: String = ""
     @Published var tiles3dEnabled: Bool = false
     @Published var tilesAttribution: String = ""
+    @Published var tilesProviderStatus: String = ""
+    @Published var tilesLastError: String?
+    @Published var bikegenModeStatus: String = ""
+    @Published var showSettings: Bool = false
 
     @Published var availableBikes: [BikeInfoDto] = []
     @Published var activeBikeId: String?
@@ -82,6 +86,7 @@ final class VeloSimModel: ObservableObject {
         refreshRideHistory()
         refreshRoutes()
         refreshBikes()
+        applyRuntimeSecrets()
 
         handle.setAudioDirector(director: musicDirector)
         musicStatus = musicDirector.status
@@ -176,6 +181,23 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    func applyRuntimeSecrets() {
+        let dto = AppSecretsStore.runtimeSecretsDto(
+            preferHostedBikeGeneration: AppSettingsStore.preferHostedBikeGeneration
+        )
+        handle.configureRuntimeSecrets(secrets: dto)
+        refreshServiceStatus()
+    }
+
+    func refreshServiceStatus() {
+        tilesProviderStatus = handle.tilesProviderStatus()
+        bikegenModeStatus = handle.bikegenModeStatus()
+        tilesLastError = handle.tilesLastError()
+        if tiles3dEnabled {
+            tilesAttribution = handle.tilesAttribution()
+        }
+    }
+
     func applyFtp(_ watts: Double) {
         ftp = watts
         handle.setFtp(ftpW: watts)
@@ -256,6 +278,7 @@ final class VeloSimModel: ObservableObject {
             activeBikeId = bikeId
             bikeImportStatus = "Imported \(bikeId)"
             refreshBikes()
+            refreshServiceStatus()
         } catch {
             bikeImportStatus = "Import failed: \(error)"
         }
@@ -267,6 +290,7 @@ final class VeloSimModel: ObservableObject {
             activeRouteId = routeId
             tiles3dEnabled = handle.routeTiles3dEnabled()
             tilesAttribution = handle.tilesAttribution()
+            refreshServiceStatus()
             routeImportStatus = "Riding: \(routeId)"
             rideState = handle.rideState()
             simGrade = rideState.grade
@@ -276,10 +300,15 @@ final class VeloSimModel: ObservableObject {
     }
 
     func setTiles3d(_ enabled: Bool) {
+        if enabled, AppSecretsStore.load(account: .googleMapTilesApiKey) == nil,
+           AppSecretsStore.load(account: .cesiumIonAccessToken) == nil {
+            routeImportStatus = "3D Tiles: no API keys — using ion dev tileset, or add keys in Settings"
+        }
         do {
             try handle.setRouteTiles3d(enabled: enabled)
             tiles3dEnabled = enabled
             tilesAttribution = handle.tilesAttribution()
+            refreshServiceStatus()
         } catch {
             routeImportStatus = "3D Tiles toggle failed: \(error)"
         }

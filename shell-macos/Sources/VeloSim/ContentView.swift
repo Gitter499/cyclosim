@@ -24,6 +24,9 @@ struct ContentView: View {
                 )
             }
         }
+        .sheet(isPresented: $model.showSettings) {
+            SettingsView(model: model)
+        }
         .onAppear {
             model.startSimLoop()
             model.refreshRideHistory()

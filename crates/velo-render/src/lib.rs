@@ -9,11 +9,11 @@ mod tiles;
 
 use std::path::Path;
 
-use velo_bikegen::AnchorTransform;
-use velo_cesium::{TilesSession, ViewCorridor};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use thiserror::Error;
+use velo_bikegen::AnchorTransform;
+use velo_cesium::{TilesSession, ViewCorridor};
 use wgpu::util::DeviceExt;
 
 pub use bike::BikeScene;
@@ -78,7 +78,11 @@ pub struct Renderer {
 impl Renderer {
     /// Create a renderer from a raw CAMetalLayer pointer (Swift passes `Unmanaged.passRetained`).
     #[cfg(target_os = "macos")]
-    pub fn from_metal_layer(layer_ptr: *mut std::ffi::c_void, width: u32, height: u32) -> Result<Self, RenderError> {
+    pub fn from_metal_layer(
+        layer_ptr: *mut std::ffi::c_void,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
         if layer_ptr.is_null() {
             return Err(RenderError::Wgpu("null CAMetalLayer".into()));
         }
@@ -98,9 +102,15 @@ impl Renderer {
     }
 
     #[cfg(not(target_os = "macos"))]
-    pub fn from_metal_layer(_layer_ptr: *mut std::ffi::c_void, width: u32, height: u32) -> Result<Self, RenderError> {
+    pub fn from_metal_layer(
+        _layer_ptr: *mut std::ffi::c_void,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
         let _ = (width, height);
-        Err(RenderError::Wgpu("Metal layer rendering is macOS-only".into()))
+        Err(RenderError::Wgpu(
+            "Metal layer rendering is macOS-only".into(),
+        ))
     }
 
     fn init(
@@ -351,7 +361,8 @@ impl Renderer {
     /// Enable or disable Tier B 3D Tiles overlay (online-only during ride).
     pub fn set_tiles_mode(&mut self, enabled: bool) {
         if enabled && self.tiles_session.is_none() {
-            let session = TilesSession::online_default().unwrap_or_else(|_| TilesSession::synthetic());
+            let session =
+                TilesSession::online_default().unwrap_or_else(|_| TilesSession::synthetic());
             self.tiles_attribution = session.attribution().text.clone();
             self.tiles_session = Some(session);
         }
@@ -371,6 +382,25 @@ impl Renderer {
         &self.tiles_attribution
     }
 
+    pub fn tiles_provider_status(&self) -> String {
+        velo_cesium::tiles_provider_status()
+    }
+
+    pub fn tiles_last_error(&self) -> Option<String> {
+        self.tiles_session
+            .as_ref()
+            .and_then(|s| s.last_error().map(str::to_string))
+    }
+
+    /// Recreate the online tile session (after API keys change in Settings).
+    pub fn refresh_tiles_session(&mut self) {
+        if self.tiles_mode {
+            self.tiles_session = None;
+            self.tiles = None;
+            self.set_tiles_mode(true);
+        }
+    }
+
     /// Refresh visible tile meshes for the current rider position (ENU origin frame).
     pub fn update_tiles_view(&mut self, lat: f64, lon: f64, radius_m: f64) {
         if !self.tiles_mode {
@@ -379,11 +409,7 @@ impl Renderer {
         let Some(session) = self.tiles_session.as_mut() else {
             return;
         };
-        let view = ViewCorridor {
-            lat,
-            lon,
-            radius_m,
-        };
+        let view = ViewCorridor { lat, lon, radius_m };
         if session.tick(view).is_ok() {
             let meshes = session.meshes();
             if !meshes.is_empty() {
@@ -495,14 +521,7 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, aspect, &self.camera, rider, forward);
             }
         }
 
@@ -532,7 +551,12 @@ impl Renderer {
         Ok(())
     }
 
-    fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>, steer_yaw_rad: f32) -> glam::Mat4 {
+    fn scene_mvp(
+        &self,
+        aspect: f32,
+        follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
+    ) -> glam::Mat4 {
         if let Some(f) = follow {
             let rider = Vec3::new(f.east as f32, f.up as f32 + 1.5, f.north as f32);
             let forward = scene::apply_steer_yaw_for_camera(f.forward, steer_yaw_rad);
@@ -553,7 +577,11 @@ impl Renderer {
         }
     }
 
-    pub fn render_frame_legacy(&mut self, hud: &HudSnapshot, distance_m: f64) -> Result<(), RenderError> {
+    pub fn render_frame_legacy(
+        &mut self,
+        hud: &HudSnapshot,
+        distance_m: f64,
+    ) -> Result<(), RenderError> {
         self.render_frame(hud, distance_m, None, 0.0)
     }
 
@@ -643,14 +671,7 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, aspect, &self.camera, rider, forward);
             }
         }
 
@@ -728,7 +749,10 @@ impl Renderer {
             let src_start = row as usize * bytes_per_row as usize;
             let dst_start = row as usize * width as usize * 4;
             let row_bgra = &mapped[src_start..src_start + (width * 4) as usize];
-            bgra_to_rgba(row_bgra, &mut pixels[dst_start..dst_start + (width * 4) as usize]);
+            bgra_to_rgba(
+                row_bgra,
+                &mut pixels[dst_start..dst_start + (width * 4) as usize],
+            );
         }
         drop(mapped);
         readback.unmap();
@@ -758,7 +782,11 @@ fn align_to_256(n: u32) -> u32 {
     (n + 255) & !255
 }
 
-fn create_depth(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
+fn create_depth(
+    device: &wgpu::Device,
+    width: u32,
+    height: u32,
+) -> (wgpu::Texture, wgpu::TextureView) {
     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("depth"),
         size: wgpu::Extent3d {

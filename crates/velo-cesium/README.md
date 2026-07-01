@@ -49,3 +49,6 @@ once the Rust-side mesh path is validated end-to-end.
 
 Set `GOOGLE_MAP_TILES_API_KEY` for Google tiles. Without it, the session falls back to the
 public Cesium ion sample asset for development.
+
+The macOS shell stores keys in Keychain and injects them at runtime via `configure_runtime_secrets`
+(see Settings). Env vars remain supported for CLI and tests.

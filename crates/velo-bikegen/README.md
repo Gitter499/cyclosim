@@ -17,6 +17,8 @@ Without a GPU or hosted image-to-3D API, `velo-bikegen` writes a **synthetic pla
 
 Real image-to-3D (TRELLIS.2, Hunyuan3D, Meshy, Tripo) is deferred; enable the `hosted-api` feature for the scaffold only.
 
+Configure **Meshy API key** in the macOS app Settings (Keychain) or set `MESHY_API_KEY` for CLI. Hosted HTTP wiring is not yet implemented — enabling hosted mode without a key fails import with a clear error.
+
 ## CLI
 
 ```bash

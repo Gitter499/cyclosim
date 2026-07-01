@@ -427,6 +427,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_active_bike_id(void*_Nonnull ptr
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_active_route_id(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKEGEN_MODE_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKEGEN_MODE_STATUS
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_bikegen_mode_status(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKES_DIR
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_BIKES_DIR
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_bikes_dir(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -460,6 +465,11 @@ void uniffi_velo_ffi_fn_method_velohandle_clear_workout(void*_Nonnull ptr, RustC
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 void uniffi_velo_ffi_fn_method_velohandle_configure_ride_library(void*_Nonnull ptr, RustBuffer db_path, RustBuffer artifacts_base, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RUNTIME_SECRETS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_CONFIGURE_RUNTIME_SECRETS
+void uniffi_velo_ffi_fn_method_velohandle_configure_runtime_secrets(void*_Nonnull ptr, RustBuffer secrets, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_DELETE_RIDE
@@ -650,6 +660,16 @@ void uniffi_velo_ffi_fn_method_velohandle_tick(void*_Nonnull ptr, uint64_t senso
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_ATTRIBUTION
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_ATTRIBUTION
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_tiles_attribution(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_LAST_ERROR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_LAST_ERROR
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_tiles_last_error(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_PROVIDER_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TILES_PROVIDER_STATUS
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_tiles_provider_status(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_TOGGLE
@@ -1035,6 +1055,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_active_route_id(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKEGEN_MODE_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKEGEN_MODE_STATUS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_bikegen_mode_status(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKES_DIR
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_BIKES_DIR
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_bikes_dir(void
@@ -1074,6 +1100,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_clear_workout(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RIDE_LIBRARY
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_configure_ride_library(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RUNTIME_SECRETS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_CONFIGURE_RUNTIME_SECRETS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_configure_runtime_secrets(void
     
 );
 #endif
@@ -1302,6 +1334,18 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_tick(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_ATTRIBUTION
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_ATTRIBUTION
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_tiles_attribution(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_LAST_ERROR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_LAST_ERROR
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_tiles_last_error(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_PROVIDER_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_TILES_PROVIDER_STATUS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_tiles_provider_status(void
     
 );
 #endif

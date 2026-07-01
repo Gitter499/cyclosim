@@ -23,6 +23,8 @@ bindgen:
       --library target/release/libvelo_ffi.dylib \
       --language swift \
       --out-dir shell-macos/Generated
+    cp shell-macos/Generated/velo_ffiFFI.h shell-macos/Bridge/include/velo_ffiFFI.h
+    cp shell-macos/Generated/velo_ffiFFI.modulemap shell-macos/Bridge/include/velo_ffiFFI.modulemap
 
 run:
     ./scripts/build.sh

@@ -5,8 +5,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use velo_bikegen::{
-    default_bikes_dir, import_bike_from_images, list_bikes, load_bike_asset, BikeSummary,
+    bikegen_mode_status, default_bikes_dir, import_bike_from_images, list_bikes, load_bike_asset,
+    set_bikegen_credentials, BikeSummary, BikegenCredentials,
 };
+use velo_cesium::{set_tiles_credentials, tiles_provider_status, TilesCredentials};
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
     parse_zwo_xml as parse_zwo_xml_core, save_scenery_config, SceneryConfig, VeloApp, Workout,
@@ -16,12 +18,12 @@ use velo_platform::{
     AudioDirector, PlaybackIntent, SegmentEnergy, SensorSource, SteeringInput, TelemetrySample,
     TrainerControl,
 };
-use velo_render::{forward_from_enu, RouteFollow, Renderer};
-use velo_route_import::import_file;
+use velo_render::{forward_from_enu, Renderer, RouteFollow};
 use velo_rides::{
     default_artifacts_base, default_db_path, NewRideRecord, PublishStatus as StorePublishStatus,
     RideLibrary, RideRecord,
 };
+use velo_route_import::import_file;
 use velo_terrain::{bake_terrain_for_route, DEFAULT_CELL_M, DEFAULT_CORRIDOR_M};
 use velo_units::{Bpm, Grade, MetersPerSecond, Rpm, Watts};
 
@@ -82,7 +84,8 @@ impl TrainerControl for FfiTrainerControl {
     }
 
     fn set_simulation(&self, grade: Grade, crr: f32, cw_a: f32) {
-        self.callback.set_simulation(grade.0, crr as f64, cw_a as f64);
+        self.callback
+            .set_simulation(grade.0, crr as f64, cw_a as f64);
     }
 
     fn stop(&self) {
@@ -220,6 +223,15 @@ pub struct RouteInfoDto {
 pub struct BikeInfoDto {
     pub bike_id: String,
     pub name: String,
+}
+
+/// Runtime API keys/tokens injected by the macOS shell (Keychain → FFI). Never persisted by Rust.
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct RuntimeSecretsDto {
+    pub google_map_tiles_api_key: Option<String>,
+    pub cesium_ion_access_token: Option<String>,
+    pub meshy_api_key: Option<String>,
+    pub prefer_hosted_bike_generation: bool,
 }
 
 #[derive(uniffi::Record, Clone, Debug)]
@@ -512,9 +524,11 @@ impl RideLibraryHandle {
     }
 
     pub fn delete_ride(&self, id: String) -> Result<bool, VeloError> {
-        self.inner.delete_ride(&id).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })
+        self.inner
+            .delete_ride(&id)
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
     }
 }
 
@@ -615,9 +629,11 @@ impl VeloHandle {
         .map_err(|e| VeloError::RideError {
             message: e.to_string(),
         })?;
-        model.save_pack(&pack_dir).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        model
+            .save_pack(&pack_dir)
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         bake_terrain_for_route(&model, &pack_dir, DEFAULT_CORRIDOR_M, DEFAULT_CELL_M).map_err(
             |e| VeloError::RideError {
                 message: e.to_string(),
@@ -690,15 +706,10 @@ impl VeloHandle {
     ) -> Result<(), VeloError> {
         let paths: Vec<PathBuf> = image_paths.into_iter().map(PathBuf::from).collect();
         let mut inner = self.inner.lock().unwrap();
-        let asset = import_bike_from_images(
-            &inner.bikes_dir,
-            &paths,
-            &bike_id,
-            name.as_deref(),
-        )
-        .map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        let asset = import_bike_from_images(&inner.bikes_dir, &paths, &bike_id, name.as_deref())
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         inner.active_bike_id = Some(bike_id);
         if let Some(renderer) = inner.renderer.as_mut() {
             let _ = renderer.load_bike_gltf(&asset.gltf_path, asset.anchor);
@@ -708,9 +719,10 @@ impl VeloHandle {
 
     pub fn set_active_bike(&self, bike_id: String) -> Result<(), VeloError> {
         let mut inner = self.inner.lock().unwrap();
-        let asset = load_bike_asset(&inner.bikes_dir, &bike_id).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        let asset =
+            load_bike_asset(&inner.bikes_dir, &bike_id).map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         inner.active_bike_id = Some(bike_id);
         if let Some(renderer) = inner.renderer.as_mut() {
             renderer
@@ -773,18 +785,49 @@ impl VeloHandle {
             .unwrap_or_default()
     }
 
+    /// Apply shell Keychain secrets before ride / 3D Tiles use.
+    pub fn configure_runtime_secrets(&self, secrets: RuntimeSecretsDto) {
+        set_tiles_credentials(TilesCredentials {
+            google_map_tiles_api_key: secrets.google_map_tiles_api_key,
+            cesium_ion_access_token: secrets.cesium_ion_access_token,
+        });
+        set_bikegen_credentials(BikegenCredentials {
+            meshy_api_key: secrets.meshy_api_key,
+            prefer_hosted_generation: secrets.prefer_hosted_bike_generation,
+        });
+        let mut inner = self.inner.lock().unwrap();
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer.refresh_tiles_session();
+        }
+    }
+
+    pub fn tiles_provider_status(&self) -> String {
+        tiles_provider_status()
+    }
+
+    pub fn bikegen_mode_status(&self) -> String {
+        bikegen_mode_status()
+    }
+
+    pub fn tiles_last_error(&self) -> Option<String> {
+        self.inner
+            .lock()
+            .unwrap()
+            .renderer
+            .as_ref()
+            .and_then(|r| r.tiles_last_error())
+    }
+
     /// Open or create the ride library at custom paths (for tests).
     pub fn configure_ride_library(
         &self,
         db_path: String,
         artifacts_base: String,
     ) -> Result<(), VeloError> {
-        let library =
-            RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base)).map_err(
-                |e| VeloError::RideError {
-                    message: e.to_string(),
-                },
-            )?;
+        let library = RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base))
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         self.inner.lock().unwrap().ride_library = Some(library);
         Ok(())
     }
@@ -863,7 +906,9 @@ impl VeloHandle {
 
     pub fn start_workout(&self, workout: WorkoutDto) -> Result<(), VeloError> {
         let workout = map_workout_dto(workout)?;
-        workout.validate().map_err(|message| VeloError::RideError { message })?;
+        workout
+            .validate()
+            .map_err(|message| VeloError::RideError { message })?;
         self.inner.lock().unwrap().app.start_workout(workout);
         Ok(())
     }
@@ -899,12 +944,7 @@ impl VeloHandle {
     }
 
     pub fn stop_ride(&self) -> Option<RideSummaryDto> {
-        self.inner
-            .lock()
-            .unwrap()
-            .app
-            .stop_ride()
-            .map(map_summary)
+        self.inner.lock().unwrap().app.stop_ride().map(map_summary)
     }
 
     pub fn export_fit(&self) -> Result<Vec<u8>, VeloError> {
@@ -928,7 +968,11 @@ impl VeloHandle {
     }
 
     pub fn set_segment_music_enabled(&self, enabled: bool) {
-        self.inner.lock().unwrap().app.set_segment_music_enabled(enabled);
+        self.inner
+            .lock()
+            .unwrap()
+            .app
+            .set_segment_music_enabled(enabled);
     }
 
     pub fn segment_music_enabled(&self) -> bool {
@@ -978,11 +1022,7 @@ impl VeloHandle {
     }
 
     pub fn recent_logs(&self, limit: u32) -> Vec<String> {
-        self.inner
-            .lock()
-            .unwrap()
-            .app
-            .recent_logs(limit as usize)
+        self.inner.lock().unwrap().app.recent_logs(limit as usize)
     }
 
     pub fn ride_state(&self) -> RideStateDto {
@@ -1083,12 +1123,9 @@ impl VeloHandle {
         publisher: Box<dyn ActivityPublisherCallback>,
     ) -> Result<PublishResultDto, VeloError> {
         let mut inner = self.inner.lock().unwrap();
-        let summary = inner
-            .app
-            .stop_ride()
-            .ok_or(VeloError::RideError {
-                message: "no active or completed ride".into(),
-            })?;
+        let summary = inner.app.stop_ride().ok_or(VeloError::RideError {
+            message: "no active or completed ride".into(),
+        })?;
         let summary_dto = map_summary(summary);
 
         let fit_bytes = inner.app.export_fit().map_err(|e| VeloError::RideError {
@@ -1115,7 +1152,11 @@ impl VeloHandle {
             None
         };
 
-        let mut publish = publisher.publish_ride(fit_bytes.clone(), screenshot_png.clone(), summary_dto.clone());
+        let mut publish = publisher.publish_ride(
+            fit_bytes.clone(),
+            screenshot_png.clone(),
+            summary_dto.clone(),
+        );
         publish.highlight_clip_path = None;
 
         if let Some(library) = inner.ride_library.as_ref() {
