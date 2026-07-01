@@ -16,6 +16,7 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M3c** — Bike model import | ✅ | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
 | **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import |
 | **M6** — Apple Music + AirPods | ✅ | [#11](https://github.com/Gitter499/cyclosim/issues/11) — segment MusicKit, keyboard/AirPods steering |
+| **M7** — Zwift parity UI | 🚧 | [#35](https://github.com/Gitter499/cyclosim/issues/35) — HUD §5.2, browse screens §7, FTP tests §6.3 per [guide](docs/VeloSim-UI-and-Zwift-Parity-Guide.md) |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 

@@ -22,6 +22,9 @@ struct ContentView: View {
                 .frame(minWidth: 520, minHeight: 560)
             }
         }
+        .sheet(isPresented: $model.showPairingSheet) {
+            PairingView(model: model)
+        }
         .onAppear {
             model.startSimLoop()
             model.refreshRideHistory()

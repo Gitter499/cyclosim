@@ -58,7 +58,7 @@ final class AppScenarioTests: XCTestCase {
         let director = VeloMusicDirector()
         XCTAssertEqual(director.status, "Music off")
         director.setEnabled(true)
-        XCTAssertEqual(director.status, "Segment music enabled")
+        XCTAssertEqual(director.status, "Ready — segment music on")
         director.onSegment(energy: .build, intent: .transition)
         director.setEnabled(false)
         XCTAssertEqual(director.status, "Music off")

@@ -66,24 +66,7 @@ struct ActivitiesCatalogView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
 
-                if !model.availableRoutes.isEmpty {
-                    Picker("Active route", selection: Binding(
-                        get: { model.activeRouteId ?? "" },
-                        set: { id in
-                            if id.isEmpty {
-                                model.clearRoute()
-                            } else {
-                                model.selectRoute(id)
-                            }
-                        }
-                    )) {
-                        Text("None (flat)").tag("")
-                        ForEach(model.availableRoutes, id: \.routeId) { route in
-                            Text("\(route.name) (\(Int(route.totalDistanceM)) m)")
-                                .tag(route.routeId)
-                        }
-                    }
-                }
+                RouteSelectView(model: model)
             }
 
             VeloGlassSection("Bike") {
@@ -132,7 +115,7 @@ struct ActivitiesCatalogView: View {
                     .frame(width: 56, alignment: .trailing)
             }
 
-            WorkoutBuilderView(model: model)
+            WorkoutLibraryView(model: model)
         }
     }
 }

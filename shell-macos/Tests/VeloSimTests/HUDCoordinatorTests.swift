@@ -2,9 +2,9 @@ import XCTest
 import VeloFFI
 import VeloSimSupport
 
-@MainActor
 final class HUDCoordinatorTests: XCTestCase {
 
+    @MainActor
     func testThrottlesUpdatesToRoughly8Hz() {
         let model = HUDModel()
         var updateCount = 0

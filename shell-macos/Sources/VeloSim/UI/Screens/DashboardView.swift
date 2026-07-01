@@ -8,34 +8,70 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                welcomeHeader
+            VStack(alignment: .leading, spacing: Tok.s4) {
+                profileHeader
+                QuickStartRow(model: model)
                 pinnedListSection
-                quickStartSection
                 recentRidesSection
+                lifetimeStatsSection
             }
-            .padding(20)
+            .padding(Tok.s4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $model.showFTPTestPicker) {
+            FTPTestPickerView(model: model)
+        }
+        .sheet(item: $model.pendingFTPAnnouncement) { announcement in
+            FTPAnnouncementSheet(model: model, oldFTP: announcement.oldFTP, newFTP: announcement.newFTP)
+        }
     }
 
-    private var welcomeHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Welcome back")
+    private var profileHeader: some View {
+        VStack(alignment: .leading, spacing: Tok.s2) {
+            Text(model.riderName)
                 .font(.largeTitle.bold())
-            Text("Pick a quick start or browse activities.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(model.tilesProviderStatus)
+            HStack(spacing: Tok.s4) {
+                profileChip("FTP", "\(Int(model.ftp)) W") {
+                    model.showFTPTestPicker = true
+                }
+                profileChip("Weight", String(format: "%.0f kg", model.riderWeightKg), action: nil)
+                profileChip(
+                    "W/kg",
+                    String(format: "%.1f", model.ftp / max(model.riderWeightKg, 1)),
+                    action: nil
+                )
+            }
+            Button("Pair devices…") { model.showPairingSheet = true }
                 .font(.caption)
-                .foregroundStyle(.tertiary)
-                .lineLimit(2)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(Tok.s3)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .veloGlassRoundedRect(cornerRadius: 14)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: Tok.rTile))
+    }
+
+    private func profileChip(_ label: String, _ value: String, action: (() -> Void)?) -> some View {
+        Group {
+            if let action {
+                Button(action: action) {
+                    chipContent(label: label, value: value)
+                }
+                .buttonStyle(.plain)
+            } else {
+                chipContent(label: label, value: value)
+            }
+        }
+    }
+
+    private func chipContent(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(Typo.label())
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+        }
     }
 
     private var pinnedListSection: some View {
@@ -104,72 +140,6 @@ struct DashboardView: View {
         .buttonStyle(.plain)
     }
 
-    private var quickStartSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Quick start")
-                .font(.headline)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                quickStartCard(
-                    title: "Free ride",
-                    subtitle: "Flat plane · ERG optional",
-                    systemImage: "figure.outdoor.cycle",
-                    tint: .blue
-                ) {
-                    model.beginFreeRide()
-                }
-
-                quickStartCard(
-                    title: "Route ride",
-                    subtitle: model.activeRouteId.map { "Active: \($0)" } ?? "Pick a GPX route",
-                    systemImage: "map",
-                    tint: .green
-                ) {
-                    model.shellDestination = .activities
-                    model.activitiesTab = .routes
-                }
-
-                quickStartCard(
-                    title: "Workout",
-                    subtitle: model.workoutLive.active ? model.workoutLive.workoutName : "Structured intervals",
-                    systemImage: "bolt.fill",
-                    tint: .orange
-                ) {
-                    model.shellDestination = .activities
-                    model.activitiesTab = .workouts
-                }
-            }
-        }
-    }
-
-    private func quickStartCard(
-        title: String,
-        subtitle: String,
-        systemImage: String,
-        tint: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundStyle(tint)
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-
     private var recentRidesSection: some View {
         VeloGlassSection("Recent rides") {
             if model.rideHistory.isEmpty {
@@ -186,9 +156,12 @@ struct DashboardView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(RideSummaryFormatting.formatRideDate(ride.startedAtUnix))
                                         .font(.caption.bold())
-                                    Text("\(RideSummaryFormatting.formatDistance(ride.distanceM)) · \(RideSummaryFormatting.formatElapsed(ride.elapsedS))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                    Text(
+                                        "\(RideSummaryFormatting.formatDistance(ride.distanceM)) · \(RideSummaryFormatting.formatElapsed(ride.elapsedS))"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
                                 }
                                 Spacer()
                                 VeloPublishBadge(status: ride.publishStatus)
@@ -211,6 +184,32 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var lifetimeStatsSection: some View {
+        VeloGlassSection("Lifetime") {
+            let totalDist = model.rideHistory.reduce(0.0) { $0 + $1.distanceM }
+            let totalTime = model.rideHistory.reduce(0.0) { $0 + $1.elapsedS }
+            HStack(spacing: Tok.s4) {
+                lifetimeTile("Distance", RideSummaryFormatting.formatDistance(totalDist))
+                lifetimeTile("Time", RideSummaryFormatting.formatElapsed(totalTime))
+                lifetimeTile("Rides", "\(model.rideHistory.count)")
+            }
+        }
+    }
+
+    private func lifetimeTile(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(Typo.label())
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Tok.s3)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: Tok.rTile))
     }
 }
 

@@ -74,6 +74,11 @@ public final class KeyboardSteeringInput: SteeringInputCallback, @unchecked Send
         recenterPending = false
         return state
     }
+
+    public func requestRecenter() {
+        recenterPending = true
+        axis = 0
+    }
 }
 
 /// AirPods head yaw → steering axis. Low-pass lives in Rust core; yaw delta mapped here.
