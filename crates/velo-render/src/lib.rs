@@ -50,7 +50,8 @@ struct SceneUniforms {
 }
 
 pub struct Renderer {
-    surface: wgpu::Surface<'static>,
+    surface: Option<wgpu::Surface<'static>>,
+    offscreen: Option<wgpu::Texture>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -103,6 +104,57 @@ impl Renderer {
         Err(RenderError::Wgpu("Metal layer rendering is macOS-only".into()))
     }
 
+    /// Create a headless renderer that draws into an offscreen texture.
+    ///
+    /// No window or surface required — works on any host with a wgpu adapter
+    /// (including software rasterizers like lavapipe). Frames are retrieved
+    /// with [`Renderer::capture_framebuffer_rgba`]. This is the entry point
+    /// for CI snapshot tests and the `velo-eval-mcp` evaluation server.
+    pub fn headless(width: u32, height: u32) -> Result<Self, RenderError> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::LowPower,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }))
+        .ok_or_else(|| RenderError::Wgpu("no adapter".into()))?;
+
+        let (device, queue) = Self::request_device(&adapter)?;
+        let format = wgpu::TextureFormat::Bgra8UnormSrgb;
+
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            format,
+            width: width.max(1),
+            height: height.max(1),
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        let offscreen = Some(create_offscreen(&device, format, config.width, config.height));
+
+        Self::build(None, offscreen, device, queue, config)
+    }
+
+    fn request_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), RenderError> {
+        pollster::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: Some("velo-render"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: wgpu::MemoryHints::Performance,
+            },
+            None,
+        ))
+        .map_err(|e| RenderError::Wgpu(e.to_string()))
+    }
+
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     fn init(
         instance: wgpu::Instance,
         surface: wgpu::Surface<'static>,
@@ -116,16 +168,7 @@ impl Renderer {
         }))
         .ok_or_else(|| RenderError::Wgpu("no adapter".into()))?;
 
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("velo-render"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-                memory_hints: wgpu::MemoryHints::Performance,
-            },
-            None,
-        ))
-        .map_err(|e| RenderError::Wgpu(e.to_string()))?;
+        let (device, queue) = Self::request_device(&adapter)?;
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps
@@ -146,6 +189,18 @@ impl Renderer {
             desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
+
+        Self::build(Some(surface), None, device, queue, config)
+    }
+
+    fn build(
+        surface: Option<wgpu::Surface<'static>>,
+        offscreen: Option<wgpu::Texture>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        config: wgpu::SurfaceConfiguration,
+    ) -> Result<Self, RenderError> {
+        let format = config.format;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene-shader"),
@@ -274,6 +329,7 @@ impl Renderer {
 
         Ok(Self {
             surface,
+            offscreen,
             device,
             queue,
             config,
@@ -416,13 +472,19 @@ impl Renderer {
     ) -> Result<(), RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .map_err(|e| RenderError::Wgpu(e.to_string()))?;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let frame = match &self.surface {
+            Some(surface) => Some(
+                surface
+                    .get_current_texture()
+                    .map_err(|e| RenderError::Wgpu(e.to_string()))?,
+            ),
+            None => None,
+        };
+        let target: &wgpu::Texture = match &frame {
+            Some(f) => &f.texture,
+            None => self.offscreen.as_ref().ok_or(RenderError::NotInitialized)?,
+        };
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
         let mvp = self.scene_mvp(aspect, follow);
@@ -526,7 +588,9 @@ impl Renderer {
 
         self.queue.submit(std::iter::once(encoder.finish()));
         self.hud.trim();
-        frame.present();
+        if let Some(frame) = frame {
+            frame.present();
+        }
         Ok(())
     }
 
@@ -543,7 +607,17 @@ impl Renderer {
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
+            if let Some(surface) = &self.surface {
+                surface.configure(&self.device, &self.config);
+            }
+            if self.offscreen.is_some() {
+                self.offscreen = Some(create_offscreen(
+                    &self.device,
+                    self.config.format,
+                    width,
+                    height,
+                ));
+            }
             let (depth_texture, depth_view) = create_depth(&self.device, width, height);
             self.depth_texture = depth_texture;
             self.depth_view = depth_view;
@@ -563,11 +637,18 @@ impl Renderer {
     ) -> Result<FramebufferRgba, RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .map_err(|e| RenderError::Wgpu(e.to_string()))?;
-        let texture = &frame.texture;
+        let frame = match &self.surface {
+            Some(surface) => Some(
+                surface
+                    .get_current_texture()
+                    .map_err(|e| RenderError::Wgpu(e.to_string()))?,
+            ),
+            None => None,
+        };
+        let texture: &wgpu::Texture = match &frame {
+            Some(f) => &f.texture,
+            None => self.offscreen.as_ref().ok_or(RenderError::NotInitialized)?,
+        };
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
@@ -729,7 +810,9 @@ impl Renderer {
         drop(mapped);
         readback.unmap();
 
-        frame.present();
+        if let Some(frame) = frame {
+            frame.present();
+        }
 
         Ok(FramebufferRgba {
             width,
@@ -752,6 +835,28 @@ fn rider_pose(follow: Option<RouteFollow>, rider_z: f32) -> (Vec3, Vec3) {
 
 fn align_to_256(n: u32) -> u32 {
     (n + 255) & !255
+}
+
+fn create_offscreen(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    width: u32,
+    height: u32,
+) -> wgpu::Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("offscreen-target"),
+        size: wgpu::Extent3d {
+            width: width.max(1),
+            height: height.max(1),
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    })
 }
 
 fn create_depth(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
