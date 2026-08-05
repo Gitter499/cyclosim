@@ -109,7 +109,8 @@ fn feature_inventory(_args: &Value) -> Result<ToolOutput, String> {
         "eval_tools": [
             "feature_inventory", "sim_scenario", "render_frame",
             "render_ride_sequence", "hud_probe", "workout_preview",
-            "fit_export_check", "replay_camera_preview"
+            "fit_export_check", "replay_camera_preview",
+            "ride_library_check", "route_import_check"
         ]
     });
     Ok(ToolOutput::text(&value))
@@ -414,6 +415,75 @@ fn distance_at(samples: &[velo_core::RideSample], t: f64) -> f64 {
     a.distance_m + (b.distance_m - a.distance_m) * ((t - a.elapsed_s) / span)
 }
 
+fn ride_library_check(_args: &Value) -> Result<ToolOutput, String> {
+    let tmp = std::env::temp_dir().join(format!("velo-eval-rides-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let result = (|| -> Result<Value, String> {
+        let lib = velo_rides::RideLibrary::open_in_memory(&tmp).map_err(|e| e.to_string())?;
+        let id = lib
+            .insert_ride(velo_rides::NewRideRecord {
+                started_at_unix: 1_754_400_000,
+                elapsed_s: 1800.0,
+                distance_m: 15_000.0,
+                avg_power_w: Some(210.0),
+                max_power_w: Some(450.0),
+                fit_path: "eval/ride.fit".into(),
+                screenshot_path: None,
+                highlight_clip_path: None,
+                strava_activity_id: None,
+                publish_status: velo_rides::PublishStatus::Local,
+                route_id: Some("eval-rolling".into()),
+            })
+            .map_err(|e| e.to_string())?;
+        let listed = lib.list_rides().map_err(|e| e.to_string())?;
+        let fetched = lib.get_ride(&id).map_err(|e| e.to_string())?;
+        let deleted = lib.delete_ride(&id).map_err(|e| e.to_string())?;
+        let empty_after = lib.list_rides().map_err(|e| e.to_string())?.is_empty();
+        Ok(serde_json::json!({
+            "insert_ok": true,
+            "list_count_after_insert": listed.len(),
+            "get_found": fetched.is_some(),
+            "roundtrip_distance_ok": fetched.map(|r| (r.distance_m - 15_000.0).abs() < 1e-9),
+            "delete_ok": deleted,
+            "empty_after_delete": empty_after,
+        }))
+    })();
+    let _ = std::fs::remove_dir_all(&tmp);
+    Ok(ToolOutput::text(&result?))
+}
+
+const EVAL_GPX: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="velo-eval"><trk><name>Eval Loop</name><trkseg>
+<trkpt lat="45.0000" lon="7.0000"><ele>500.0</ele></trkpt>
+<trkpt lat="45.0010" lon="7.0000"><ele>505.0</ele></trkpt>
+<trkpt lat="45.0020" lon="7.0000"><ele>512.0</ele></trkpt>
+<trkpt lat="45.0030" lon="7.0000"><ele>518.0</ele></trkpt>
+<trkpt lat="45.0040" lon="7.0000"><ele>521.0</ele></trkpt>
+<trkpt lat="45.0050" lon="7.0000"><ele>519.0</ele></trkpt>
+<trkpt lat="45.0060" lon="7.0000"><ele>514.0</ele></trkpt>
+</trkseg></trk></gpx>"#;
+
+fn route_import_check(args: &Value) -> Result<ToolOutput, String> {
+    let gpx = args
+        .get("gpx_xml")
+        .and_then(Value::as_str)
+        .unwrap_or(EVAL_GPX);
+    let route = velo_route_import::import_gpx(gpx.as_bytes(), "eval-import", "Eval Import", 10.0, 30.0)
+        .map_err(|e| e.to_string())?;
+    let grades: Vec<f64> = route.points.iter().map(|p| p.grade).collect();
+    let max_grade = grades.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let min_grade = grades.iter().cloned().fold(f64::INFINITY, f64::min);
+    Ok(ToolOutput::text(&serde_json::json!({
+        "route_id": route.meta.route_id,
+        "total_distance_m": route.total_distance_m(),
+        "point_count": route.points.len(),
+        "origin": {"lat": route.meta.origin.lat, "lon": route.meta.origin.lon},
+        "max_grade": max_grade,
+        "min_grade": min_grade,
+        "grades_finite": grades.iter().all(|g| g.is_finite()),
+    })))
+}
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -500,6 +570,20 @@ pub fn registry() -> Vec<ToolDef> {
                 "ftp_w": {"type": "number", "description": "default 250"}
             }}),
             run: workout_preview,
+        },
+        ToolDef {
+            name: "ride_library_check",
+            description: "Exercise the SQLite ride library end-to-end (insert, list, get, delete) against an in-memory database. Validates the M2c persistence pipeline.",
+            input_schema: json!({"type": "object", "properties": {}}),
+            run: ride_library_check,
+        },
+        ToolDef {
+            name: "route_import_check",
+            description: "Run the GPX import pipeline (parse, resample, smooth, grade) on provided gpx_xml or a built-in sample and report the resulting RouteModel stats. Validates M3 route ingestion.",
+            input_schema: json!({"type": "object", "properties": {
+                "gpx_xml": {"type": "string", "description": "GPX XML (default: built-in 700 m climb sample)"}
+            }}),
+            run: route_import_check,
         },
         ToolDef {
             name: "fit_export_check",

@@ -2929,6 +2929,8 @@ dependencies = [
  "velo-core",
  "velo-platform",
  "velo-render",
+ "velo-rides",
+ "velo-route-import",
  "velo-terrain",
  "velo-units",
 ]
