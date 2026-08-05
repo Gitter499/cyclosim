@@ -37,7 +37,7 @@ pub fn resample_route(points: &[RoutePoint], spacing_m: f64) -> Vec<RoutePoint> 
     }
 
     if out.last().map(|p| p.distance_m) != Some(total) {
-        out.push(points.last().unwrap().clone());
+        out.push(*points.last().unwrap());
         out.last_mut().unwrap().distance_m = total;
     }
 
