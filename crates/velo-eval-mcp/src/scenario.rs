@@ -218,7 +218,8 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
         app.start_ride();
     }
 
-    let rider_power = params.rider_power_w.unwrap_or(match params.mode {
+    let has_workout = app.workout_active();
+    let fixed_rider_power = params.rider_power_w.unwrap_or(match params.mode {
         ModeParam::Erg => params.target_power_w,
         _ => 200.0,
     });
@@ -232,6 +233,13 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
     let mut max_speed = 0.0_f64;
 
     for tick in 0..ticks {
+        // During a workout the simulated rider tracks the live ERG target
+        // (unless an explicit rider power was given), so speed responds to
+        // interval changes the way a real ERG ride would.
+        let rider_power = match (params.rider_power_w, has_workout) {
+            (None, true) => app.target_power(),
+            _ => fixed_rider_power,
+        };
         sensors.push(TelemetrySample {
             elapsed: Duration::from_millis((tick as f64 * DT_S * 1000.0) as u64),
             power: Some(Watts::new(rider_power)),
