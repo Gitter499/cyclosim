@@ -11,6 +11,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Software Vulkan for headless render tests
+        run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers
+
+      - name: Rust workspace tests (headless render + eval included)
+        run: cargo test --workspace
+
+      - name: Apple symbol lint
+        run: ./scripts/lint-apple-symbols.sh
+
   test:
     runs-on: macos-14
     steps:
