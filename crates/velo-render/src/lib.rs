@@ -313,7 +313,7 @@ impl Renderer {
             cache: None,
         });
 
-        let mesh = GroundMesh::grid(40, 2.0);
+        let mesh = GroundMesh::grid(60, 5.0);
         let total = mesh.vertices.len() as u32;
         let fill_vertex_start = total - 6;
         let grid_vertex_count = fill_vertex_start;
@@ -487,7 +487,7 @@ impl Renderer {
         let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let mvp = self.grid_mvp(self.scene_mvp(aspect, follow), follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -603,6 +603,25 @@ impl Renderer {
         }
     }
 
+    /// MVP for the fallback ground grid. Without terrain or tiles the grid is
+    /// the only ground reference, so keep it under the rider on route rides:
+    /// translate to the rider's elevation and snap horizontally to the major
+    /// grid pitch so the pattern doesn't swim.
+    fn grid_mvp(&self, mvp: glam::Mat4, follow: Option<RouteFollow>) -> glam::Mat4 {
+        if self.terrain.is_some() || self.tiles.is_some() {
+            return mvp;
+        }
+        const SNAP_M: f64 = 10.0;
+        let snap = |v: f64| (v / SNAP_M).floor() * SNAP_M;
+        let offset = match follow {
+            Some(f) => Vec3::new(snap(f.east) as f32, f.up as f32, snap(f.north) as f32),
+            // No route: the camera still scrolls forward with distance, so the
+            // grid must scroll with it or it falls behind on long rides.
+            None => Vec3::new(0.0, 0.0, snap(self.rider_z as f64) as f32),
+        };
+        mvp * glam::Mat4::from_translation(offset)
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.config.width = width;
@@ -652,7 +671,7 @@ impl Renderer {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let mvp = self.grid_mvp(self.scene_mvp(aspect, follow), follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
