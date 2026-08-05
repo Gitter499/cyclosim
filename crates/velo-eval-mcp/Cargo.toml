@@ -15,4 +15,5 @@ velo-bikegen = { workspace = true }
 velo-core = { workspace = true }
 velo-platform = { workspace = true }
 velo-render = { workspace = true }
+velo-terrain = { workspace = true }
 velo-units = { workspace = true }

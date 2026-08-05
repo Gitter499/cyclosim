@@ -57,6 +57,35 @@ pub fn capture_png(
     encode_png(&frame)
 }
 
+/// Bake a synthetic Tier A terrain pack for the route and load it, so frames
+/// exercise the textured-terrain pass instead of the fallback grid.
+pub fn bake_and_load_terrain(
+    renderer: &mut Renderer,
+    route: &velo_core::RouteModel,
+) -> Result<(), String> {
+    let dir = std::env::temp_dir().join(format!(
+        "velo-eval-terrain-{}-{}",
+        std::process::id(),
+        route.meta.route_id
+    ));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let bake = velo_terrain::bake_terrain_for_route(
+        route,
+        &dir,
+        velo_terrain::DEFAULT_CORRIDOR_M,
+        velo_terrain::DEFAULT_CELL_M,
+    )
+    .map(|_| ())
+    .map_err(|e| e.to_string());
+    let load = bake.and_then(|()| {
+        renderer
+            .load_terrain_pack(&dir)
+            .map_err(|e| e.to_string())
+    });
+    let _ = std::fs::remove_dir_all(&dir);
+    load
+}
+
 /// Load the procedural placeholder bike so frames have a visible rider.
 pub fn load_placeholder_bike(renderer: &mut Renderer) -> Result<(), String> {
     let tmp = std::env::temp_dir();

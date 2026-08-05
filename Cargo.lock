@@ -2929,6 +2929,7 @@ dependencies = [
  "velo-core",
  "velo-platform",
  "velo-render",
+ "velo-terrain",
  "velo-units",
 ]
 

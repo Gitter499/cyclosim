@@ -135,6 +135,10 @@ fn render_frame(args: &Value) -> Result<ToolOutput, String> {
     if args.get("show_bike").and_then(Value::as_bool).unwrap_or(false) {
         frames::load_placeholder_bike(&mut renderer)?;
     }
+    if args.get("with_terrain").and_then(Value::as_bool).unwrap_or(false) {
+        let route = run.app.route.as_ref().ok_or("with_terrain requires a route")?;
+        frames::bake_and_load_terrain(&mut renderer, route)?;
+    }
     let hud = frames::hud_from_app(&run.app, mode_label(&params));
     let follow = frames::follow_from_app(&run.app);
     let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow)?;
@@ -341,6 +345,9 @@ fn replay_camera_preview(args: &Value) -> Result<ToolOutput, String> {
     if args.get("show_bike").and_then(Value::as_bool).unwrap_or(true) {
         frames::load_placeholder_bike(&mut renderer)?;
     }
+    if args.get("with_terrain").and_then(Value::as_bool).unwrap_or(false) {
+        frames::bake_and_load_terrain(&mut renderer, route)?;
+    }
     let hud = frames::hud_from_app(&run.app, mode_label(&params));
     let mut images = Vec::with_capacity(frame_count);
     let mut poses = Vec::with_capacity(frame_count);
@@ -440,7 +447,9 @@ pub fn registry() -> Vec<ToolDef> {
             description: "Run a scenario, then render the actual wgpu scene + HUD overlay at its final state and return a PNG screenshot for visual/multimodal evaluation.",
             input_schema: scenario_schema(json!({
                 "width": {"type": "integer", "description": "default 960"},
-                "height": {"type": "integer", "description": "default 540"}
+                "height": {"type": "integer", "description": "default 540"},
+                "show_bike": {"type": "boolean", "description": "draw the placeholder bike (default false)"},
+                "with_terrain": {"type": "boolean", "description": "bake + render synthetic Tier A terrain for the route (default false)"}
             })),
             run: render_frame,
         },
@@ -474,6 +483,7 @@ pub fn registry() -> Vec<ToolDef> {
             input_schema: scenario_schema(json!({
                 "clip_label": {"type": "string", "description": "Start | Power surge | Mid-ride | Finish (default: first planned clip)"},
                 "show_bike": {"type": "boolean", "description": "draw the placeholder bike as the subject (default true)"},
+                "with_terrain": {"type": "boolean", "description": "bake + render synthetic Tier A terrain (default false)"},
                 "frames": {"type": "integer", "description": "frames across the clip, 1-12 (default 4)"},
                 "width": {"type": "integer"},
                 "height": {"type": "integer"}
