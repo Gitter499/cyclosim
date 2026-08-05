@@ -149,6 +149,32 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     all_positions.push([-0.50, wheel_y, 0.0]);
     all_positions.push([0.50, wheel_y, 0.0]);
 
+    // The frame and wheels are planar (z = 0), which makes the bike invisible
+    // dead-astern — exactly the chase camera's view. Handlebar and saddle are
+    // horizontal quads spanning z, so the silhouette reads from behind too.
+    let handlebar_y = wheel_y + 0.48;
+    let saddle_y = wheel_y + 0.44;
+    for quad in [
+        // Handlebar: narrow bar across the travel axis at the front.
+        [
+            [0.33, handlebar_y, -0.22],
+            [0.37, handlebar_y, -0.22],
+            [0.37, handlebar_y, 0.22],
+            [0.33, handlebar_y, 0.22],
+        ],
+        // Saddle: short and wider than the frame plane, at the rear.
+        [
+            [-0.17, saddle_y, -0.08],
+            [-0.05, saddle_y, -0.08],
+            [-0.05, saddle_y, 0.08],
+            [-0.17, saddle_y, 0.08],
+        ],
+    ] {
+        let base = all_positions.len() as u16;
+        all_positions.extend_from_slice(&quad);
+        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+
     let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; all_positions.len()];
     build_colored_glb(&all_positions, &uvs, &indices, frame_color)
 }
