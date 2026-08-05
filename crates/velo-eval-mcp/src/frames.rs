@@ -57,6 +57,39 @@ pub fn capture_png(
     encode_png(&frame)
 }
 
+/// Load the procedural placeholder bike so frames have a visible rider.
+pub fn load_placeholder_bike(renderer: &mut Renderer) -> Result<(), String> {
+    let tmp = std::env::temp_dir();
+    let pid = std::process::id();
+
+    // The generator tints from source images; synthesize a small red one.
+    let tint_path = tmp.join(format!("velo-eval-bike-tint-{pid}.png"));
+    let tint = FramebufferRgba {
+        width: 2,
+        height: 2,
+        pixels: vec![
+            200, 40, 30, 255, 200, 40, 30, 255, //
+            200, 40, 30, 255, 200, 40, 30, 255,
+        ],
+    };
+    std::fs::write(&tint_path, encode_png(&tint)?).map_err(|e| e.to_string())?;
+
+    let glb = velo_bikegen::placeholder::generate_placeholder_glb(&[&tint_path])
+        .map_err(|e| e.to_string());
+    let _ = std::fs::remove_file(&tint_path);
+
+    let glb_path = tmp.join(format!("velo-eval-bike-{pid}.glb"));
+    std::fs::write(&glb_path, glb?).map_err(|e| e.to_string())?;
+    let result = renderer
+        .load_bike_gltf(
+            &glb_path,
+            velo_bikegen::placeholder::default_placeholder_anchor(),
+        )
+        .map_err(|e| e.to_string());
+    let _ = std::fs::remove_file(&glb_path);
+    result
+}
+
 /// Encode an RGBA framebuffer as PNG.
 pub fn encode_png(frame: &FramebufferRgba) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();

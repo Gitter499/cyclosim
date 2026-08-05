@@ -109,7 +109,7 @@ fn feature_inventory(_args: &Value) -> Result<ToolOutput, String> {
         "eval_tools": [
             "feature_inventory", "sim_scenario", "render_frame",
             "render_ride_sequence", "hud_probe", "workout_preview",
-            "fit_export_check"
+            "fit_export_check", "replay_camera_preview"
         ]
     });
     Ok(ToolOutput::text(&value))
@@ -132,6 +132,9 @@ fn render_frame(args: &Value) -> Result<ToolOutput, String> {
 
     let run = scenario::run_scenario(&params)?;
     let mut renderer = frames::headless_renderer(width, height)?;
+    if args.get("show_bike").and_then(Value::as_bool).unwrap_or(false) {
+        frames::load_placeholder_bike(&mut renderer)?;
+    }
     let hud = frames::hud_from_app(&run.app, mode_label(&params));
     let follow = frames::follow_from_app(&run.app);
     let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow)?;
@@ -297,6 +300,113 @@ fn fit_export_check(args: &Value) -> Result<ToolOutput, String> {
     })))
 }
 
+fn replay_camera_preview(args: &Value) -> Result<ToolOutput, String> {
+    let mut params = parse_scenario(args)?;
+    params.record = true;
+    if matches!(params.route, crate::scenario::RouteKind::None) {
+        params.route = crate::scenario::RouteKind::Rolling;
+    }
+    let width = dim(args, "width", 800);
+    let height = dim(args, "height", 450);
+    let frame_count = dim(args, "frames", 4).clamp(1, 12) as usize;
+
+    let run = scenario::run_scenario(&params)?;
+    let samples = run.app.ride_session.samples();
+    if samples.is_empty() {
+        return Err("scenario recorded no samples".into());
+    }
+    let route = run.app.route.as_ref().ok_or("no route loaded")?;
+
+    let clips = velo_core::plan_highlight_clips(samples, run.app.ride.elapsed_s);
+    if clips.is_empty() {
+        return Err("no highlight clips planned (ride too short?)".into());
+    }
+    let clip = match args.get("clip_label").and_then(Value::as_str) {
+        Some(label) => clips
+            .iter()
+            .find(|c| c.label == label)
+            .ok_or_else(|| {
+                let known: Vec<_> = clips.iter().map(|c| c.label.as_str()).collect();
+                format!("no clip labeled {label:?}; available: {known:?}")
+            })?
+            .clone(),
+        None => clips[0].clone(),
+    };
+
+    let track = velo_core::build_rider_track(route, samples);
+    let camera = velo_core::ReplayCamera::for_clip(track, &clip)
+        .ok_or("could not build replay camera")?;
+
+    let mut renderer = frames::headless_renderer(width, height)?;
+    if args.get("show_bike").and_then(Value::as_bool).unwrap_or(true) {
+        frames::load_placeholder_bike(&mut renderer)?;
+    }
+    let hud = frames::hud_from_app(&run.app, mode_label(&params));
+    let mut images = Vec::with_capacity(frame_count);
+    let mut poses = Vec::with_capacity(frame_count);
+    for i in 0..frame_count {
+        let clip_t = if frame_count == 1 {
+            0.0
+        } else {
+            clip.duration_s * i as f64 / (frame_count - 1) as f64
+        };
+        let pose = camera.pose_at(clip_t);
+        // The grid still needs the rider position to anchor itself.
+        let ride_t = clip.start_elapsed_s + clip_t;
+        let rider = camera.rider_at(ride_t);
+        let (e2, _, n2) = route.position_enu_at(distance_at(samples, ride_t) + 5.0);
+        let follow = velo_render::RouteFollow {
+            east: rider.x,
+            up: rider.y,
+            north: rider.z,
+            forward: velo_render::forward_from_enu(rider.x, rider.y, rider.z, e2, n2),
+        };
+        renderer.set_replay_camera(Some(pose));
+        let png = frames::capture_png(&mut renderer, &hud, 0.0, Some(follow))?;
+        poses.push(json!({
+            "clip_t": clip_t,
+            "eye": [pose.eye_east, pose.eye_up, pose.eye_north],
+            "look": [pose.look_east, pose.look_up, pose.look_north],
+        }));
+        images.push(ToolImage {
+            name: format!("clip-{}-{:02}", clip.label.to_lowercase().replace(' ', "-"), i + 1),
+            png,
+        });
+    }
+
+    Ok(ToolOutput {
+        text: serde_json::to_string_pretty(&json!({
+            "clip": { "label": clip.label, "start_s": clip.start_elapsed_s, "duration_s": clip.duration_s },
+            "style": format!("{:?}", camera.style()),
+            "available_clips": clips.iter().map(|c| c.label.clone()).collect::<Vec<_>>(),
+            "poses": poses,
+        }))
+        .unwrap_or_default(),
+        images,
+    })
+}
+
+/// Rider distance along the route at ride time `t` (linear over samples).
+fn distance_at(samples: &[velo_core::RideSample], t: f64) -> f64 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    if t <= samples[0].elapsed_s {
+        return samples[0].distance_m;
+    }
+    let last = samples.last().expect("non-empty");
+    if t >= last.elapsed_s {
+        return last.distance_m;
+    }
+    let idx = samples
+        .partition_point(|s| s.elapsed_s <= t)
+        .saturating_sub(1);
+    let a = &samples[idx];
+    let b = &samples[(idx + 1).min(samples.len() - 1)];
+    let span = (b.elapsed_s - a.elapsed_s).max(1e-9);
+    a.distance_m + (b.distance_m - a.distance_m) * ((t - a.elapsed_s) / span)
+}
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -357,6 +467,18 @@ pub fn registry() -> Vec<ToolDef> {
                 "width": {"type": "integer"}, "height": {"type": "integer"}
             }}),
             run: hud_probe,
+        },
+        ToolDef {
+            name: "replay_camera_preview",
+            description: "Run a recorded scenario, plan highlight clips, and render frames along the cinematic replay camera path (drone rise / orbit / flyby / chase pull) for a chosen clip. Visual evaluation of the M5 replay camera.",
+            input_schema: scenario_schema(json!({
+                "clip_label": {"type": "string", "description": "Start | Power surge | Mid-ride | Finish (default: first planned clip)"},
+                "show_bike": {"type": "boolean", "description": "draw the placeholder bike as the subject (default true)"},
+                "frames": {"type": "integer", "description": "frames across the clip, 1-12 (default 4)"},
+                "width": {"type": "integer"},
+                "height": {"type": "integer"}
+            })),
+            run: replay_camera_preview,
         },
         ToolDef {
             name: "workout_preview",

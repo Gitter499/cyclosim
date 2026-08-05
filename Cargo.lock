@@ -2925,6 +2925,7 @@ dependencies = [
  "png 0.17.16",
  "serde",
  "serde_json",
+ "velo-bikegen",
  "velo-core",
  "velo-platform",
  "velo-render",

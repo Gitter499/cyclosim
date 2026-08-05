@@ -74,6 +74,7 @@ pub struct Renderer {
     tiles_attribution: String,
     rider_z: f32,
     bike: Option<BikeScene>,
+    replay_pose: Option<velo_core::CameraPose>,
 }
 
 impl Renderer {
@@ -352,6 +353,7 @@ impl Renderer {
             tiles_attribution: String::new(),
             rider_z: 0.0,
             bike: None,
+            replay_pose: None,
         })
     }
 
@@ -487,7 +489,8 @@ impl Renderer {
         let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.grid_mvp(self.scene_mvp(aspect, follow), follow);
+        let view_proj = self.scene_mvp(aspect, follow);
+        let mvp = self.grid_mvp(view_proj, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -555,14 +558,7 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, view_proj, rider, forward);
             }
         }
 
@@ -594,7 +590,21 @@ impl Renderer {
         Ok(())
     }
 
+    /// Override the live chase camera with a cinematic replay pose
+    /// (highlight clips). `None` restores the chase camera.
+    pub fn set_replay_camera(&mut self, pose: Option<velo_core::CameraPose>) {
+        self.replay_pose = pose;
+    }
+
     fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>) -> glam::Mat4 {
+        if let Some(p) = &self.replay_pose {
+            let eye = Vec3::new(p.eye_east as f32, p.eye_up as f32, p.eye_north as f32);
+            let look = Vec3::new(p.look_east as f32, p.look_up as f32, p.look_north as f32);
+            let view = glam::Mat4::look_at_rh(eye, look, Vec3::Y);
+            let proj =
+                glam::Mat4::perspective_rh(60.0_f32.to_radians(), aspect, 0.1, 2000.0);
+            return proj * view;
+        }
         if let Some(f) = follow {
             let rider = Vec3::new(f.east as f32, f.up as f32 + 1.5, f.north as f32);
             self.camera.view_proj_at(aspect, rider, f.forward)
@@ -671,7 +681,8 @@ impl Renderer {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.grid_mvp(self.scene_mvp(aspect, follow), follow);
+        let view_proj = self.scene_mvp(aspect, follow);
+        let mvp = self.grid_mvp(view_proj, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -739,14 +750,7 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, view_proj, rider, forward);
             }
         }
 

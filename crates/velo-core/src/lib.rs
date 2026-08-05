@@ -2,6 +2,7 @@ pub mod app;
 pub mod highlight;
 pub mod packs;
 pub mod physics;
+pub mod replay_camera;
 pub mod ride;
 pub mod ride_session;
 pub mod route;
@@ -16,6 +17,10 @@ pub use packs::{
 pub use physics::{integrate_step, PhysicsConfig, RideSnapshot};
 pub use ride::{RideMode, RideState};
 pub use highlight::{plan_highlight_clips, HighlightClipRequest};
+pub use replay_camera::{
+    build_rider_track, style_for_label, CameraPose, ReplayCamera, ReplayCameraStyle,
+    RiderTrackPoint,
+};
 pub use ride_session::{RideSample, RideSession, RideSummary};
 pub use route::{haversine_m, lat_lon_to_local, RouteError, RouteMeta, RouteModel, RouteOrigin, RoutePoint};
 pub use workout::{

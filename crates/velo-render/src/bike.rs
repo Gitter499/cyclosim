@@ -9,7 +9,6 @@ use velo_bikegen::AnchorTransform;
 use velo_cesium::decode_gltf_bytes;
 use wgpu::util::DeviceExt;
 
-use crate::scene::ChaseCamera;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -134,7 +133,10 @@ impl BikeScene {
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: Some(wgpu::Face::Back),
+                // Bike meshes (image-to-3D imports, placeholder) have thin
+                // single-sided parts — wheels, tubes; culling makes them
+                // vanish from one side.
+                cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -166,12 +168,10 @@ impl BikeScene {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         queue: &wgpu::Queue,
-        aspect: f32,
-        camera: &ChaseCamera,
+        view_proj: Mat4,
         rider: Vec3,
         forward: Vec3,
     ) {
-        let view_proj = camera.view_proj_at(aspect, rider + Vec3::Y * 1.5, forward);
         let model = bike_model_matrix(rider, forward, self.anchor);
         let mvp = view_proj * model;
         let uniforms = BikeUniforms {
