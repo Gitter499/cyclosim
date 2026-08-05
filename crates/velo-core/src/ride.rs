@@ -16,4 +16,6 @@ pub struct RideState {
     pub power_w: Option<f64>,
     pub cadence_rpm: Option<f64>,
     pub heart_rate_bpm: Option<f64>,
+    /// Steering offset perpendicular to the route line, meters (+ = right).
+    pub lateral_offset_m: f64,
 }

@@ -1,4 +1,5 @@
 pub mod app;
+pub mod audio;
 pub mod highlight;
 pub mod packs;
 pub mod physics;
@@ -10,6 +11,7 @@ pub mod workout;
 pub mod zwo;
 
 pub use app::VeloApp;
+pub use audio::{energy_for_interval, AudioEvent};
 pub use packs::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
     save_scenery_config, SceneryConfig, SCENERY_FILE,

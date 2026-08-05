@@ -164,6 +164,29 @@ pub struct FramebufferDto {
     pub rgba_pixels: Vec<u8>,
 }
 
+/// Workout segment energy for the shell's AudioDirector (M6, §13).
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SegmentEnergyDto {
+    Warmup,
+    Build,
+    Threshold,
+    Recovery,
+    Cooldown,
+}
+
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaybackIntentDto {
+    Start,
+    Transition,
+    Duck,
+}
+
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct AudioEventDto {
+    pub energy: SegmentEnergyDto,
+    pub intent: PlaybackIntentDto,
+}
+
 /// Cinematic replay camera pose in the route's local ENU frame (M5).
 #[derive(uniffi::Record, Clone, Copy, Debug)]
 pub struct CameraPoseDto {
@@ -961,6 +984,41 @@ impl VeloHandle {
         })
     }
 
+    /// Drain queued audio direction events; the shell maps them to MusicKit
+    /// playlist/energy changes (segment-aware playback, M6).
+    pub fn drain_audio_events(&self) -> Vec<AudioEventDto> {
+        let mut inner = self.inner.lock().unwrap();
+        inner
+            .app
+            .drain_audio_events()
+            .into_iter()
+            .map(|e| AudioEventDto {
+                energy: match e.energy {
+                    velo_platform::SegmentEnergy::Warmup => SegmentEnergyDto::Warmup,
+                    velo_platform::SegmentEnergy::Build => SegmentEnergyDto::Build,
+                    velo_platform::SegmentEnergy::Threshold => SegmentEnergyDto::Threshold,
+                    velo_platform::SegmentEnergy::Recovery => SegmentEnergyDto::Recovery,
+                    velo_platform::SegmentEnergy::Cooldown => SegmentEnergyDto::Cooldown,
+                },
+                intent: match e.intent {
+                    velo_platform::PlaybackIntent::Start => PlaybackIntentDto::Start,
+                    velo_platform::PlaybackIntent::Transition => PlaybackIntentDto::Transition,
+                    velo_platform::PlaybackIntent::Duck => PlaybackIntentDto::Duck,
+                },
+            })
+            .collect()
+    }
+
+    /// Update the steering axis (AirPods yaw / keyboard / gamepad), M6.
+    pub fn set_steering(&self, axis: f64, recenter: bool) {
+        self.inner.lock().unwrap().app.set_steering(axis, recenter);
+    }
+
+    /// Current lateral steering offset from the route line, meters.
+    pub fn steering_offset_m(&self) -> f64 {
+        self.inner.lock().unwrap().app.ride.lateral_offset_m
+    }
+
     /// Sample the cinematic replay camera for a highlight clip at `fps`.
     ///
     /// Requires a loaded route and a recorded ride (samples are retained
@@ -1109,7 +1167,7 @@ impl VeloHandle {
 fn route_follow(app: &VeloApp) -> Option<RouteFollow> {
     let route = app.route.as_ref()?;
     let d = app.ride.distance_m;
-    let (east, up, north) = route.position_enu_at(d);
+    let (east, up, north) = app.steered_position_enu()?;
     let ahead = 15.0_f64;
     let d2 = (d + ahead).min(route.total_distance_m());
     let (e2, _, n2) = route.position_enu_at(d2);
