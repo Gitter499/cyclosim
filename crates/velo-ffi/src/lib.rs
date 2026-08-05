@@ -512,6 +512,12 @@ impl VeloHandle {
     }
 }
 
+impl Default for VeloHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[uniffi::export]
 impl VeloHandle {
     #[uniffi::constructor]
