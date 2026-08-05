@@ -6,15 +6,11 @@
 //!   prints the text result and writes any PNG frames to files.
 //! - `list-tools`: print the tool registry.
 
-mod frames;
-mod mcp;
-mod scenario;
-mod tools;
-
 use std::io::{stdin, stdout};
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use velo_eval_mcp::{mcp, tools};
 
 #[derive(Parser)]
 #[command(name = "velo-eval-mcp", about = "VeloSim evaluation MCP server")]
