@@ -88,6 +88,9 @@ pub struct ScenarioParams {
     /// Timeline sampling period in seconds.
     #[serde(default = "default_sample_every")]
     pub sample_every_s: f64,
+    /// Steering axis held for the whole scenario, [-1, 1] (M6).
+    #[serde(default)]
+    pub steer_axis: f64,
 }
 
 fn default_mode() -> ModeParam {
@@ -124,6 +127,7 @@ pub struct ScenarioSummary {
     pub trainer_last_erg_w: Option<f64>,
     pub trainer_last_sim_grade: Option<f64>,
     pub recorded_samples: Option<u32>,
+    pub lateral_offset_m: f64,
 }
 
 /// A completed scenario: the app (for rendering/FIT export) plus telemetry.
@@ -218,6 +222,10 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
         app.start_ride();
     }
 
+    if params.steer_axis != 0.0 {
+        app.set_steering(params.steer_axis, false);
+    }
+
     let has_workout = app.workout_active();
     let fixed_rider_power = params.rider_power_w.unwrap_or(match params.mode {
         ModeParam::Erg => params.target_power_w,
@@ -281,6 +289,7 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
         trainer_last_erg_w: trainer.last_power().map(|w| w.0),
         trainer_last_sim_grade: trainer.last_sim().map(|(g, _, _)| g.0),
         recorded_samples: recorded,
+        lateral_offset_m: app.ride.lateral_offset_m,
     };
 
     Ok(ScenarioRun {

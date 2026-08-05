@@ -34,7 +34,7 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
 pub fn follow_from_app(app: &VeloApp) -> Option<RouteFollow> {
     let route = app.route.as_ref()?;
     let d = app.ride.distance_m;
-    let (east, up, north) = route.position_enu_at(d);
+    let (east, up, north) = app.steered_position_enu()?;
     let (east_ahead, _, north_ahead) = route.position_enu_at(d + 5.0);
     Some(RouteFollow {
         east,

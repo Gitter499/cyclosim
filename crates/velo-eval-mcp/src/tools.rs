@@ -48,7 +48,8 @@ fn scenario_properties() -> Value {
         "workout": {"type": "object", "description": "velo-core Workout JSON: {name, intervals: [{name, duration_s, target: {ErgWatts: w}|{FtpPercent: p}|\"FreeRide\"}]}"},
         "zwo_xml": {"type": "string", "description": "Zwift .zwo workout XML (overrides workout)"},
         "record": {"type": "boolean", "description": "Record ride session (enables FIT export)"},
-        "sample_every_s": {"type": "number", "description": "Timeline sample period (default 1s)"}
+        "sample_every_s": {"type": "number", "description": "Timeline sample period (default 1s)"},
+        "steer_axis": {"type": "number", "description": "Steering axis held all ride, -1..1 (M6 lateral offset)"}
     })
 }
 
