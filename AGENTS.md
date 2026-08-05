@@ -14,7 +14,8 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M3** — Real route + terrain | ✅ | [#6](https://github.com/Gitter499/cyclosim/issues/6) |
 | **M3b** — Google 3D Tiles (spike) | ✅ | [#7](https://github.com/Gitter499/cyclosim/issues/7) |
 | **M3c** — Bike model import | ✅ | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
-| **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import |
+| **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import, cinematic replay camera |
+| **M6** — Audio + steering (core) | 🚧 | core audio events + steering shipped; Swift MusicKit/AirPods wiring pending |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criteria and architecture.
 
@@ -32,6 +33,7 @@ See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for acceptance criter
 | [`velo-terrain`](crates/velo-terrain/) | DEM → terrain mesh + texture bake |
 | [`velo-cesium`](crates/velo-cesium/) | 3D Tiles streaming + glTF decode (M3b) |
 | [`velo-bikegen`](crates/velo-bikegen/) | Bike image-to-3D asset pipeline (M3c) |
+| [`velo-eval-mcp`](crates/velo-eval-mcp/) | MCP server: headless sim + render evaluation tools |
 | [`velo-ffi`](crates/velo-ffi/) | UniFFI surface for Swift |
 | [`shell-macos`](shell-macos/) | macOS app (BLE, Strava, UI) |
 
