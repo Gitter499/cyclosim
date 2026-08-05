@@ -1,6 +1,6 @@
 //! Segment-aware audio direction (M6).
 //!
-//! The core cannot mix audio (MusicKit is playback-control only, §13), so it
+//! The core cannot mix audio (the platform music API is playback-control only, §13), so it
 //! emits *events* at workout boundaries; the shell maps them to playlist and
 //! transport changes. Events are queued in [`crate::VeloApp`] and drained by
 //! the shell each tick (same polling model as telemetry over FFI).
