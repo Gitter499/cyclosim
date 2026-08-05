@@ -65,7 +65,7 @@ fn main() -> std::process::ExitCode {
     }
 }
 
-fn run_call(tool: &str, args: &str, save_dir: &PathBuf) -> std::process::ExitCode {
+fn run_call(tool: &str, args: &str, save_dir: &std::path::Path) -> std::process::ExitCode {
     let args: serde_json::Value = match serde_json::from_str(args) {
         Ok(v) => v,
         Err(e) => {

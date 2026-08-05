@@ -10,19 +10,13 @@ use crate::route::{RouteError, RouteModel};
 pub const SCENERY_FILE: &str = "scenery.json";
 
 /// Per-route scenery options (Tier B 3D Tiles toggle).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct SceneryConfig {
     #[serde(default)]
     pub tiles_3d_enabled: bool,
 }
 
-impl Default for SceneryConfig {
-    fn default() -> Self {
-        Self {
-            tiles_3d_enabled: false,
-        }
-    }
-}
+
 
 pub fn load_scenery_config(pack_dir: &Path) -> SceneryConfig {
     let path = pack_dir.join(SCENERY_FILE);
