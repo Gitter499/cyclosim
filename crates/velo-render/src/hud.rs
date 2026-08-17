@@ -11,7 +11,7 @@
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
-    TextArea, TextBounds, TextRenderer, TextAtlas, Viewport,
+    TextArea, TextBounds, TextRenderer, TextAtlas, Viewport, Weight,
 };
 use wgpu::{MultisampleState, Queue, TextureFormat};
 
@@ -150,28 +150,52 @@ fn zone_color(power_w: f64, ftp_w: f64) -> [f32; 3] {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct UiVertex {
     pos: [f32; 2],
+    /// Pixel offset of this corner from the rect center.
+    local: [f32; 2],
+    /// Rect half-extents in pixels.
+    half: [f32; 2],
     color: [f32; 4],
+    /// Corner radius in pixels.
+    radius: f32,
 }
 
 const MAX_QUADS: usize = 64;
 
+/// Antialiased rounded-rectangle panels via a signed-distance field, so HUD
+/// surfaces read as cards and pills instead of hard-edged slabs.
 const QUAD_SHADER: &str = r#"
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
-    @location(0) color: vec4<f32>,
+    @location(0) local: vec2<f32>,
+    @location(1) half_ext: vec2<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) radius: f32,
 };
 
 @vertex
-fn vs_main(@location(0) pos: vec2<f32>, @location(1) color: vec4<f32>) -> VsOut {
+fn vs_main(
+    @location(0) pos: vec2<f32>,
+    @location(1) local: vec2<f32>,
+    @location(2) half_ext: vec2<f32>,
+    @location(3) color: vec4<f32>,
+    @location(4) radius: f32,
+) -> VsOut {
     var out: VsOut;
     out.pos = vec4<f32>(pos, 0.0, 1.0);
+    out.local = local;
+    out.half_ext = half_ext;
     out.color = color;
+    out.radius = radius;
     return out;
 }
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
-    return in.color;
+    let r = min(in.radius, min(in.half_ext.x, in.half_ext.y));
+    let q = abs(in.local) - (in.half_ext - vec2<f32>(r, r));
+    let d = length(max(q, vec2<f32>(0.0, 0.0))) + min(max(q.x, q.y), 0.0) - r;
+    let aa = 1.0 - smoothstep(-0.75, 0.75, d);
+    return vec4<f32>(in.color.rgb, in.color.a * aa);
 }
 "#;
 
@@ -209,7 +233,12 @@ pub struct HudRenderer {
 
 impl HudRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: TextureFormat) -> Self {
-        let font_system = FontSystem::new();
+        // Embed Inter (SIL OFL, fonts/LICENSE-Inter.txt) so both the shipped
+        // app and headless eval renders use the same typeface everywhere.
+        let mut font_system = FontSystem::new();
+        font_system
+            .db_mut()
+            .load_font_data(include_bytes!("fonts/InterVariable.ttf").to_vec());
         let swash_cache = SwashCache::new();
         let cache = Cache::new(device);
         let viewport = Viewport::new(device, &cache);
@@ -235,7 +264,10 @@ impl HudRenderer {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<UiVertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4],
+                    attributes: &wgpu::vertex_attr_array![
+                        0 => Float32x2, 1 => Float32x2, 2 => Float32x2,
+                        3 => Float32x4, 4 => Float32
+                    ],
                 }],
                 compilation_options: Default::default(),
             },
@@ -290,14 +322,26 @@ impl HudRenderer {
 
     /// Shape a run, returning (index, width) so callers can align it.
     fn shape(&mut self, role: Role, text: &str, color: Color, width: f32, height: f32) -> (usize, f32) {
+        // Per-role Inter weights: real type hierarchy instead of one mono face.
+        // Numerals stay jitter-free because every live run is right-aligned
+        // against a fixed edge (hud-design skill §3).
+        let attrs = match role {
+            Role::Hero => Attrs::new()
+                .family(Family::Name("Inter Variable"))
+                .weight(Weight::BOLD),
+            Role::Metric => Attrs::new()
+                .family(Family::Name("Inter Variable"))
+                .weight(Weight::SEMIBOLD),
+            Role::Label => Attrs::new()
+                .family(Family::Name("Inter Variable"))
+                .weight(Weight::BOLD),
+            Role::Small => Attrs::new()
+                .family(Family::Name("Inter Variable"))
+                .weight(Weight::MEDIUM),
+        };
         let mut buffer = Buffer::new(&mut self.font_system, Self::metrics_for(&role));
         buffer.set_size(&mut self.font_system, Some(width), Some(height));
-        buffer.set_text(
-            &mut self.font_system,
-            text,
-            Attrs::new().family(Family::Monospace),
-            Shaping::Advanced,
-        );
+        buffer.set_text(&mut self.font_system, text, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);
         let w = buffer
             .layout_runs()
@@ -317,15 +361,33 @@ impl HudRenderer {
         self.runs[idx].top = top;
     }
 
-    fn quad(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, color: [f32; 4], w: f32, h: f32) {
+    /// Rounded-rect panel; `radius` in px (half the height makes a pill).
+    #[allow(clippy::too_many_arguments)]
+    fn quad(
+        &mut self,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        radius: f32,
+        color: [f32; 4],
+        w: f32,
+        h: f32,
+    ) {
         if self.quads.len() / 6 >= MAX_QUADS {
             return;
         }
+        let cx = (x0 + x1) / 2.0;
+        let cy = (y0 + y1) / 2.0;
+        let half = [(x1 - x0).abs() / 2.0, (y1 - y0).abs() / 2.0];
         let nx = |px: f32| px / w * 2.0 - 1.0;
         let ny = |py: f32| 1.0 - py / h * 2.0;
         let v = |x: f32, y: f32| UiVertex {
             pos: [nx(x), ny(y)],
+            local: [x - cx, y - cy],
+            half,
             color,
+            radius,
         };
         self.quads.extend_from_slice(&[
             v(x0, y0),
@@ -393,10 +455,11 @@ impl HudRenderer {
         let strip_x = (w - strip_w) / 2.0;
         let strip_y = MARGIN_PX;
         self.quad(
-            strip_x - PAD_PX,
+            strip_x - PAD_PX - 6.0,
             strip_y - 6.0,
-            strip_x + strip_w + PAD_PX,
+            strip_x + strip_w + PAD_PX + 6.0,
             strip_y + METRIC_SIZE * 1.25 + 6.0,
+            (METRIC_SIZE * 1.25 + 12.0) / 2.0,
             PANEL_RGBA,
             w,
             h,
@@ -404,10 +467,18 @@ impl HudRenderer {
         self.place(strip_idx, strip_x, strip_y);
 
         // ---- Primary block (bottom-left): hero power + CAD/HR row ----
-        let block_w = 236.0;
+        // Inner grid: everything (label, band, CAD/HR) shares the PAD_PX
+        // inset; the zone band gets real breathing room around the numeral so
+        // digits never touch its edges.
+        let block_w = 248.0;
         let hero_h = HERO_SIZE * 1.02;
+        let band_pad_y = 9.0;
+        let band_h = hero_h + band_pad_y * 2.0;
+        let label_gap = 6.0;
+        let row_gap = 10.0;
         let row_h = METRIC_SIZE * 1.25 + LABEL_SIZE * 1.3;
-        let block_h = LABEL_SIZE * 1.3 + hero_h + 8.0 + row_h + PAD_PX * 2.0;
+        let block_h =
+            PAD_PX + LABEL_SIZE * 1.3 + label_gap + band_h + row_gap + row_h + PAD_PX;
         let block_x = MARGIN_PX;
         let block_y = h - MARGIN_PX - block_h;
         self.quad(
@@ -415,43 +486,48 @@ impl HudRenderer {
             block_y,
             block_x + block_w,
             block_y + block_h,
+            16.0,
             PANEL_RGBA,
             w,
             h,
         );
 
-        // Zone-tinted surface behind the hero numeral.
+        let (pl_idx, _) = self.shape(Role::Label, "POWER · 3s", TEXT_SECONDARY, w, h);
+        self.place(pl_idx, block_x + PAD_PX, block_y + PAD_PX);
+
+        // Zone-tinted surface behind the hero numeral, on the inner grid.
         let ftp = hud.ftp_w.unwrap_or(0.0);
         let zone = display_power
             .map(|p| zone_color(p, ftp.max(1.0)))
             .unwrap_or([0.35, 0.38, 0.42]);
-        let hero_top = block_y + PAD_PX + LABEL_SIZE * 1.3;
+        let band_top = block_y + PAD_PX + LABEL_SIZE * 1.3 + label_gap;
         self.quad(
-            block_x + PAD_PX / 2.0,
-            hero_top - 2.0,
-            block_x + block_w - PAD_PX / 2.0,
-            hero_top + hero_h + 2.0,
+            block_x + PAD_PX,
+            band_top,
+            block_x + block_w - PAD_PX,
+            band_top + band_h,
+            10.0,
             [zone[0], zone[1], zone[2], 0.42],
             w,
             h,
         );
 
-        let (pl_idx, _) = self.shape(Role::Label, "POWER  ·  3s", TEXT_SECONDARY, w, h);
-        self.place(pl_idx, block_x + PAD_PX, block_y + PAD_PX);
-
-        // Fixed-slot right-aligned hero numeral: no jitter between frames.
+        // Fixed-slot right-aligned hero numeral + unit, both fully inside the
+        // band with an inner margin (the unit must never straddle the edge).
+        let hero_top = band_top + band_pad_y;
         let hero_text = match display_power {
             Some(p) => format!("{:>4.0}", p),
             None => "   —".into(),
         };
+        let (unit_idx, unit_w) = self.shape(Role::Metric, "W", TEXT_SECONDARY, w, h);
+        let unit_x = block_x + block_w - PAD_PX - 12.0 - unit_w;
         let (hero_idx, hero_w) = self.shape(Role::Hero, &hero_text, TEXT_PRIMARY, w, h);
-        let unit_x = block_x + block_w - PAD_PX - 26.0;
-        self.place(hero_idx, unit_x - 6.0 - hero_w, hero_top);
-        let (unit_idx, _) = self.shape(Role::Metric, "W", TEXT_SECONDARY, w, h);
-        self.place(unit_idx, unit_x, hero_top + hero_h - METRIC_SIZE * 1.6);
+        self.place(hero_idx, unit_x - 8.0 - hero_w, hero_top);
+        // Baseline-align the unit with the numeral (both bottom-anchored).
+        self.place(unit_idx, unit_x, hero_top + hero_h - METRIC_SIZE * 1.25);
 
         // Secondary row: CAD · HR (labels above values, one row).
-        let row_top = hero_top + hero_h + 8.0;
+        let row_top = band_top + band_h + row_gap;
         let half = (block_w - PAD_PX * 2.0) / 2.0;
         let cad = hud
             .cadence_rpm
@@ -475,7 +551,7 @@ impl HudRenderer {
             let bar_h = 58.0;
             let bar_x = (w - bar_w) / 2.0;
             let bar_y = h - MARGIN_PX - bar_h;
-            self.quad(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, PANEL_RGBA, w, h);
+            self.quad(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, 14.0, PANEL_RGBA, w, h);
 
             let target = match hud.workout_target_w {
                 Some(t) => format!("{:>4.0} W", t),
@@ -498,7 +574,7 @@ impl HudRenderer {
             // Progress gauge: track + zone-of-target fill (quads, not ASCII).
             let g_y0 = bar_y + bar_h - 18.0;
             let g_y1 = bar_y + bar_h - 10.0;
-            self.quad(bar_x + PAD_PX, g_y0, bar_x + bar_w - PAD_PX, g_y1, TRACK_RGBA, w, h);
+            self.quad(bar_x + PAD_PX, g_y0, bar_x + bar_w - PAD_PX, g_y1, 4.0, TRACK_RGBA, w, h);
             if let Some(frac) = hud.interval_fraction() {
                 let fill_zone = hud
                     .workout_target_w
@@ -510,6 +586,7 @@ impl HudRenderer {
                     g_y0,
                     g_x1,
                     g_y1,
+                    4.0,
                     [fill_zone[0], fill_zone[1], fill_zone[2], 0.9],
                     w,
                     h,

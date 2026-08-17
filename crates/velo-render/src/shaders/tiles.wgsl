@@ -1,4 +1,4 @@
-struct<SceneUniforms> {
+struct SceneUniforms {
     mvp: mat4x4<f32>,
 }
 
@@ -12,6 +12,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
+    @location(1) view_depth: f32,
 }
 
 @vertex
@@ -19,6 +20,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.clip_position = scene.mvp * vec4<f32>(input.position, 1.0);
     out.uv = input.uv;
+    out.view_depth = out.clip_position.w;
     return out;
 }
 
@@ -28,5 +30,8 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let base = textureSample(tile_tex, tile_sampler, input.uv);
-    return vec4<f32>(base.rgb, 1.0);
+    // Same haze as sky.wgsl/terrain.wgsl so distance dissolves seamlessly.
+    let fog = clamp(1.0 - exp(-input.view_depth / 900.0), 0.0, 0.88);
+    let haze = vec3<f32>(0.82, 0.87, 0.93);
+    return vec4<f32>(mix(base.rgb, haze, fog), 1.0);
 }
