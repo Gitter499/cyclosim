@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import VeloFFI
 import VeloSimSupport
 
 /// Headless screenshot mode for the agent eval loop: `VeloSim --screenshots
