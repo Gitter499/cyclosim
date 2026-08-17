@@ -57,6 +57,14 @@ jobs:
       - name: Swift tests
         run: cd shell-macos && swift test
 
+      - name: SwiftUI screenshots (agent eval loop)
+        run: |
+          cd shell-macos
+          swift run VeloSim --screenshots /tmp/velo-shots
+          for f in /tmp/velo-shots/*.png; do
+            echo "VELOSHOT:$(basename "$f"):$(base64 -i "$f" | tr -d '\n')"
+          done
+
       - name: Shell UI lint (Liquid Glass conventions)
         run: ./scripts/lint-shell-ui.sh
 
