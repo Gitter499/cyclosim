@@ -1,0 +1,21 @@
+[package]
+name = "velo-eval-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP server exposing headless sim + render evaluation tools for VeloSim"
+
+[dependencies]
+clap = { workspace = true }
+fitparser = "0.8"
+png = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+velo-bikegen = { workspace = true }
+velo-core = { workspace = true }
+velo-platform = { workspace = true }
+velo-render = { workspace = true }
+velo-rides = { workspace = true }
+velo-route-import = { workspace = true }
+velo-terrain = { workspace = true }
+velo-units = { workspace = true }

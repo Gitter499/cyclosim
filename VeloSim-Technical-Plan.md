@@ -626,12 +626,17 @@ summary with an auto-generated highlight clip.
 **Shipped:** `WorkoutEngine` + sample template, ERG auto-target, FFI `workout_live` /
 `start_sample_workout` / `start_workout(WorkoutDto)` / `parse_zwo_xml`, in-app workout builder with
 `.zwo` import, Liquid Glass setup chrome and ride summary sheet, `plan_highlight_clips` + schema v2
-`highlight_clip_path` + shell encode on finish.
-**Remaining:** cinematic replay camera for clips.
+`highlight_clip_path` + shell encode on finish, **cinematic replay camera**
+(`velo-core::replay_camera`: drone rise / orbit / low flyby / chase pull per clip label; FFI
+`replay_camera_poses` + `set_replay_camera_pose` for shell-side clip encoding).
 
 **M6 — Apple Music + AirPods (lowest priority).** ✅
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
 *Done when:* music shifts energy at interval boundaries and head-turn nudges steering on supported routes.
+**Evaluation tooling (cross-cutting).** `velo-eval-mcp` (MCP stdio server + CLI, `/.mcp.json`)
+drives the sim headlessly and renders real scene+HUD PNGs via `velo-render`'s offscreen mode so a
+multimodal agent can evaluate UI and features from any host; deterministic scenarios double as
+golden screenshots.
 
 **Shipped:** `SteeringController` in core (deadzone + low-pass + yaw integration); chase camera yaw offset in `velo-render`; UniFFI `SteeringInputCallback` + `AudioDirectorCallback`; keyboard default + `CMHeadphoneMotionManager` shell; MusicKit playlist search by segment energy; Liquid Glass setup toggles.
 

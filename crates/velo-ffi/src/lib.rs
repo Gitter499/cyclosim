@@ -199,6 +199,17 @@ pub struct FramebufferDto {
     pub rgba_pixels: Vec<u8>,
 }
 
+/// Cinematic replay camera pose in the route's local ENU frame (M5).
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct CameraPoseDto {
+    pub eye_east: f64,
+    pub eye_up: f64,
+    pub eye_north: f64,
+    pub look_east: f64,
+    pub look_up: f64,
+    pub look_north: f64,
+}
+
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct PublishResultDto {
     pub activity_url: String,
@@ -573,6 +584,12 @@ impl VeloHandle {
     #[doc(hidden)]
     pub fn with_packs_dir_for_tests(packs_dir: PathBuf) -> Self {
         Self::with_dirs(packs_dir, default_bikes_dir())
+    }
+}
+
+impl Default for VeloHandle {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1132,6 +1149,67 @@ impl VeloHandle {
             height: fb.height,
             rgba_pixels: fb.pixels,
         })
+    }
+
+    /// Sample the cinematic replay camera for a highlight clip at `fps`.
+    ///
+    /// Requires a loaded route and a recorded ride (samples are retained
+    /// after `stop`). The shell replays these poses through
+    /// `set_replay_camera_pose` + `capture_framebuffer_rgba` and feeds the
+    /// frames to its H.264 encoder.
+    pub fn replay_camera_poses(
+        &self,
+        clip: HighlightClipRequestDto,
+        fps: f64,
+    ) -> Result<Vec<CameraPoseDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let route = inner.app.route.as_ref().ok_or(VeloError::RideError {
+            message: "no route loaded".into(),
+        })?;
+        let samples = inner.app.ride_session.samples();
+        if samples.is_empty() {
+            return Err(VeloError::RideError {
+                message: "no recorded ride samples".into(),
+            });
+        }
+        let core_clip = velo_core::HighlightClipRequest {
+            start_elapsed_s: clip.start_elapsed_s,
+            duration_s: clip.duration_s,
+            label: clip.label,
+        };
+        let track = velo_core::build_rider_track(route, samples);
+        let camera = velo_core::ReplayCamera::for_clip(track, &core_clip).ok_or(
+            VeloError::RideError {
+                message: "could not build replay camera".into(),
+            },
+        )?;
+        Ok(camera
+            .sample_fps(fps)
+            .into_iter()
+            .map(|p| CameraPoseDto {
+                eye_east: p.eye_east,
+                eye_up: p.eye_up,
+                eye_north: p.eye_north,
+                look_east: p.look_east,
+                look_up: p.look_up,
+                look_north: p.look_north,
+            })
+            .collect())
+    }
+
+    /// Override the live chase camera with a replay pose (None restores it).
+    pub fn set_replay_camera_pose(&self, pose: Option<CameraPoseDto>) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        renderer.set_replay_camera(pose.map(|p| velo_core::CameraPose {
+            eye_east: p.eye_east,
+            eye_up: p.eye_up,
+            eye_north: p.eye_north,
+            look_east: p.look_east,
+            look_up: p.look_up,
+            look_north: p.look_north,
+        }));
+        Ok(())
     }
 
     /// Stop ride, capture screenshot, export FIT, publish via shell callback.

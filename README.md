@@ -32,6 +32,7 @@ Optional: [just](https://github.com/casey/just) wraps common tasks (`just build`
 ## Crates
 
 Rust workspace under [`crates/`](crates/). macOS app under [`shell-macos/`](shell-macos/).
+Headless evaluation tools (MCP server): [`crates/velo-eval-mcp/`](crates/velo-eval-mcp/).
 
 ## Development
 

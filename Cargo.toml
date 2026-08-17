@@ -11,6 +11,7 @@ members = [
     "crates/velo-terrain",
     "crates/velo-cesium",
     "crates/velo-bikegen",
+    "crates/velo-eval-mcp",
     "crates/velo-ffi",
 ]
 

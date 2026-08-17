@@ -58,7 +58,7 @@ fn sample_route_elevation(route: &RouteModel, east: f64, north: f64, fallback: f
     let mut best_elev = fallback;
     for p in &route.points {
         let (pe, pn) = lat_lon_to_local(route.meta.origin.lat, route.meta.origin.lon, p.lat, p.lon);
-        let d = (pe - east).hypot(pn - north) as f64;
+        let d = (pe - east).hypot(pn - north);
         if d < best_dist {
             best_dist = d;
             best_elev = p.elevation_m as f32;

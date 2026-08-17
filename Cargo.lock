@@ -2918,6 +2918,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "velo-eval-mcp"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "fitparser",
+ "png 0.17.16",
+ "serde",
+ "serde_json",
+ "velo-bikegen",
+ "velo-core",
+ "velo-platform",
+ "velo-render",
+ "velo-rides",
+ "velo-route-import",
+ "velo-terrain",
+ "velo-units",
+]
+
+[[package]]
 name = "velo-ffi"
 version = "0.1.0"
 dependencies = [

@@ -95,6 +95,11 @@ impl RideSession {
         }
     }
 
+    /// Recorded samples (kept after `stop` for highlight/replay planning).
+    pub fn samples(&self) -> &[RideSample] {
+        &self.samples
+    }
+
     pub fn sample_count(&self) -> usize {
         self.samples.len()
     }
