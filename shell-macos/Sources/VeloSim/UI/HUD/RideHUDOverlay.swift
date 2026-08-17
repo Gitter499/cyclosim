@@ -143,6 +143,9 @@ struct RideHUDOverlay: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // The tile must hug value + unit; without this the unit clips
+            // into the numeral (caught by the CI screenshot loop).
+            .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, Tok.s3)
         .padding(.vertical, Tok.s2)

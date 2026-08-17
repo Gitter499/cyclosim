@@ -14,8 +14,11 @@ enum ScreenshotMode {
         guard let flag = args.firstIndex(of: "--screenshots"), flag + 1 < args.count else {
             return false
         }
-        // Some AppKit-backed SwiftUI views need the shared app initialized.
-        _ = NSApplication.shared
+        // Windows from a CLI process need the shared app set up as an
+        // accessory (no Dock icon, no activation needed).
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        app.finishLaunching()
 
         let dir = URL(fileURLWithPath: args[flag + 1], isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -79,19 +82,41 @@ enum ScreenshotMode {
         )
     }
 
+    /// Renders in an offscreen NSWindow instead of ImageRenderer: navigation
+    /// containers (SplitView/Stack) and SF Symbols only resolve with a real
+    /// window backing (caught by the first CI screenshot round, where nav
+    /// screens came back blank and every symbol was a missing-glyph box).
     private static func capture<V: View>(_ view: V, size: CGSize, to dir: URL, name: String) {
-        let renderer = ImageRenderer(
-            content: view
+        let hosting = NSHostingView(
+            rootView: view
                 .frame(width: size.width, height: size.height)
                 .preferredColorScheme(.dark)
         )
-        renderer.scale = 1.0
-        guard let nsImage = renderer.nsImage,
-              let tiff = nsImage.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:])
-        else {
-            FileHandle.standardError.write(Data("screenshot \(name): render failed\n".utf8))
+        hosting.frame = CGRect(origin: .zero, size: size)
+
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = hosting
+        window.orderFrontRegardless()
+
+        // Let async layout (navigation columns, lists) settle.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        hosting.layoutSubtreeIfNeeded()
+
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            FileHandle.standardError.write(Data("screenshot \(name): no bitmap rep\n".utf8))
+            window.orderOut(nil)
+            return
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        window.orderOut(nil)
+
+        guard let png = rep.representation(using: .png, properties: [:]) else {
+            FileHandle.standardError.write(Data("screenshot \(name): png encode failed\n".utf8))
             return
         }
         do {
