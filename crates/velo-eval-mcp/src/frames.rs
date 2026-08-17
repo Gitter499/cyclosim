@@ -29,6 +29,7 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         .as_ref()
         .map(|r| r.lat_lon_elev_at(app.ride.distance_m).2);
     HudSnapshot {
+        ftp_w: Some(app.ftp()),
         power_w: app.ride.power_w,
         cadence_rpm: app.ride.cadence_rpm,
         heart_rate_bpm: app.ride.heart_rate_bpm,
@@ -86,12 +87,8 @@ pub fn bake_and_load_terrain(
         route.meta.route_id
     ));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let bake = velo_terrain::bake_terrain_for_route(
-        route,
-        &dir,
-        velo_terrain::DEFAULT_CORRIDOR_M,
-        velo_terrain::DEFAULT_CELL_M,
-    )
+    // Finer than the app defaults so the road band renders crisply in evals.
+    let bake = velo_terrain::bake_terrain_for_route(route, &dir, 120.0, 5.0)
     .map(|_| ())
     .map_err(|e| e.to_string());
     let load = bake.and_then(|()| {

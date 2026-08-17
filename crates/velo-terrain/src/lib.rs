@@ -44,12 +44,12 @@ pub fn bake_terrain_for_route(
 ) -> Result<TerrainMesh, TerrainError> {
     let hf = synthetic_heightfield_for_route(route, corridor_m, cell_m);
     let mesh = mesh::mesh_from_heightfield(&hf, &route.meta.origin);
-    let texture = synthetic::procedural_texture(hf.cols, hf.rows);
+    let (texture, tex_w, tex_h) = synthetic::terrain_texture(&hf, route, 4);
     let pack = TerrainPack {
         mesh: mesh.clone(),
         texture_rgba: texture,
-        texture_width: hf.cols as u32,
-        texture_height: hf.rows as u32,
+        texture_width: tex_w,
+        texture_height: tex_h,
     };
     pack.write_to_dir(pack_dir)?;
     Ok(mesh)

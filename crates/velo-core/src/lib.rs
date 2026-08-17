@@ -1,6 +1,7 @@
 pub mod app;
 pub mod audio;
 pub mod highlight;
+pub mod metrics;
 pub mod steering;
 pub mod packs;
 pub mod physics;
@@ -21,6 +22,10 @@ pub use packs::{
 pub use physics::{integrate_step, PhysicsConfig, RideSnapshot};
 pub use ride::{RideMode, RideState};
 pub use highlight::{plan_highlight_clips, HighlightClipRequest};
+pub use metrics::{
+    elevation_gain_m, intensity_factor, normalized_power_w, ride_metrics,
+    training_stress_score, Lap, LapTracker, RideMetrics, RollingPower,
+};
 pub use replay_camera::{
     build_rider_track, style_for_label, CameraPose, ReplayCamera, ReplayCameraStyle,
     RiderTrackPoint,

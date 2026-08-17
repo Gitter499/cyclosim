@@ -34,6 +34,7 @@ final class VeloSimModel: ObservableObject {
 
     @Published var isRideRecording = false
     @Published var lastRideSummary: RideSummaryDto?
+    @Published var lastRideMetrics: RideMetricsDto?
     @Published var lastPublishResult: PublishResultDto?
     @Published var showRideSummarySheet = false
     @Published var rideFlowStatus: String = "idle"
@@ -635,6 +636,7 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                lastRideMetrics = handle.rideMetrics()
                 highlightedRideId = result.rideId
                 shellPhase = .browse
                 shellDestination = .home
@@ -772,6 +774,27 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    // MARK: - HUD parity actions (#48)
+
+    func markLap() {
+        _ = handle.markLap()
+    }
+
+    func adjustErgBias(by delta: Double) {
+        handle.setErgBiasPct(pct: handle.ergBiasPct() + delta)
+    }
+
+    func skipWorkoutInterval() {
+        handle.skipWorkoutInterval()
+    }
+
+    /// Load the route's elevation profile into the HUD model (once per route).
+    func refreshElevationProfile() {
+        let profile = handle.routeElevationProfile(points: 120)
+        hudModel.elevationProfile = profile.map(\.elevationM)
+        hudModel.routeTotalM = profile.last?.distanceM ?? 0
+    }
+
     private func simTick() {
         guard shellPhase == .riding else { return }
 
@@ -792,7 +815,9 @@ final class VeloSimModel: ObservableObject {
             workoutLive: workoutLive,
             ftp: ftp,
             riderWeightKg: riderWeightKg,
-            minimalMode: hudMinimalMode
+            minimalMode: hudMinimalMode,
+            hudMetrics: handle.hudMetrics(seriesPoints: 60),
+            ergBiasPct: handle.ergBiasPct()
         )
         isRideRecording = handle.isRideRecording()
         switch sensorMode {

@@ -147,6 +147,20 @@ impl WorkoutEngine {
             .is_some_and(|i| matches!(i.target, WorkoutTarget::FreeRide))
     }
 
+    /// Jump to the next interval (HUD skip button). Returns true if the
+    /// workout is still running afterwards.
+    pub fn skip_interval(&mut self) -> bool {
+        if self.state.finished {
+            return false;
+        }
+        self.state.interval_index += 1;
+        self.state.interval_elapsed_s = 0.0;
+        if self.state.interval_index >= self.workout.intervals.len() {
+            self.state.finished = true;
+        }
+        !self.state.finished
+    }
+
     /// Advance by fixed sim dt; returns true if interval or workout changed.
     pub fn tick(&mut self, dt_s: f64) -> bool {
         if self.state.finished {

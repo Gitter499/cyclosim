@@ -19,6 +19,7 @@ struct RideControlCluster: View {
                 ) { model.toggleChaseCamera() }
                 controlButton("Shot", systemImage: "camera") { model.captureRideScreenshot() }
                 controlButton("U-turn", systemImage: "arrow.uturn.backward") { model.requestUTurn() }
+                controlButton("Lap", systemImage: "flag.fill") { model.markLap() }
             }
         }
         .accessibilityElement(children: .contain)
@@ -41,6 +42,10 @@ struct RideControlCluster: View {
 @MainActor
 struct WorkoutBarView: View {
     let workout: WorkoutHUD
+    var ergBiasPct: Double = 100.0
+    var onBiasDown: (() -> Void)?
+    var onBiasUp: (() -> Void)?
+    var onSkip: (() -> Void)?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -59,6 +64,19 @@ struct WorkoutBarView: View {
                         )
                 }
                 Spacer()
+                if onBiasDown != nil || onBiasUp != nil || onSkip != nil {
+                    HStack(spacing: Tok.s2) {
+                        biasButton("minus", label: "Lower target") { onBiasDown?() }
+                        Text(String(format: "%.0f%%", ergBiasPct))
+                            .font(Typo.label())
+                            .monospacedDigit()
+                            .foregroundStyle(ergBiasPct == 100 ? Color.secondary : Color.orange)
+                            .frame(minWidth: 40)
+                            .accessibilityLabel("ERG bias \(Int(ergBiasPct)) percent")
+                        biasButton("plus", label: "Raise target") { onBiasUp?() }
+                        biasButton("forward.end.fill", label: "Skip interval") { onSkip?() }
+                    }
+                }
                 Text(HUDDurationFormat.mmss(seconds: workout.intervalRemainingS))
                     .font(Typo.metric())
                     .monospacedDigit()
@@ -72,6 +90,16 @@ struct WorkoutBarView: View {
             "Workout \(workout.blockName), \(workout.actualWatts) of \(workout.targetWatts) watts"
         )
     }
+    private func biasButton(_ systemImage: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+        }
+        .buttonBorderShape(.circle)
+        .controlSize(.small)
+        .accessibilityLabel(label)
+    }
+
 }
 
 // MARK: - Pause menu (§7.6)

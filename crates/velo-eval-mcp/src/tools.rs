@@ -219,6 +219,7 @@ fn hud_probe(args: &Value) -> Result<ToolOutput, String> {
             .and_then(Value::as_str)
             .map(String::from),
         workout_target_w: f("target_w"),
+        ftp_w: f("ftp_w").or(Some(250.0)),
         elevation_m: f("elevation_m"),
         interval_duration_s: f("interval_duration_s"),
         interval_elapsed_s: f("interval_elapsed_s"),

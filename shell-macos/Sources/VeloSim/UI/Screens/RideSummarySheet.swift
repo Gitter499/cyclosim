@@ -53,6 +53,18 @@ struct RideSummarySheet: View {
             statRow("Avg power", RideSummaryFormatting.formatPower(summary.avgPowerW))
             statRow("Max power", RideSummaryFormatting.formatPower(summary.maxPowerW))
 
+            if let metrics = model.lastRideMetrics {
+                Divider()
+                statRow("Normalized power", RideSummaryFormatting.formatPower(metrics.normalizedPowerW))
+                if let intensity = metrics.intensityFactor {
+                    statRow("Intensity factor", String(format: "%.2f", intensity))
+                }
+                if let tss = metrics.tss {
+                    statRow("Training stress", String(format: "%.0f TSS", tss))
+                }
+                statRow("Elevation gain", String(format: "%.0f m", metrics.elevationGainM))
+            }
+
             if let publishResult {
                 Divider()
                 Text(RideSummaryFormatting.activityLinkLabel(for: publishResult))
