@@ -22,6 +22,8 @@ pub struct VeloApp {
     pub steering: SteeringController,
     pub segment_music_enabled: bool,
     pub rolling_power: crate::metrics::RollingPower,
+    /// ERG bias percent applied to workout targets (100 = as written).
+    erg_bias_pct: f64,
     pub laps: crate::metrics::LapTracker,
     last_audio_interval: Option<usize>,
     log: Vec<String>,
@@ -44,6 +46,7 @@ impl VeloApp {
             steering: SteeringController::default(),
             segment_music_enabled: false,
             rolling_power: crate::metrics::RollingPower::default(),
+            erg_bias_pct: 100.0,
             laps: crate::metrics::LapTracker::default(),
             last_audio_interval: None,
             log: Vec::new(),
@@ -169,6 +172,24 @@ impl VeloApp {
         self.steering.filtered_axis()
     }
 
+    /// Nudge ERG targets up/down (HUD ± buttons). Clamped to 50–150%.
+    pub fn set_erg_bias_pct(&mut self, pct: f64) {
+        self.erg_bias_pct = pct.clamp(50.0, 150.0);
+    }
+
+    pub fn erg_bias_pct(&self) -> f64 {
+        self.erg_bias_pct
+    }
+
+    /// Skip to the next workout interval (HUD skip button).
+    pub fn skip_workout_interval(&mut self) {
+        if let Some(engine) = self.workout_engine.as_mut() {
+            engine.skip_interval();
+            self.last_audio_interval = None;
+            self.push_log("interval skipped".into());
+        }
+    }
+
     pub fn workout_active(&self) -> bool {
         self.workout_engine.is_some()
     }
@@ -231,7 +252,7 @@ impl VeloApp {
             self.ride.mode = RideMode::Sim;
         } else if let Some(w) = engine.target_watts() {
             self.ride.mode = RideMode::Erg;
-            self.target_power = w;
+            self.target_power = velo_units::Watts::new(w.0 * self.erg_bias_pct / 100.0);
         }
 
         let prev_index = engine.state().interval_index;
@@ -407,6 +428,53 @@ mod tests {
         assert_eq!(app.ride.power_w, Some(198.0));
         assert_eq!(trainer.last_power(), Some(Watts::new(200.0)));
         assert!(app.ride.distance_m > 0.0);
+    }
+
+    #[test]
+    fn erg_bias_scales_workout_target_and_skip_advances() {
+        use crate::workout::{Workout, WorkoutInterval, WorkoutTarget};
+        use velo_platform::{MockAudioDirector, MockSteeringInput};
+
+        let mut app = VeloApp::new();
+        app.set_ftp(200.0);
+        app.start_workout(Workout {
+            name: "bias".into(),
+            intervals: vec![
+                WorkoutInterval {
+                    name: "A".into(),
+                    duration_s: 60.0,
+                    target: WorkoutTarget::ErgWatts(200.0),
+                },
+                WorkoutInterval {
+                    name: "B".into(),
+                    duration_s: 60.0,
+                    target: WorkoutTarget::ErgWatts(300.0),
+                },
+            ],
+        });
+        app.set_erg_bias_pct(110.0);
+
+        let mut sensors = MockSensorSource::default();
+        let trainer = RecordingTrainerControl::default();
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&MockSteeringInput>,
+            None::<&MockAudioDirector>,
+        );
+        assert_eq!(trainer.last_power(), Some(Watts::new(220.0)));
+
+        app.skip_workout_interval();
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&MockSteeringInput>,
+            None::<&MockAudioDirector>,
+        );
+        assert_eq!(trainer.last_power(), Some(Watts::new(330.0)));
+
+        app.set_erg_bias_pct(500.0); // clamps to 150
+        assert_eq!(app.erg_bias_pct(), 150.0);
     }
 
     #[test]

@@ -1195,6 +1195,20 @@ impl VeloHandle {
         })
     }
 
+    /// Nudge workout ERG targets (HUD bias buttons); clamped 50-150%.
+    pub fn set_erg_bias_pct(&self, pct: f64) {
+        self.inner.lock().unwrap().app.set_erg_bias_pct(pct);
+    }
+
+    pub fn erg_bias_pct(&self) -> f64 {
+        self.inner.lock().unwrap().app.erg_bias_pct()
+    }
+
+    /// Skip to the next workout interval (HUD skip button).
+    pub fn skip_workout_interval(&self) {
+        self.inner.lock().unwrap().app.skip_workout_interval();
+    }
+
     /// Live rolling-power + lap state for the in-ride HUD (P2-B).
     pub fn hud_metrics(&self, series_points: u32) -> HudMetricsDto {
         let inner = self.inner.lock().unwrap();
