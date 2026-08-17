@@ -86,12 +86,8 @@ pub fn bake_and_load_terrain(
         route.meta.route_id
     ));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let bake = velo_terrain::bake_terrain_for_route(
-        route,
-        &dir,
-        velo_terrain::DEFAULT_CORRIDOR_M,
-        velo_terrain::DEFAULT_CELL_M,
-    )
+    // Finer than the app defaults so the road band renders crisply in evals.
+    let bake = velo_terrain::bake_terrain_for_route(route, &dir, 120.0, 5.0)
     .map(|_| ())
     .map_err(|e| e.to_string());
     let load = bake.and_then(|()| {
