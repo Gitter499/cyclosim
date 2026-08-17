@@ -56,8 +56,13 @@ struct ActivitiesCatalogView: View {
             )
         } else {
             ForEach(model.availableRoutes, id: \.routeId) { route in
-                RouteCatalogRow(route: route, isSelected: model.activeRouteId == route.routeId)
-                    .tag(route.routeId)
+                RouteCatalogRow(
+                    route: route,
+                    isSelected: model.activeRouteId == route.routeId,
+                    samples: model.routeProfiles[route.routeId]
+                )
+                .tag(route.routeId)
+                .onAppear { model.loadRouteProfile(route.routeId) }
                     .onTapGesture {
                         selectedRouteId = route.routeId
                         model.selectRoute(route.routeId)
@@ -69,11 +74,20 @@ struct ActivitiesCatalogView: View {
     @ViewBuilder
     private var workoutsList: some View {
         Section("FTP Tests") {
+            // Row metadata computed from the real workout definition (#49).
+            let workout = model.sampleWorkout
+            let totalS = workout.intervals.reduce(0) { $0 + $1.durationS }
             WorkoutCatalogRow(
-                name: "2x20 Threshold",
-                duration: "60 min",
-                tss: "~65",
-                blocks: [0.55, 0.75, 1.0, 0.55, 1.0, 0.55]
+                name: workout.name,
+                duration: "\(Int((totalS / 60).rounded())) min",
+                tss: String(format: "%.0f", model.estimatedTss(for: workout)),
+                blocks: workout.intervals.map { interval in
+                    switch interval.target {
+                    case let .ergWatts(watts): return model.ftp > 0 ? watts / model.ftp : 0.6
+                    case let .ftpPercent(percent): return percent / 100.0
+                    case .freeRide: return 0.6
+                    }
+                }
             ) {
                 model.startSampleWorkout()
             }
@@ -113,8 +127,10 @@ struct ActivitiesCatalogView: View {
                     .font(.title2.bold())
 
                 HStack(spacing: 16) {
-                    RouteElevationSparkline(routeId: route.routeId)
+                    RouteElevationSparkline(samples: model.routeProfiles[route.routeId])
                         .frame(width: 120, height: 40)
+                        .id(route.routeId)
+                        .onAppear { model.loadRouteProfile(route.routeId) }
                     Label("\(Int(route.totalDistanceM / 1000)) km", systemImage: "ruler")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -217,10 +233,11 @@ struct ActivitiesCatalogView: View {
 private struct RouteCatalogRow: View {
     let route: RouteInfoDto
     let isSelected: Bool
+    var samples: [Double]?
 
     var body: some View {
         HStack(spacing: 12) {
-            RouteElevationSparkline(routeId: route.routeId)
+            RouteElevationSparkline(samples: samples)
                 .frame(width: 64, height: 28)
 
             VStack(alignment: .leading, spacing: 2) {
