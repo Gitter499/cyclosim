@@ -167,7 +167,7 @@ const QUAD_SHADER: &str = r#"
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
     @location(0) local: vec2<f32>,
-    @location(1) half: vec2<f32>,
+    @location(1) half_ext: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) radius: f32,
 };
@@ -176,14 +176,14 @@ struct VsOut {
 fn vs_main(
     @location(0) pos: vec2<f32>,
     @location(1) local: vec2<f32>,
-    @location(2) half: vec2<f32>,
+    @location(2) half_ext: vec2<f32>,
     @location(3) color: vec4<f32>,
     @location(4) radius: f32,
 ) -> VsOut {
     var out: VsOut;
     out.pos = vec4<f32>(pos, 0.0, 1.0);
     out.local = local;
-    out.half = half;
+    out.half_ext = half_ext;
     out.color = color;
     out.radius = radius;
     return out;
@@ -191,8 +191,8 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
-    let r = min(in.radius, min(in.half.x, in.half.y));
-    let q = abs(in.local) - (in.half - vec2<f32>(r, r));
+    let r = min(in.radius, min(in.half_ext.x, in.half_ext.y));
+    let q = abs(in.local) - (in.half_ext - vec2<f32>(r, r));
     let d = length(max(q, vec2<f32>(0.0, 0.0))) + min(max(q.x, q.y), 0.0) - r;
     let aa = 1.0 - smoothstep(-0.75, 0.75, d);
     return vec4<f32>(in.color.rgb, in.color.a * aa);
