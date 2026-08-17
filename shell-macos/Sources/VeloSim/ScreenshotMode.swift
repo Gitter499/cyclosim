@@ -24,6 +24,7 @@ enum ScreenshotMode {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let model = VeloSimModel()
+        seedDemoLibrary(model)
         seedDemoRide(model)
 
         capture(HomeDashboardView(model: model), size: CGSize(width: 1100, height: 720),
@@ -44,6 +45,43 @@ enum ScreenshotMode {
             size: CGSize(width: 1280, height: 720), to: dir, name: "ride-hud"
         )
         return true
+    }
+
+    /// Demo library content so Home/Activities screenshots show populated
+    /// states instead of first-launch emptiness.
+    private static func seedDemoLibrary(_ model: VeloSimModel) {
+        model.availableRoutes = [
+            RouteInfoDto(routeId: "col-du-demo", name: "Col du Demo", totalDistanceM: 18_400),
+            RouteInfoDto(routeId: "rolling-hills", name: "Rolling Hills Loop", totalDistanceM: 24_800),
+        ]
+        model.pinnedRouteId = "col-du-demo"
+        model.routeProfiles["col-du-demo"] = (0..<48).map { (i: Int) -> Double in
+            let x = Double(i)
+            return 300.0 + x * 18.0 + 40.0 * sin(x / 5.0)
+        }
+
+        let now = UInt64(1_755_000_000)
+        let day: UInt64 = 86_400
+        model.rideHistory = [
+            RideRecordDto(
+                id: "demo-1", startedAtUnix: now - day, elapsedS: 3_612, distanceM: 31_240,
+                avgPowerW: 212, maxPowerW: 640, fitPath: "", screenshotPath: nil,
+                highlightClipPath: nil, stravaActivityId: nil, publishStatus: .strava,
+                routeId: "col-du-demo"
+            ),
+            RideRecordDto(
+                id: "demo-2", startedAtUnix: now - 3 * day, elapsedS: 2_710, distanceM: 21_050,
+                avgPowerW: 235, maxPowerW: 588, fitPath: "", screenshotPath: nil,
+                highlightClipPath: nil, stravaActivityId: nil, publishStatus: .local,
+                routeId: "rolling-hills"
+            ),
+            RideRecordDto(
+                id: "demo-3", startedAtUnix: now - 6 * day, elapsedS: 4_505, distanceM: 38_900,
+                avgPowerW: 198, maxPowerW: 512, fitPath: "", screenshotPath: nil,
+                highlightClipPath: nil, stravaActivityId: nil, publishStatus: .strava,
+                routeId: nil
+            ),
+        ]
     }
 
     /// Plausible mid-ride values so the HUD screenshot shows every element.
