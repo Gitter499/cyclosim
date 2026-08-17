@@ -13,4 +13,11 @@ public enum Tok {
     public static let rTile: CGFloat = 16
 
     public static let glassGap: CGFloat = 12
+
+    // HUD graph tiles + scrim floor (hud-design skill §5: never below ~0.35).
+    public static let sparkW: CGFloat = 180
+    public static let sparkH: CGFloat = 44
+    public static let elevBarH: CGFloat = 36
+    public static let elevBarMaxW: CGFloat = 420
+    public static let hudScrimAlpha: CGFloat = 0.45
 }

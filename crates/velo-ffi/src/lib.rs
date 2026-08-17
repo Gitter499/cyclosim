@@ -1250,6 +1250,40 @@ impl VeloHandle {
         }
     }
 
+    /// Elevation profile for any installed route pack (Activities sparklines).
+    pub fn route_elevation_profile_for(
+        &self,
+        route_id: String,
+        points: u32,
+    ) -> Vec<ElevationPointDto> {
+        let inner = self.inner.lock().unwrap();
+        let pack_dir = pack_dir_for_id(&inner.packs_dir, &route_id);
+        match load_route_pack(&pack_dir) {
+            Ok(route) => route
+                .elevation_profile(points.clamp(2, 4096) as usize)
+                .into_iter()
+                .map(|(distance_m, elevation_m)| ElevationPointDto {
+                    distance_m,
+                    elevation_m,
+                })
+                .collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    /// The built-in 2x20 threshold template as a DTO (library metadata).
+    pub fn sample_workout_dto(&self) -> WorkoutDto {
+        map_workout_to_dto(Workout::sample_threshold())
+    }
+
+    /// Estimated TSS for a workout plan at the given FTP (library badges).
+    pub fn estimate_workout_tss(&self, workout: WorkoutDto, ftp_w: f64) -> f64 {
+        match map_workout_dto(workout) {
+            Ok(w) => velo_core::estimate_workout_tss(&w, ftp_w),
+            Err(_) => 0.0,
+        }
+    }
+
     /// Downsampled elevation profile of the loaded route (HUD elevation bar).
     pub fn route_elevation_profile(&self, points: u32) -> Vec<ElevationPointDto> {
         let inner = self.inner.lock().unwrap();

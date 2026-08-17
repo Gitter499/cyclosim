@@ -45,6 +45,7 @@ struct RideHUDOverlay: View {
                         WorkoutBarView(
                             workout: workout,
                             ergBiasPct: hud.ergBiasPct,
+                            ftp: hud.ftp,
                             onBiasDown: { model.adjustErgBias(by: -5) },
                             onBiasUp: { model.adjustErgBias(by: 5) },
                             onSkip: { model.skipWorkoutInterval() }
@@ -72,8 +73,8 @@ struct RideHUDOverlay: View {
         VeloHUDGlassContainer(spacing: Tok.glassGap) {
             HStack(spacing: Tok.glassGap) {
                 hudStat(label: "TIME", value: HUDDurationFormat.hms(seconds: hud.elapsedS))
-                hudStat(label: "SPEED", value: String(format: "%.1f km/h", hud.speedKph))
-                hudStat(label: "DIST", value: String(format: "%.1f km", hud.distanceKm))
+                hudStat(label: "SPEED", value: String(format: "%.1f", hud.speedKph), unit: "km/h")
+                hudStat(label: "DIST", value: String(format: "%.1f", hud.distanceKm), unit: "km")
                 hudStat(label: "GRADE", value: String(format: "%+.1f%%", hud.gradientPercent))
                 if hud.lapCount > 0 {
                     hudStat(
@@ -111,8 +112,10 @@ struct RideHUDOverlay: View {
             Text("\(hud.power)")
                 .font(Typo.bigMetric())
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .contentTransition(reduceMotion ? .identity : .numericText())
                 .foregroundStyle(.white)
+                // Fixed slot for 3 digits; a 4th grows leftward without reflow.
+                .frame(minWidth: 118, alignment: .trailing)
                 .accessibilityLabel("Power, \(hud.power) watts")
             Text("W")
                 .font(Typo.unit())
@@ -123,21 +126,28 @@ struct RideHUDOverlay: View {
         .hudPowerSurface(zone: zone, reduceTransparency: reduceTransparency, reduceMotion: reduceMotion)
     }
 
-    private func hudStat(label: String, value: String) -> some View {
+    private func hudStat(label: String, value: String, unit: String? = nil) -> some View {
         VStack(spacing: Tok.s1) {
             Text(label)
                 .font(Typo.label())
                 .foregroundStyle(.secondary)
-            Text(value)
-                .font(Typo.metric())
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .foregroundStyle(.white)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(Typo.metric())
+                    .monospacedDigit()
+                    .contentTransition(reduceMotion ? .identity : .numericText())
+                    .foregroundStyle(.white)
+                if let unit {
+                    Text(unit)
+                        .font(Typo.unit())
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(.horizontal, Tok.s3)
         .padding(.vertical, Tok.s2)
         .hudSurface(RoundedRectangle(cornerRadius: Tok.rTile), reduceTransparency: reduceTransparency)
-        .accessibilityLabel("\(label), \(value)")
+        .accessibilityLabel("\(label), \(value)\(unit.map { " \($0)" } ?? "")")
     }
 
     private var tilesAttributionRow: some View {
@@ -180,11 +190,17 @@ private struct RollingPowerGraph: View {
                 with: .color(.white.opacity(0.25)),
                 style: StrokeStyle(lineWidth: 1, dash: [3, 3])
             )
-            context.stroke(path, with: .color(.orange), lineWidth: 2)
+            // Stroke in the zone color of the latest smoothed sample — power
+            // is the only color-coded metric (hud-design skill §4).
+            let zone = PowerZone.of(watts: Int((series.last ?? 0).rounded()), ftp: Int(ftp))
+            context.stroke(path, with: .color(zone.color), lineWidth: 2)
         }
-        .frame(width: 180, height: 44)
+        .frame(width: Tok.sparkW, height: Tok.sparkH)
         .padding(Tok.s2)
-        .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: Tok.rTile))
+        .background(
+            .black.opacity(Tok.hudScrimAlpha),
+            in: RoundedRectangle(cornerRadius: Tok.rTile)
+        )
         .accessibilityLabel("Rolling one minute power graph")
     }
 }
@@ -221,14 +237,19 @@ private struct ElevationProfileBar: View {
             let frac = min(max(riderDistanceM / totalM, 0), 1)
             let idx = min(Int(frac * Double(profile.count - 1)), profile.count - 1)
             let dot = CGPoint(x: size.width * CGFloat(frac), y: y(profile[idx]))
+            // White accent dot: the elevation bar is a map, not a metric, and
+            // orange would collide with Z5 (hud-design skill §1/§4).
             context.fill(
                 Path(ellipseIn: CGRect(x: dot.x - 4, y: dot.y - 4, width: 8, height: 8)),
-                with: .color(.orange)
+                with: .color(.white)
             )
         }
-        .frame(height: 36)
-        .frame(maxWidth: 420)
-        .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: Tok.rTile))
+        .frame(height: Tok.elevBarH)
+        .frame(maxWidth: Tok.elevBarMaxW)
+        .background(
+            .black.opacity(Tok.hudScrimAlpha),
+            in: RoundedRectangle(cornerRadius: Tok.rTile)
+        )
         .allowsHitTesting(false)
         .accessibilityLabel("Route elevation profile with rider position")
     }

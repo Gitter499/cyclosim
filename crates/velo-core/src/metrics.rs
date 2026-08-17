@@ -103,6 +103,27 @@ pub fn ride_metrics(samples: &[RideSample], ftp_w: f64) -> RideMetrics {
     }
 }
 
+/// Estimated TSS for a workout *plan* (targets as written, rider at FTP):
+/// each interval contributes duration × IF² where IF = target/FTP.
+pub fn estimate_workout_tss(workout: &crate::workout::Workout, ftp_w: f64) -> f64 {
+    if ftp_w <= 0.0 {
+        return 0.0;
+    }
+    workout
+        .intervals
+        .iter()
+        .map(|i| {
+            let target = match i.target {
+                crate::workout::WorkoutTarget::ErgWatts(w) => w,
+                crate::workout::WorkoutTarget::FtpPercent(p) => ftp_w * p / 100.0,
+                crate::workout::WorkoutTarget::FreeRide => ftp_w * 0.6,
+            };
+            let if_ = target / ftp_w;
+            i.duration_s * if_ * if_ * 100.0 / 3600.0
+        })
+        .sum()
+}
+
 /// Live rolling power window for the HUD graph (default 60 s).
 ///
 /// Push one value per sim tick; `series(n)` downsamples to `n` points for
@@ -298,6 +319,24 @@ mod tests {
             s.grade = -0.05;
         }
         assert_eq!(elevation_gain_m(&down), 0.0);
+    }
+
+    #[test]
+    fn workout_tss_estimate_matches_hand_calc() {
+        use crate::workout::{Workout, WorkoutInterval, WorkoutTarget};
+        // 1 h at exactly FTP = 100 TSS.
+        let w = Workout {
+            name: "t".into(),
+            intervals: vec![WorkoutInterval {
+                name: "hour".into(),
+                duration_s: 3600.0,
+                target: WorkoutTarget::FtpPercent(100.0),
+            }],
+        };
+        assert!((estimate_workout_tss(&w, 250.0) - 100.0).abs() < 1e-9);
+        // Sample 2x20 threshold plan lands in the sensible 60-90 TSS band.
+        let tss = estimate_workout_tss(&Workout::sample_threshold(), 250.0);
+        assert!((60.0..90.0).contains(&tss), "tss {tss}");
     }
 
     #[test]

@@ -23,7 +23,7 @@ pub use physics::{integrate_step, PhysicsConfig, RideSnapshot};
 pub use ride::{RideMode, RideState};
 pub use highlight::{plan_highlight_clips, HighlightClipRequest};
 pub use metrics::{
-    elevation_gain_m, intensity_factor, normalized_power_w, ride_metrics,
+    elevation_gain_m, estimate_workout_tss, intensity_factor, normalized_power_w, ride_metrics,
     training_stress_score, Lap, LapTracker, RideMetrics, RollingPower,
 };
 pub use replay_camera::{
