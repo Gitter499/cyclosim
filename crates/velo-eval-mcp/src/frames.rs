@@ -29,6 +29,7 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         .as_ref()
         .map(|r| r.lat_lon_elev_at(app.ride.distance_m).2);
     HudSnapshot {
+        ftp_w: Some(app.ftp()),
         power_w: app.ride.power_w,
         cadence_rpm: app.ride.cadence_rpm,
         heart_rate_bpm: app.ride.heart_rate_bpm,

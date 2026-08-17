@@ -1457,6 +1457,7 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         elev
     });
     velo_render::HudSnapshot {
+        ftp_w: Some(app.ftp()),
         power_w: ride.power_w,
         cadence_rpm: ride.cadence_rpm,
         heart_rate_bpm: ride.heart_rate_bpm,
