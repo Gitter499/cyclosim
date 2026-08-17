@@ -173,6 +173,13 @@ impl VeloApp {
     }
 
     /// Nudge ERG targets up/down (HUD ± buttons). Clamped to 50–150%.
+    /// Re-notify the AudioDirector for the current workout interval on the
+    /// next tick. Call after segment music is enabled or authorization
+    /// completes — the shell may have skipped the boundary callback (#29).
+    pub fn resync_audio_segment(&mut self) {
+        self.last_audio_interval = None;
+    }
+
     pub fn set_erg_bias_pct(&mut self, pct: f64) {
         self.erg_bias_pct = pct.clamp(50.0, 150.0);
     }
@@ -428,6 +435,39 @@ mod tests {
         assert_eq!(app.ride.power_w, Some(198.0));
         assert_eq!(trainer.last_power(), Some(Watts::new(200.0)));
         assert!(app.ride.distance_m > 0.0);
+    }
+
+    #[test]
+    fn resync_audio_segment_renotifies_current_interval() {
+        use crate::workout::{Workout, WorkoutInterval, WorkoutTarget};
+        use velo_platform::{MockSteeringInput, RecordingAudioDirector};
+
+        let mut app = VeloApp::new();
+        app.set_segment_music_enabled(true);
+        app.start_workout(Workout {
+            name: "resync".into(),
+            intervals: vec![WorkoutInterval {
+                name: "Warmup".into(),
+                duration_s: 60.0,
+                target: WorkoutTarget::FtpPercent(55.0),
+            }],
+        });
+
+        let mut sensors = MockSensorSource::default();
+        let trainer = RecordingTrainerControl::default();
+        let audio = RecordingAudioDirector::default();
+        for _ in 0..10 {
+            app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+        }
+        let first = audio.calls().len();
+        assert_eq!(first, 1, "one Start notification for interval 0");
+
+        // Shell enables music mid-interval → resync retries the same interval.
+        app.resync_audio_segment();
+        for _ in 0..10 {
+            app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+        }
+        assert_eq!(audio.calls().len(), first + 1, "resync re-notifies once, not per tick");
     }
 
     #[test]

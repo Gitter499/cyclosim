@@ -195,6 +195,10 @@ final class VeloSimModel: ObservableObject {
         AppSettingsStore.segmentMusicEnabled = enabled
         handle.setSegmentMusicEnabled(enabled: enabled)
         musicDirector.setEnabled(enabled)
+        if enabled {
+            // Retry the current interval so mid-workout enables still play (#29).
+            handle.resyncAudioSegment()
+        }
         musicStatus = musicDirector.status
     }
 
@@ -262,6 +266,9 @@ final class VeloSimModel: ObservableObject {
     func connectAppleMusic() {
         Task {
             await musicDirector.requestAuthorization()
+            if musicDirector.authorized {
+                handle.resyncAudioSegment()
+            }
             musicStatus = musicDirector.status
         }
     }

@@ -188,6 +188,10 @@ struct SettingsView: View {
                 get: { model.segmentMusicEnabled },
                 set: { model.setSegmentMusicEnabled($0) }
             ))
+            Text("Segment music uses Apple Music playback controls only — tracks switch at interval boundaries (best effort, not BPM-locked). Raw audio access isn't available to apps.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Picker("Default steering", selection: Binding(
                 get: { AppSettingsStore.defaultSteeringMode },
