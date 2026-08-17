@@ -103,18 +103,24 @@ struct ActivitiesCatalogView: View {
     @ViewBuilder
     private var detailColumn: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Tok.s4) {
-                switch model.activitiesTab {
-                case .routes:
-                    routeDetail
-                case .workouts:
-                    workoutDetail
+            // Route/workout content left, ride setup in its own right rail —
+            // the single stacked column read as one long unrelated form
+            // (caught by the CI screenshot review).
+            HStack(alignment: .top, spacing: Tok.s4) {
+                VStack(alignment: .leading, spacing: Tok.s4) {
+                    switch model.activitiesTab {
+                    case .routes:
+                        routeDetail
+                    case .workouts:
+                        workoutDetail
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
 
                 PreRidePanel(model: model)
+                    .frame(width: 360, alignment: .topLeading)
             }
             .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
     }

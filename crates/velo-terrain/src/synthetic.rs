@@ -93,8 +93,10 @@ pub fn terrain_texture(
     let texel_m = hf.cell_m / ss as f64;
 
     // Route polyline resampled into a spatial hash for fast distance lookup.
+    // Each sample also carries its arc length so road markings (dashed
+    // centerline) can follow the direction of travel.
     let bucket_m = (ROAD_HALF_WIDTH_M + ROAD_EDGE_M).max(hf.cell_m);
-    let mut buckets: std::collections::HashMap<(i32, i32), Vec<(f64, f64)>> =
+    let mut buckets: std::collections::HashMap<(i32, i32), Vec<(f64, f64, f64)>> =
         std::collections::HashMap::new();
     let step = (bucket_m / 2.0).max(1.0);
     let total = route.total_distance_m();
@@ -102,26 +104,29 @@ pub fn terrain_texture(
     while d <= total {
         let (east, _, north) = route.position_enu_at(d);
         let key = ((east / bucket_m).floor() as i32, (north / bucket_m).floor() as i32);
-        buckets.entry(key).or_default().push((east, north));
+        buckets.entry(key).or_default().push((east, north, d));
         d += step;
     }
-    let route_dist = |east: f64, north: f64| -> f64 {
+    // (perpendicular distance to route, arc length at the nearest sample)
+    let route_dist = |east: f64, north: f64| -> (f64, f64) {
         let bx = (east / bucket_m).floor() as i32;
         let bz = (north / bucket_m).floor() as i32;
         let mut best = f64::MAX;
+        let mut best_arc = 0.0;
         for dx in -1..=1 {
             for dz in -1..=1 {
                 if let Some(pts) = buckets.get(&(bx + dx, bz + dz)) {
-                    for &(pe, pn) in pts {
+                    for &(pe, pn, arc) in pts {
                         let dist = (pe - east).hypot(pn - north);
                         if dist < best {
                             best = dist;
+                            best_arc = arc;
                         }
                     }
                 }
             }
         }
-        best
+        (best, best_arc)
     };
 
     let elev_at = |col_f: f64, row_f: f64| -> f32 {
@@ -150,15 +155,24 @@ pub fn terrain_texture(
             let slope = (((e_dx - e).abs() + (e_dz - e).abs()) as f64 / hf.cell_m).min(1.0) as f32;
             let alt = (e - min_e) / range;
 
-            // Two-octave value noise for ground variation.
+            // Three-octave value noise for ground variation.
             let n1 = ((east * 0.11).sin() * (north * 0.13).cos()) as f32;
             let n2 = ((east * 0.031 + 1.7).sin() * (north * 0.027 + 0.4).cos()) as f32;
-            let noise = n1 * 0.6 + n2 * 0.4; // -1..1
+            let n3 = ((east * 0.47 + 0.9).sin() * (north * 0.53 + 2.1).cos()) as f32;
+            let noise = n1 * 0.5 + n2 * 0.32 + n3 * 0.18; // -1..1
 
             // Grass base, gently drying with altitude.
-            let mut r = 64.0 + alt * 26.0 + noise * 12.0;
-            let mut g = 122.0 - alt * 10.0 + noise * 16.0;
-            let mut b = 48.0 + alt * 10.0 + noise * 8.0;
+            let mut r = 64.0 + alt * 26.0 + noise * 14.0;
+            let mut g = 122.0 - alt * 10.0 + noise * 18.0;
+            let mut b = 48.0 + alt * 10.0 + noise * 9.0;
+
+            // Broad meadow patches drift toward a sunnier yellow-green.
+            if n2 > 0.45 {
+                let p = ((n2 - 0.45) * 2.2).min(1.0);
+                r += 18.0 * p;
+                g += 8.0 * p;
+                b -= 6.0 * p;
+            }
 
             // Steep faces turn rocky.
             let rockiness = ((slope - 0.25) * 2.5).clamp(0.0, 1.0);
@@ -168,14 +182,31 @@ pub fn terrain_texture(
                 b = b + (104.0 - b) * rockiness;
             }
 
-            // Road band along the route.
-            let dist = route_dist(east, north);
+            // Road band along the route, with painted markings.
+            let (dist, arc) = route_dist(east, north);
             if dist < ROAD_HALF_WIDTH_M + ROAD_EDGE_M {
                 let asphalt = 70.0 + noise * 5.0;
                 if dist <= ROAD_HALF_WIDTH_M {
                     r = asphalt;
                     g = asphalt;
                     b = asphalt + 4.0;
+
+                    // Painted markings only when the bake can resolve them —
+                    // at coarse texels a "line" floods the whole road, so
+                    // skip (distant roads don't show markings anyway).
+                    if texel_m <= 0.8 {
+                        let line_w = 0.35;
+                        let edge_c = ROAD_HALF_WIDTH_M - 0.45;
+                        let on_edge = (dist - edge_c).abs() < line_w / 2.0;
+                        // Dashed centerline: 6 m painted, 6 m gap.
+                        let on_center = dist < line_w / 2.0 && (arc % 12.0) < 6.0;
+                        if on_edge || on_center {
+                            let paint = 205.0 + noise * 8.0;
+                            r = paint;
+                            g = paint;
+                            b = paint - 8.0;
+                        }
+                    }
                 } else {
                     // Dirt shoulder blend.
                     let t = ((dist - ROAD_HALF_WIDTH_M) / ROAD_EDGE_M).clamp(0.0, 1.0) as f32;
