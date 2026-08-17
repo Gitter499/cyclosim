@@ -29,6 +29,8 @@ final class VeloSimModel: ObservableObject {
     @Published var simGrade: Double = 0.0
     @Published var bleState: String = "idle"
     @Published var bleDevices = BLEDeviceStatus()
+    /// Real per-route elevation profiles for Activities sparklines (#49).
+    @Published var routeProfiles: [String: [Double]] = [:]
     @Published var bleCapabilities: String = "—"
     @Published var bleTrainerStatus: String = "—"
     @Published var bleControlError: String?
@@ -375,8 +377,11 @@ final class VeloSimModel: ObservableObject {
                 shellDestination = .activities
             }
         case .twentyMin:
-            // TODO: dedicated 20-min protocol workout; sample workout is a stand-in.
-            startSampleWorkout()
+            // Rider-paced max effort: no workout, no ERG target — the engine
+            // averages the 20-min effort and finish() takes 95% of it.
+            clearWorkout()
+            activeRampTest = RampTestEngine(kind: kind, previousFTP: Int(ftp.rounded()))
+            applyRideMode(.free)
             if preRideBlockReason == nil {
                 startRide()
             } else {
@@ -394,12 +399,21 @@ final class VeloSimModel: ObservableObject {
         let power = rideState.powerW ?? 0
         let cadence = rideState.cadenceRpm ?? 0
         let result = engine.tick(power: power, cadence: cadence)
-        applyTargetPower(Double(result.target))
+        if engine.kind == .twentyMin {
+            if let remaining = engine.remainingS, !result.done {
+                workoutStatus = String(
+                    format: "FTP test: %d:%02d remaining", remaining / 60, remaining % 60
+                )
+            }
+        } else {
+            applyTargetPower(Double(result.target))
+        }
 
-        if result.failed {
+        if result.done {
             let oldFTP = Int(ftp.rounded())
             let outcome = engine.finish()
             activeRampTest = nil
+            workoutStatus = "FTP test complete"
             applyFtp(Double(outcome.ftp))
             if outcome.changed {
                 pendingFTPAnnouncement = FTPAnnouncement(oldFTP: oldFTP, newFTP: outcome.ftp)
@@ -545,6 +559,19 @@ final class VeloSimModel: ObservableObject {
 
     var preRideBlockReason: String? {
         PreRideValidation.blockReason(
+            tiles3dEnabled: tiles3dEnabled,
+            tilesKeysConfigured: tilesKeysConfigured,
+            tilesLastError: tilesLastError
+        )
+    }
+
+    /// Readiness checklist for the pre-ride banner (#49).
+    var preRideChecks: [PreRideValidation.Check] {
+        PreRideValidation.checks(
+            sensorIsBluetooth: sensorMode == .bluetooth,
+            trainerReady: bleState == "trainer ready" || bleState.hasPrefix("connected"),
+            segmentMusicEnabled: segmentMusicEnabled,
+            musicAuthorized: musicDirector.authorized,
             tiles3dEnabled: tiles3dEnabled,
             tilesKeysConfigured: tilesKeysConfigured,
             tilesLastError: tilesLastError
@@ -786,6 +813,22 @@ final class VeloSimModel: ObservableObject {
             rideHistory = (try? handle.listRides()) ?? []
         }
     }
+
+    // MARK: - Activities depth (#49)
+
+    /// Fetch (once) the real elevation profile for a route's sparkline.
+    func loadRouteProfile(_ routeId: String) {
+        guard routeProfiles[routeId] == nil else { return }
+        let profile = handle.routeElevationProfileFor(routeId: routeId, points: 48)
+        guard !profile.isEmpty else { return }
+        routeProfiles[routeId] = profile.map(\.elevationM)
+    }
+
+    func estimatedTss(for workout: WorkoutDto) -> Double {
+        handle.estimateWorkoutTss(workout: workout, ftpW: ftp)
+    }
+
+    var sampleWorkout: WorkoutDto { handle.sampleWorkoutDto() }
 
     // MARK: - HUD parity actions (#48)
 

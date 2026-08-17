@@ -250,8 +250,9 @@ struct RouteSelectView: View {
                         model.selectRoute(route.routeId)
                     } label: {
                         HStack(spacing: Tok.s3) {
-                            RouteElevationSparkline(routeId: route.routeId)
+                            RouteElevationSparkline(samples: model.routeProfiles[route.routeId])
                                 .frame(width: 72, height: 28)
+                                .onAppear { model.loadRouteProfile(route.routeId) }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(route.name)
@@ -280,23 +281,18 @@ struct RouteSelectView: View {
 }
 
 struct RouteElevationSparkline: View {
-    let routeId: String
+    /// Real elevation samples (m); nil renders a flat placeholder while loading.
     private let samples: [CGFloat]
 
-    init(routeId: String) {
-        self.routeId = routeId
-        self.samples = Self.makeSamples(routeId: routeId)
-    }
-
-    private static func makeSamples(routeId: String) -> [CGFloat] {
-        var hash: UInt64 = 14695981039346656037
-        for byte in routeId.utf8 {
-            hash = (hash ^ UInt64(byte)) &* 1099511628211
+    init(samples: [Double]?) {
+        guard let samples, samples.count > 1,
+              let minE = samples.min(), let maxE = samples.max(), maxE > minE
+        else {
+            self.samples = Array(repeating: 0.4, count: 24)
+            return
         }
-        return (0 ..< 24).map { i in
-            let seed = Double((hash &+ UInt64(i * 17)) % 1000) / 1000.0
-            return CGFloat(0.2 + seed * 0.6)
-        }
+        let range = maxE - minE
+        self.samples = samples.map { CGFloat(0.1 + 0.8 * (($0 - minE) / range)) }
     }
 
     var body: some View {
@@ -328,12 +324,7 @@ struct WorkoutLibraryView: View {
             Text("FTP Tests")
                 .font(.headline)
 
-            workoutRow(
-                name: "2x20 Threshold",
-                duration: "60 min",
-                tss: "~65",
-                blocks: [0.55, 0.75, 1.0, 0.55, 1.0, 0.55]
-            ) {
+            workoutRow(for: model.sampleWorkout) {
                 model.startSampleWorkout()
             }
 
@@ -343,6 +334,25 @@ struct WorkoutLibraryView: View {
 
             WorkoutBuilderView(model: model)
         }
+    }
+
+    /// Row metadata computed from the real workout definition (#49).
+    private func workoutRow(for workout: WorkoutDto, action: @escaping () -> Void) -> some View {
+        let totalS = workout.intervals.reduce(0) { $0 + $1.durationS }
+        let blocks = workout.intervals.map { interval -> Double in
+            switch interval.target {
+            case let .ergWatts(watts): return model.ftp > 0 ? watts / model.ftp : 0.6
+            case let .ftpPercent(percent): return percent / 100.0
+            case .freeRide: return 0.6
+            }
+        }
+        return workoutRow(
+            name: workout.name,
+            duration: "\(Int((totalS / 60).rounded())) min",
+            tss: String(format: "%.0f", model.estimatedTss(for: workout)),
+            blocks: blocks,
+            action: action
+        )
     }
 
     private func workoutRow(

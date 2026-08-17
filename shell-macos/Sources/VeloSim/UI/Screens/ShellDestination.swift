@@ -49,6 +49,87 @@ public enum ActivitiesTab: String, CaseIterable, Identifiable {
 }
 
 public enum PreRideValidation {
+    public enum Severity {
+        case ready
+        case warning
+        case blocked
+    }
+
+    /// One row of the pre-ride readiness banner.
+    public struct Check: Identifiable {
+        public let id: String
+        public let label: String
+        public let detail: String
+        public let severity: Severity
+
+        public init(id: String, label: String, detail: String, severity: Severity) {
+            self.id = id
+            self.label = label
+            self.detail = detail
+            self.severity = severity
+        }
+    }
+
+    /// Readiness checklist shown above the Start button: trainer, music, tiles.
+    /// Warnings inform but never block; only a `.blocked` row disables the start.
+    public static func checks(
+        sensorIsBluetooth: Bool,
+        trainerReady: Bool,
+        segmentMusicEnabled: Bool,
+        musicAuthorized: Bool,
+        tiles3dEnabled: Bool,
+        tilesKeysConfigured: Bool,
+        tilesLastError: String?
+    ) -> [Check] {
+        var out: [Check] = []
+
+        if sensorIsBluetooth {
+            out.append(trainerReady
+                ? Check(
+                    id: "trainer", label: "Trainer",
+                    detail: "Bluetooth trainer connected", severity: .ready)
+                : Check(
+                    id: "trainer", label: "Trainer",
+                    detail: "Not connected — pair a trainer or switch input",
+                    severity: .warning))
+        } else {
+            out.append(Check(
+                id: "trainer", label: "Trainer",
+                detail: "Simulated input active", severity: .ready))
+        }
+
+        if segmentMusicEnabled {
+            out.append(musicAuthorized
+                ? Check(
+                    id: "music", label: "Music",
+                    detail: "Segment music ready", severity: .ready)
+                : Check(
+                    id: "music", label: "Music",
+                    detail: "Segment music on but Apple Music not authorized",
+                    severity: .warning))
+        }
+
+        if tiles3dEnabled {
+            if !tilesKeysConfigured {
+                out.append(Check(
+                    id: "tiles", label: "3D Tiles",
+                    detail: "No API keys — add keys in Settings or disable tiles",
+                    severity: .blocked))
+            } else if let err = tilesLastError, !err.isEmpty {
+                out.append(Check(
+                    id: "tiles", label: "3D Tiles",
+                    detail: "Provider error — synthetic terrain will be used",
+                    severity: .warning))
+            } else {
+                out.append(Check(
+                    id: "tiles", label: "3D Tiles",
+                    detail: "Photorealistic tiles ready", severity: .ready))
+            }
+        }
+
+        return out
+    }
+
     public static func blockReason(
         tiles3dEnabled: Bool,
         tilesKeysConfigured: Bool,

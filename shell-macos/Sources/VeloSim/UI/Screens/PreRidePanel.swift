@@ -144,18 +144,49 @@ struct PreRidePanel: View {
 
     private var startSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let reason = model.preRideBlockReason {
-                Text(reason)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            readinessBanner
 
             Button("Start ride") {
                 model.startRideFromActivities()
             }
             .buttonStyle(VeloGlassPrimaryButtonStyle())
             .disabled(model.isFinishingRide || model.preRideBlockReason != nil)
+        }
+    }
+
+    @ViewBuilder
+    private var readinessBanner: some View {
+        let checks = model.preRideChecks
+        if !checks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(checks) { check in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: icon(for: check.severity))
+                            .foregroundStyle(color(for: check.severity))
+                            .font(.caption)
+                        Text("\(check.label): \(check.detail)")
+                            .font(.caption)
+                            .foregroundStyle(check.severity == .ready ? .secondary : .primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func icon(for severity: PreRideValidation.Severity) -> String {
+        switch severity {
+        case .ready: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .blocked: return "xmark.octagon.fill"
+        }
+    }
+
+    private func color(for severity: PreRideValidation.Severity) -> Color {
+        switch severity {
+        case .ready: return .green
+        case .warning: return .orange
+        case .blocked: return .red
         }
     }
 }
