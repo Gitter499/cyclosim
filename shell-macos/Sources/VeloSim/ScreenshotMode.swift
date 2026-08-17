@@ -57,11 +57,16 @@ enum ScreenshotMode {
         hud.wattsPerKg = 3.5
         hud.lapCount = 2
         hud.currentLapElapsedS = 412
-        hud.rollingPower = (0..<48).map { i in
-            240.0 + 40.0 * sin(Double(i) / 6.0) + Double(i % 5) * 3.0
+        hud.rollingPower = (0..<48).map { (i: Int) -> Double in
+            let x = Double(i)
+            let wave: Double = 40.0 * sin(x / 6.0)
+            let jitter: Double = Double(i % 5) * 3.0
+            return 240.0 + wave + jitter
         }
-        hud.elevationProfile = (0..<48).map { i in
-            120.0 + 60.0 * sin(Double(i) / 8.0) + Double(i) * 1.5
+        hud.elevationProfile = (0..<48).map { (i: Int) -> Double in
+            let x = Double(i)
+            let hill: Double = 60.0 * sin(x / 8.0)
+            return 120.0 + hill + x * 1.5
         }
         hud.routeTotalM = 42_000
         hud.workout = WorkoutHUD(
