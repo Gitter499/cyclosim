@@ -21,7 +21,9 @@ public final class HUDCoordinator {
         workoutLive: WorkoutLiveDto,
         ftp: Double,
         riderWeightKg: Double,
-        minimalMode: Bool
+        minimalMode: Bool,
+        hudMetrics: HudMetricsDto? = nil,
+        ergBiasPct: Double = 100.0
     ) {
         let now = CFAbsoluteTimeGetCurrent()
         guard now - lastUpdate >= minInterval else { return }
@@ -45,6 +47,12 @@ public final class HUDCoordinator {
         }
 
         model.workout = HUDModel.mapWorkoutHUD(live: workoutLive, actualWatts: model.power)
+        if let metrics = hudMetrics {
+            model.rollingPower = metrics.rollingPowerSeries
+            model.lapCount = Int(metrics.lapCount)
+            model.currentLapElapsedS = metrics.currentLapElapsedS
+        }
+        model.ergBiasPct = ergBiasPct
         onThrottledUpdate?()
     }
 
@@ -60,5 +68,9 @@ public final class HUDCoordinator {
         model.elapsedS = 0
         model.elevationM = nil
         model.workout = nil
+        model.rollingPower = []
+        model.lapCount = 0
+        model.currentLapElapsedS = 0
+        model.ergBiasPct = 100.0
     }
 }

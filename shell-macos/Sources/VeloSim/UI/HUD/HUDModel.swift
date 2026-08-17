@@ -41,6 +41,14 @@ public final class HUDModel {
     public var elevationM: Double?
     public var workout: WorkoutHUD?
     public var minimalMode = false
+    /// Rolling ~60 s power window, oldest first (P2-B graph).
+    public var rollingPower: [Double] = []
+    public var lapCount = 0
+    public var currentLapElapsedS = 0.0
+    public var ergBiasPct = 100.0
+    /// Route elevation profile heights (m), evenly spaced along the route.
+    public var elevationProfile: [Double] = []
+    public var routeTotalM = 0.0
 
     public var distanceKm: Double { distanceM / 1000.0 }
     public var speedKph: Double { speedMps * 3.6 }
