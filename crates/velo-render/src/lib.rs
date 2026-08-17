@@ -57,6 +57,7 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     grid_pipeline: wgpu::RenderPipeline,
     fill_pipeline: wgpu::RenderPipeline,
+    sky_pipeline: wgpu::RenderPipeline,
     scene_bind_layout: wgpu::BindGroupLayout,
     scene_bind_group: wgpu::BindGroup,
     scene_uniforms: wgpu::Buffer,
@@ -326,6 +327,49 @@ impl Renderer {
             cache: None,
         });
 
+        // Fullscreen gradient sky: no bind groups or vertex buffers; drawn
+        // first with depth writes off so all geometry overdraws it.
+        let sky_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("sky-shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/sky.wgsl").into()),
+        });
+        let sky_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("sky-pipeline-layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[],
+        });
+        let sky_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("sky-pipeline"),
+            layout: Some(&sky_layout),
+            vertex: wgpu::VertexState {
+                module: &sky_shader,
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &sky_shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+
         let mesh = GroundMesh::grid(60, 5.0);
         let total = mesh.vertices.len() as u32;
         let fill_vertex_start = total - 6;
@@ -348,6 +392,7 @@ impl Renderer {
             config,
             grid_pipeline,
             fill_pipeline,
+            sky_pipeline,
             scene_bind_layout: bind_layout,
             scene_bind_group,
             scene_uniforms,
@@ -583,6 +628,9 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
+            pass.set_pipeline(&self.sky_pipeline);
+            pass.draw(0..3, 0..1);
+
             if let Some(terrain) = &self.terrain {
                 terrain.draw(&mut pass, &self.scene_bind_group);
             } else {
@@ -787,6 +835,9 @@ impl Renderer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+
+            pass.set_pipeline(&self.sky_pipeline);
+            pass.draw(0..3, 0..1);
 
             if let Some(terrain) = &self.terrain {
                 terrain.draw(&mut pass, &self.scene_bind_group);

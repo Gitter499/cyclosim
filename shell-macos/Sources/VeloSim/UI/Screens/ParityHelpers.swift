@@ -190,6 +190,7 @@ struct QuickStartRow: View {
 @MainActor
 struct PairingView: View {
     @ObservedObject var model: VeloSimModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
@@ -244,7 +245,7 @@ struct PairingView: View {
             Text(detail ?? (connected ? "Connected" : "Searching…"))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .contentTransition(reduceMotion ? .identity : .numericText())
             Button(connected ? "Change" : "Connect") {
                 model.setSensorMode(.bluetooth)
             }
@@ -333,6 +334,8 @@ struct RouteElevationSparkline: View {
             }
             .stroke(Color.accentColor, lineWidth: 1.5)
         }
+        // Decorative: route rows carry name/distance as text.
+        .accessibilityHidden(true)
     }
 }
 
@@ -400,12 +403,14 @@ struct WorkoutLibraryView: View {
                 }
                 Spacer()
                 Image(systemName: "play.circle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.accentColor)
             }
             .padding(Tok.s3)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: Tok.rTile))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(duration), TSS \(tss). Starts the workout.")
     }
 }
 
@@ -423,6 +428,8 @@ struct IntervalGraphPreview: View {
                 }
             }
         }
+        // Decorative: the row's name/duration/TSS text carries the info.
+        .accessibilityHidden(true)
     }
 }
 
