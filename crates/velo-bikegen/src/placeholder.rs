@@ -82,6 +82,19 @@ pub fn default_placeholder_anchor() -> AnchorTransform {
 }
 
 fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
+    let wheel_dark = [0.10, 0.10, 0.12];
+    // Jersey reads brighter than the frame so the rider pops from the chase cam.
+    let jersey = [
+        (frame_color[0] * 1.25 + 0.10).min(1.0),
+        (frame_color[1] * 1.25 + 0.10).min(1.0),
+        (frame_color[2] * 1.25 + 0.10).min(1.0),
+    ];
+    let helmet = [
+        frame_color[0] * 0.6,
+        frame_color[1] * 0.6,
+        frame_color[2] * 0.6,
+    ];
+
     // Wheel centers at ±0.5 m on X; frame spans between. Total wheelbase ≈ 1.0 m before normalization.
     let wheel_r = 0.35_f32;
     let wheel_y = wheel_r;
@@ -149,34 +162,115 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     all_positions.push([-0.50, wheel_y, 0.0]);
     all_positions.push([0.50, wheel_y, 0.0]);
 
+    // Per-vertex colors: frame tubes in the tint, wheels dark.
+    let mut colors: Vec<[f32; 3]> = Vec::with_capacity(all_positions.len());
+    colors.extend(std::iter::repeat(frame_color).take(12)); // frame quads
+    colors.extend(std::iter::repeat(wheel_dark).take(16)); // wheel rims
+    colors.extend(std::iter::repeat(wheel_dark).take(2)); // wheel centers
+
+    let mut push_quad = |positions: &mut Vec<[f32; 3]>,
+                         colors: &mut Vec<[f32; 3]>,
+                         indices: &mut Vec<u16>,
+                         quad: [[f32; 3]; 4],
+                         color: [f32; 3]| {
+        let base = positions.len() as u16;
+        positions.extend_from_slice(&quad);
+        colors.extend(std::iter::repeat(color).take(4));
+        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    };
+
     // The frame and wheels are planar (z = 0), which makes the bike invisible
-    // dead-astern — exactly the chase camera's view. Handlebar and saddle are
-    // horizontal quads spanning z, so the silhouette reads from behind too.
+    // dead-astern — exactly the chase camera's view. Everything below spans z
+    // (or sits in a YZ plane) so the silhouette reads from behind too.
     let handlebar_y = wheel_y + 0.48;
     let saddle_y = wheel_y + 0.44;
-    for quad in [
-        // Handlebar: narrow bar across the travel axis at the front.
+
+    // Handlebar: narrow bar across the travel axis at the front.
+    push_quad(
+        &mut all_positions,
+        &mut colors,
+        &mut indices,
         [
             [0.33, handlebar_y, -0.22],
             [0.37, handlebar_y, -0.22],
             [0.37, handlebar_y, 0.22],
             [0.33, handlebar_y, 0.22],
         ],
-        // Saddle: short and wider than the frame plane, at the rear.
+        wheel_dark,
+    );
+    // Saddle: short and wider than the frame plane, at the rear.
+    push_quad(
+        &mut all_positions,
+        &mut colors,
+        &mut indices,
         [
             [-0.17, saddle_y, -0.08],
             [-0.05, saddle_y, -0.08],
             [-0.05, saddle_y, 0.08],
             [-0.17, saddle_y, 0.08],
         ],
-    ] {
-        let base = all_positions.len() as u16;
-        all_positions.extend_from_slice(&quad);
-        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+        wheel_dark,
+    );
+
+    // Rider torso, astern-facing: a forward-leaning quad spanning z so the
+    // chase camera sees shoulders instead of a paper edge.
+    push_quad(
+        &mut all_positions,
+        &mut colors,
+        &mut indices,
+        [
+            [-0.10, saddle_y + 0.02, -0.17],
+            [-0.10, saddle_y + 0.02, 0.17],
+            [0.10, saddle_y + 0.60, 0.17],
+            [0.10, saddle_y + 0.60, -0.17],
+        ],
+        jersey,
+    );
+    // Rider torso, side profile: saddle to bars in the frame plane.
+    push_quad(
+        &mut all_positions,
+        &mut colors,
+        &mut indices,
+        [
+            [-0.12, saddle_y, 0.0],
+            [0.33, handlebar_y, 0.0],
+            [0.33, handlebar_y + 0.18, 0.0],
+            [-0.12, saddle_y + 0.35, 0.0],
+        ],
+        jersey,
+    );
+    // Helmet above the shoulders, spanning z.
+    push_quad(
+        &mut all_positions,
+        &mut colors,
+        &mut indices,
+        [
+            [0.10, saddle_y + 0.62, -0.07],
+            [0.10, saddle_y + 0.62, 0.07],
+            [0.15, saddle_y + 0.80, 0.07],
+            [0.15, saddle_y + 0.80, -0.07],
+        ],
+        helmet,
+    );
+    // Astern wheel strips: thin vertical quads in the YZ plane at each hub, so
+    // the wheels read as tire profiles from behind instead of vanishing.
+    for cx in [-0.50_f32, 0.50] {
+        push_quad(
+            &mut all_positions,
+            &mut colors,
+            &mut indices,
+            [
+                [cx, 0.0, -0.03],
+                [cx, 0.0, 0.03],
+                [cx, 2.0 * wheel_r, 0.03],
+                [cx, 2.0 * wheel_r, -0.03],
+            ],
+            wheel_dark,
+        );
     }
 
     let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; all_positions.len()];
-    build_colored_glb(&all_positions, &uvs, &indices, frame_color)
+    build_colored_glb(&all_positions, &uvs, &indices, &colors)
 }
 
 fn wheel_vertex(cx: f32, cy: f32, r: f32, i: usize) -> [f32; 3] {
@@ -188,8 +282,9 @@ fn build_colored_glb(
     positions: &[[f32; 3]],
     uvs: &[[f32; 2]],
     indices: &[u16],
-    color: [f32; 3],
+    colors: &[[f32; 3]],
 ) -> Vec<u8> {
+    debug_assert_eq!(positions.len(), colors.len());
     let mut bin = Vec::new();
     let pos_offset = 0usize;
     for p in positions {
@@ -204,7 +299,7 @@ fn build_colored_glb(
         }
     }
     let color_offset = bin.len();
-    for _ in positions {
+    for color in colors {
         for c in color {
             bin.extend_from_slice(&c.to_le_bytes());
         }
