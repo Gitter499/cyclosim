@@ -133,6 +133,20 @@ impl RouteModel {
         (east, elev - self.meta.origin.elevation_m, north)
     }
 
+    /// Downsampled elevation profile for HUD/graph rendering: `n` evenly
+    /// spaced (distance_m, elevation_m) points across the route.
+    pub fn elevation_profile(&self, n: usize) -> Vec<(f64, f64)> {
+        let n = n.clamp(2, 4096);
+        let total = self.total_distance_m();
+        (0..n)
+            .map(|i| {
+                let d = total * i as f64 / (n - 1) as f64;
+                let (_, _, elev) = self.lat_lon_elev_at(d);
+                (d, elev)
+            })
+            .collect()
+    }
+
     pub fn lat_lon_elev_at(&self, distance_m: f64) -> (f64, f64, f64) {
         if self.points.is_empty() {
             return (0.0, 0.0, 0.0);

@@ -21,6 +21,8 @@ pub struct VeloApp {
     pub workout_engine: Option<WorkoutEngine>,
     pub steering: SteeringController,
     pub segment_music_enabled: bool,
+    pub rolling_power: crate::metrics::RollingPower,
+    pub laps: crate::metrics::LapTracker,
     last_audio_interval: Option<usize>,
     log: Vec<String>,
     tick: u64,
@@ -41,6 +43,8 @@ impl VeloApp {
             workout_engine: None,
             steering: SteeringController::default(),
             segment_music_enabled: false,
+            rolling_power: crate::metrics::RollingPower::default(),
+            laps: crate::metrics::LapTracker::default(),
             last_audio_interval: None,
             log: Vec::new(),
             tick: 0,
@@ -59,9 +63,21 @@ impl VeloApp {
         self.ride_session.is_active()
     }
 
+    /// Close the current lap at the live ride position.
+    pub fn mark_lap(&mut self) -> crate::metrics::Lap {
+        self.laps.mark(self.ride.elapsed_s, self.ride.distance_m)
+    }
+
+    /// Metrics block for the most recent (or in-progress) ride.
+    pub fn current_ride_metrics(&self) -> crate::metrics::RideMetrics {
+        crate::metrics::ride_metrics(self.ride_session.samples(), self.physics.ftp_w)
+    }
+
     pub fn start_ride(&mut self) {
         if !self.ride_session.is_active() {
             self.ride_session.start(self.clock_unix);
+            self.rolling_power.clear();
+            self.laps.reset();
             self.push_log("ride started".into());
         }
     }
@@ -290,6 +306,10 @@ impl VeloApp {
         self.ride.distance_m += snap.distance.0;
         self.ride.speed_mps = self.speed.0;
         self.ride.elapsed_s += DT as f64;
+        if let Some(p) = self.ride.power_w {
+            self.rolling_power.push(self.ride.elapsed_s, p);
+        }
+        self.laps.tick(self.ride.elapsed_s, self.ride.power_w);
 
         if self.ride_session.is_active() {
             self.ride_session.record_tick(RideSample {

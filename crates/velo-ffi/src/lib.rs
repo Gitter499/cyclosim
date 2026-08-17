@@ -192,6 +192,40 @@ pub struct HighlightClipRequestDto {
     pub label: String,
 }
 
+/// Live HUD metrics for P2-B: rolling power graph, lap state (M7 #48).
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct HudMetricsDto {
+    /// Rolling ~60 s power window downsampled for the graph, oldest first.
+    pub rolling_power_series: Vec<f64>,
+    pub rolling_avg_w: Option<f64>,
+    pub lap_count: u32,
+    pub current_lap_elapsed_s: f64,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct LapDto {
+    pub index: u32,
+    pub start_elapsed_s: f64,
+    pub end_elapsed_s: f64,
+    pub distance_m: f64,
+    pub avg_power_w: Option<f64>,
+}
+
+/// Post-ride training metrics (NP/IF/TSS/elevation gain) for the summary.
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct RideMetricsDto {
+    pub normalized_power_w: Option<f64>,
+    pub intensity_factor: Option<f64>,
+    pub tss: Option<f64>,
+    pub elevation_gain_m: f64,
+}
+
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct ElevationPointDto {
+    pub distance_m: f64,
+    pub elevation_m: f64,
+}
+
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct FramebufferDto {
     pub width: u32,
@@ -364,6 +398,16 @@ fn map_ride_mode_in(mode: RideMode) -> velo_core::ride::RideMode {
         RideMode::Free => velo_core::ride::RideMode::Free,
         RideMode::Erg => velo_core::ride::RideMode::Erg,
         RideMode::Sim => velo_core::ride::RideMode::Sim,
+    }
+}
+
+fn map_lap(lap: &velo_core::Lap) -> LapDto {
+    LapDto {
+        index: lap.index,
+        start_elapsed_s: lap.start_elapsed_s,
+        end_elapsed_s: lap.end_elapsed_s,
+        distance_m: lap.distance_m,
+        avg_power_w: lap.avg_power_w,
     }
 }
 
@@ -1149,6 +1193,61 @@ impl VeloHandle {
             height: fb.height,
             rgba_pixels: fb.pixels,
         })
+    }
+
+    /// Live rolling-power + lap state for the in-ride HUD (P2-B).
+    pub fn hud_metrics(&self, series_points: u32) -> HudMetricsDto {
+        let inner = self.inner.lock().unwrap();
+        let app = &inner.app;
+        HudMetricsDto {
+            rolling_power_series: app.rolling_power.series(series_points.clamp(2, 512) as usize),
+            rolling_avg_w: app.rolling_power.avg_w(),
+            lap_count: app.laps.laps().len() as u32,
+            current_lap_elapsed_s: app.laps.current_lap_elapsed_s(app.ride.elapsed_s),
+        }
+    }
+
+    /// Close the current lap and return it (HUD lap button).
+    pub fn mark_lap(&self) -> LapDto {
+        let mut inner = self.inner.lock().unwrap();
+        let lap = inner.app.mark_lap();
+        map_lap(&lap)
+    }
+
+    pub fn laps(&self) -> Vec<LapDto> {
+        let inner = self.inner.lock().unwrap();
+        inner.app.laps.laps().iter().map(map_lap).collect()
+    }
+
+    /// NP / IF / TSS / elevation gain over the recorded ride (post-ride sheet).
+    pub fn ride_metrics(&self) -> RideMetricsDto {
+        let inner = self.inner.lock().unwrap();
+        let m = inner.app.current_ride_metrics();
+        RideMetricsDto {
+            normalized_power_w: m.normalized_power_w,
+            intensity_factor: m.intensity_factor,
+            tss: m.tss,
+            elevation_gain_m: m.elevation_gain_m,
+        }
+    }
+
+    /// Downsampled elevation profile of the loaded route (HUD elevation bar).
+    pub fn route_elevation_profile(&self, points: u32) -> Vec<ElevationPointDto> {
+        let inner = self.inner.lock().unwrap();
+        inner
+            .app
+            .route
+            .as_ref()
+            .map(|r| {
+                r.elevation_profile(points.clamp(2, 4096) as usize)
+                    .into_iter()
+                    .map(|(distance_m, elevation_m)| ElevationPointDto {
+                        distance_m,
+                        elevation_m,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Sample the cinematic replay camera for a highlight clip at `fps`.
