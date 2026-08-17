@@ -265,7 +265,18 @@ struct SettingsView: View {
     private var bleBadgeLabel: String {
         switch model.sensorMode {
         case .bluetooth:
-            return model.bleState
+            var parts: [String] = []
+            if model.bleDevices.trainerConnected {
+                parts.append(model.bleDevices.trainerName ?? "Trainer")
+            }
+            if model.bleDevices.hrConnected {
+                var hr = model.bleDevices.hrName ?? "HR"
+                if let bpm = model.bleDevices.latestHeartRateBpm {
+                    hr += " \(bpm) bpm"
+                }
+                parts.append(hr)
+            }
+            return parts.isEmpty ? model.bleState : parts.joined(separator: " · ")
         case .fake, .replay:
             return model.sensorMode.label
         }

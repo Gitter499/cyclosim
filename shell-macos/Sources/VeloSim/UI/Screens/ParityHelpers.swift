@@ -171,9 +171,21 @@ struct PairingView: View {
     var body: some View {
         NavigationStack {
             List {
-                pairRow(role: "Power / Trainer", connected: model.sensorMode == .bluetooth && model.bleState.contains("connected"))
-                pairRow(role: "Cadence", connected: false)
-                pairRow(role: "Heart Rate", connected: false)
+                pairRow(
+                    role: "Power / Trainer",
+                    connected: model.bleDevices.trainerConnected,
+                    detail: model.bleDevices.trainerName
+                )
+                pairRow(
+                    role: "Cadence",
+                    connected: model.bleDevices.trainerConnected,
+                    detail: model.bleDevices.trainerConnected ? "via trainer" : nil
+                )
+                pairRow(
+                    role: "Heart Rate",
+                    connected: model.bleDevices.hrConnected,
+                    detail: hrDetail
+                )
             }
             .navigationTitle("Pair devices")
             .toolbar {
@@ -192,14 +204,24 @@ struct PairingView: View {
         .frame(minWidth: 420, minHeight: 360)
     }
 
-    private func pairRow(role: String, connected: Bool) -> some View {
+    private var hrDetail: String? {
+        guard model.bleDevices.hrConnected else { return nil }
+        let name = model.bleDevices.hrName ?? "HR strap"
+        if let bpm = model.bleDevices.latestHeartRateBpm {
+            return "\(name) · \(bpm) bpm"
+        }
+        return name
+    }
+
+    private func pairRow(role: String, connected: Bool, detail: String? = nil) -> some View {
         HStack {
             Label(role, systemImage: connected ? "checkmark.circle.fill" : "dot.radiowaves.left.and.right")
                 .foregroundStyle(connected ? .green : .secondary)
             Spacer()
-            Text(connected ? "Connected" : "Searching…")
+            Text(detail ?? (connected ? "Connected" : "Searching…"))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .contentTransition(.numericText())
             Button(connected ? "Change" : "Connect") {
                 model.setSensorMode(.bluetooth)
             }

@@ -28,6 +28,7 @@ final class VeloSimModel: ObservableObject {
     @Published var targetPower: Double = 180
     @Published var simGrade: Double = 0.0
     @Published var bleState: String = "idle"
+    @Published var bleDevices = BLEDeviceStatus()
     @Published var bleCapabilities: String = "—"
     @Published var bleTrainerStatus: String = "—"
     @Published var bleControlError: String?
@@ -128,6 +129,11 @@ final class VeloSimModel: ObservableObject {
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
                 self?.bleState = state
+            }
+        }
+        ftmsBridge.onDeviceStatusChange = { [weak self] status in
+            Task { @MainActor [weak self] in
+                self?.bleDevices = status
             }
         }
         ftmsBridge.onCapabilitiesChange = { [weak self] caps in
