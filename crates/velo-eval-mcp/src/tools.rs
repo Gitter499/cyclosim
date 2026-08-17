@@ -49,7 +49,7 @@ fn scenario_properties() -> Value {
         "zwo_xml": {"type": "string", "description": "Zwift .zwo workout XML (overrides workout)"},
         "record": {"type": "boolean", "description": "Record ride session (enables FIT export)"},
         "sample_every_s": {"type": "number", "description": "Timeline sample period (default 1s)"},
-        "steer_axis": {"type": "number", "description": "Steering axis held all ride, -1..1 (M6 lateral offset)"}
+        "steer_axis": {"type": "number", "description": "Steering axis held all ride, -1..1; yaws the chase camera (M6)"}
     })
 }
 
@@ -143,7 +143,7 @@ fn render_frame(args: &Value) -> Result<ToolOutput, String> {
     }
     let hud = frames::hud_from_app(&run.app, mode_label(&params));
     let follow = frames::follow_from_app(&run.app);
-    let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow)?;
+    let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow, run.app.steer_yaw_rad())?;
 
     Ok(ToolOutput {
         text: serde_json::to_string_pretty(&json!({
@@ -176,7 +176,7 @@ fn render_ride_sequence(args: &Value) -> Result<ToolOutput, String> {
         let run = scenario::run_scenario(&p)?;
         let hud = frames::hud_from_app(&run.app, mode_label(&params));
         let follow = frames::follow_from_app(&run.app);
-        let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow)?;
+        let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow, run.app.steer_yaw_rad())?;
         checkpoints.push(json!({
             "t_s": run.app.ride.elapsed_s,
             "distance_m": run.app.ride.distance_m,
@@ -219,6 +219,9 @@ fn hud_probe(args: &Value) -> Result<ToolOutput, String> {
             .and_then(Value::as_str)
             .map(String::from),
         workout_target_w: f("target_w"),
+        elevation_m: f("elevation_m"),
+        interval_duration_s: f("interval_duration_s"),
+        interval_elapsed_s: f("interval_elapsed_s"),
         attribution: args
             .get("attribution")
             .and_then(Value::as_str)
@@ -226,7 +229,7 @@ fn hud_probe(args: &Value) -> Result<ToolOutput, String> {
     };
 
     let mut renderer = frames::headless_renderer(width, height)?;
-    let png = frames::capture_png(&mut renderer, &hud, hud.distance_m, None)?;
+    let png = frames::capture_png(&mut renderer, &hud, hud.distance_m, None, 0.0)?;
     Ok(ToolOutput {
         text: serde_json::to_string_pretty(&json!({ "hud_lines": hud.lines() }))
             .unwrap_or_default(),
@@ -371,7 +374,7 @@ fn replay_camera_preview(args: &Value) -> Result<ToolOutput, String> {
             forward: velo_render::forward_from_enu(rider.x, rider.y, rider.z, e2, n2),
         };
         renderer.set_replay_camera(Some(pose));
-        let png = frames::capture_png(&mut renderer, &hud, 0.0, Some(follow))?;
+        let png = frames::capture_png(&mut renderer, &hud, 0.0, Some(follow), 0.0)?;
         poses.push(json!({
             "clip_t": clip_t,
             "eye": [pose.eye_east, pose.eye_up, pose.eye_north],

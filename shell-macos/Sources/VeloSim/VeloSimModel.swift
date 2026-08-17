@@ -45,6 +45,12 @@ final class VeloSimModel: ObservableObject {
     @Published var routeImportStatus: String = ""
     @Published var tiles3dEnabled: Bool = false
     @Published var tilesAttribution: String = ""
+    @Published var tilesProviderStatus: String = ""
+    @Published var tilesLastError: String?
+    @Published var bikegenModeStatus: String = ""
+    @Published var shellDestination: ShellDestination = .home
+    @Published var shellPhase: ShellPhase = .browse
+    @Published var activitiesTab: ActivitiesTab = .routes
 
     @Published var availableBikes: [BikeInfoDto] = []
     @Published var activeBikeId: String?
@@ -54,7 +60,40 @@ final class VeloSimModel: ObservableObject {
     @Published var workoutLive: WorkoutLiveDto
     @Published var workoutStatus: String = "No workout"
 
+    private let noopSteering = NoopSteeringInput()
+    private let keyboardSteering = KeyboardSteeringInput()
+    private let airPodsSteering = AirPodsSteeringInput()
+    let musicDirector = VeloMusicDirector()
+
+    @Published var steeringMode: SteeringInputMode = .off
+    @Published var segmentMusicEnabled: Bool = false
+    @Published var rustHudDrawEnabled: Bool = false
+    @Published var musicStatus: String = "Music off"
+
+    @Published var hudMinimalMode: Bool = false
+    @Published var ridePaused: Bool = false
+    @Published var chaseCameraWide: Bool = false
+    @Published var showPairingSheet: Bool = false
+    @Published var showFTPTestPicker: Bool = false
+    @Published var pendingFTPAnnouncement: FTPAnnouncement?
+    @Published var riderName: String = AppSettingsStore.riderName
+    @Published var riderWeightKg: Double = AppSettingsStore.riderWeightKg
+    @Published var highlightedRideId: String?
+    @Published var pinnedRouteId: String?
+    @Published var pinnedWorkoutName: String?
+
+    private var activeRampTest: RampTestEngine?
+    private var rampTestTickAccumulator: TimeInterval = 0
+
+    /// Throttled in-ride readouts (~8 Hz). Views bind here instead of `rideState` per guide §5.3.
+    let hudModel = HUDModel()
+    private lazy var hudCoordinator = HUDCoordinator(model: hudModel) { [weak self] in
+        guard let self, self.shellPhase == .riding else { return }
+        self.objectWillChange.send()
+    }
+
     private var tickTimer: Timer?
+    private var rideKeyMonitor: Any?
     private var rideStore: LocalRideStoreHandle?
 
     init() {
@@ -73,6 +112,17 @@ final class VeloSimModel: ObservableObject {
         refreshRideHistory()
         refreshRoutes()
         refreshBikes()
+        applyRuntimeSecrets()
+        hudModel.ftp = max(1, Int(ftp.rounded()))
+        hudMinimalMode = AppSettingsStore.hudMinimalMode
+        pinnedRouteId = AppSettingsStore.pinnedRouteId
+        pinnedWorkoutName = AppSettingsStore.pinnedWorkoutName
+        setSegmentMusicEnabled(AppSettingsStore.segmentMusicEnabled)
+        setSteeringMode(AppSettingsStore.defaultSteeringMode)
+        installRideKeyMonitor()
+
+        handle.setAudioDirector(director: musicDirector)
+        musicStatus = musicDirector.status
 
         ftmsBridge.onStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
@@ -117,9 +167,258 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    func setSteeringMode(_ mode: SteeringInputMode) {
+        steeringMode = mode
+        airPodsSteering.stop()
+        switch mode {
+        case .off:
+            handle.setSteeringEnabled(enabled: false)
+        case .keyboard:
+            handle.setSteeringEnabled(enabled: true)
+        case .airpods:
+            handle.setSteeringEnabled(enabled: true)
+            if airPodsSteering.isAvailable {
+                airPodsSteering.start()
+            }
+        }
+    }
+
+    func setSegmentMusicEnabled(_ enabled: Bool) {
+        segmentMusicEnabled = enabled
+        AppSettingsStore.segmentMusicEnabled = enabled
+        handle.setSegmentMusicEnabled(enabled: enabled)
+        musicDirector.setEnabled(enabled)
+        musicStatus = musicDirector.status
+    }
+
+    func setRustHudDrawEnabled(_ enabled: Bool) {
+        rustHudDrawEnabled = enabled
+        handle.setHudDrawEnabled(enabled: enabled)
+    }
+
+    func toggleHudMinimalMode() {
+        hudMinimalMode.toggle()
+        AppSettingsStore.hudMinimalMode = hudMinimalMode
+        hudModel.minimalMode = hudMinimalMode
+    }
+
+    func pinRoute(_ routeId: String) {
+        pinnedRouteId = routeId
+        AppSettingsStore.pinnedRouteId = routeId
+    }
+
+    func unpinRoute() {
+        pinnedRouteId = nil
+        AppSettingsStore.pinnedRouteId = nil
+    }
+
+    func pinWorkout(_ name: String) {
+        pinnedWorkoutName = name
+        AppSettingsStore.pinnedWorkoutName = name
+    }
+
+    func unpinWorkout() {
+        pinnedWorkoutName = nil
+        AppSettingsStore.pinnedWorkoutName = nil
+    }
+
+    func beginPinnedRouteRide() {
+        guard let routeId = pinnedRouteId ?? AppSettingsStore.pinnedRouteId else { return }
+        selectRoute(routeId)
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+            activitiesTab = .routes
+        }
+    }
+
+    func beginPinnedWorkout() {
+        guard let name = pinnedWorkoutName ?? AppSettingsStore.pinnedWorkoutName else { return }
+        if name == "2x20 Threshold" {
+            startSampleWorkout()
+        } else if workoutLive.active, workoutLive.workoutName == name {
+            // Workout already loaded.
+        } else {
+            shellDestination = .activities
+            activitiesTab = .workouts
+            return
+        }
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+            activitiesTab = .workouts
+        }
+    }
+
+    func connectAppleMusic() {
+        Task {
+            await musicDirector.requestAuthorization()
+            musicStatus = musicDirector.status
+        }
+    }
+
+    func recenterSteering() {
+        airPodsSteering.requestRecenter()
+    }
+
+    private func activeSteering() -> SteeringInputCallback {
+        switch steeringMode {
+        case .off:
+            return noopSteering
+        case .keyboard:
+            return keyboardSteering
+        case .airpods:
+            return airPodsSteering.isAvailable ? airPodsSteering : noopSteering
+        }
+    }
+
+    func beginFreeRide() {
+        clearRoute()
+        clearWorkout()
+        applyRideMode(.free)
+        shellDestination = .activities
+    }
+
+    /// Quick-start Just Ride: flat SIM, no workout, start immediately when pre-ride checks pass.
+    func beginJustRide() {
+        clearRoute()
+        clearWorkout()
+        activeRampTest = nil
+        applyRideMode(.sim)
+        if preRideBlockReason == nil {
+            startRide()
+        } else {
+            shellDestination = .activities
+        }
+    }
+
+    func pauseRide() {
+        guard isRideRecording else { return }
+        ridePaused = true
+    }
+
+    func resumeRide() {
+        ridePaused = false
+    }
+
+    func discardRide() {
+        guard isRideRecording else { return }
+        _ = handle.stopRide()
+        hudCoordinator.reset()
+        isRideRecording = false
+        ridePaused = false
+        activeRampTest = nil
+        shellPhase = .browse
+        rideFlowStatus = "discarded"
+    }
+
+    func toggleChaseCamera() {
+        chaseCameraWide.toggle()
+        logs.append(chaseCameraWide ? "camera: wide chase" : "camera: narrow chase")
+    }
+
+    func captureRideScreenshot() {
+        guard rendererReady, let fb = try? handle.captureFramebufferRgba() else { return }
+        do {
+            let png = try PngEncoder.encode(
+                width: Int(fb.width),
+                height: Int(fb.height),
+                rgba: fb.rgbaPixels
+            )
+            let url = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Pictures")
+                .appendingPathComponent("VeloSim-\(Int(Date().timeIntervalSince1970)).png")
+            try png.write(to: url)
+            logs.append("screenshot saved: \(url.lastPathComponent)")
+        } catch {
+            logs.append("screenshot failed: \(error)")
+        }
+    }
+
+    func requestUTurn() {
+        switch steeringMode {
+        case .keyboard:
+            keyboardSteering.requestRecenter()
+        case .airpods:
+            airPodsSteering.requestRecenter()
+        case .off:
+            break
+        }
+        logs.append("U-turn requested")
+    }
+
+    func startFTPTest(_ kind: RampTestEngine.ProtocolKind) {
+        switch kind {
+        case .ramp, .rampLite:
+            clearWorkout()
+            activeRampTest = RampTestEngine(kind: kind, previousFTP: Int(ftp.rounded()))
+            applyRideMode(.erg)
+            if preRideBlockReason == nil {
+                startRide()
+            } else {
+                shellDestination = .activities
+            }
+        case .twentyMin:
+            // TODO: dedicated 20-min protocol workout; sample workout is a stand-in.
+            startSampleWorkout()
+            if preRideBlockReason == nil {
+                startRide()
+            } else {
+                shellDestination = .activities
+            }
+        }
+    }
+
+    private func tickRampTestIfNeeded() {
+        guard let engine = activeRampTest, isRideRecording, !ridePaused else { return }
+        rampTestTickAccumulator += 1.0 / 30.0
+        guard rampTestTickAccumulator >= 1.0 else { return }
+        rampTestTickAccumulator = 0
+
+        let power = rideState.powerW ?? 0
+        let cadence = rideState.cadenceRpm ?? 0
+        let result = engine.tick(power: power, cadence: cadence)
+        applyTargetPower(Double(result.target))
+
+        if result.failed {
+            let oldFTP = Int(ftp.rounded())
+            let outcome = engine.finish()
+            activeRampTest = nil
+            applyFtp(Double(outcome.ftp))
+            if outcome.changed {
+                pendingFTPAnnouncement = FTPAnnouncement(oldFTP: oldFTP, newFTP: outcome.ftp)
+            }
+            stopRideAndPublish()
+        }
+    }
+
+    func applySecretsToCore() {
+        applyRuntimeSecrets()
+    }
+
+    func applyRuntimeSecrets() {
+        let dto = AppSecretsStore.runtimeSecretsDto(
+            preferHostedBikeGeneration: AppSettingsStore.preferHostedBikeGeneration
+        )
+        handle.configureRuntimeSecrets(secrets: dto)
+        refreshServiceStatus()
+    }
+
+    func refreshServiceStatus() {
+        tilesProviderStatus = handle.tilesProviderStatus()
+        bikegenModeStatus = handle.bikegenModeStatus()
+        tilesLastError = handle.tilesLastError()
+        if tiles3dEnabled {
+            tilesAttribution = handle.tilesAttribution()
+        }
+    }
+
     func applyFtp(_ watts: Double) {
         ftp = watts
         handle.setFtp(ftpW: watts)
+        hudModel.ftp = max(1, Int(watts.rounded()))
     }
 
     func startSampleWorkout() {
@@ -127,6 +426,9 @@ final class VeloSimModel: ObservableObject {
         workoutLive = handle.workoutLive()
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
+        if workoutLive.active {
+            pinWorkout(workoutLive.workoutName)
+        }
     }
 
     func startCustomWorkout(_ workout: WorkoutDto) throws {
@@ -134,6 +436,9 @@ final class VeloSimModel: ObservableObject {
         workoutLive = handle.workoutLive()
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
+        if workoutLive.active {
+            pinWorkout(workoutLive.workoutName)
+        }
     }
 
     func clearWorkout() {
@@ -197,6 +502,7 @@ final class VeloSimModel: ObservableObject {
             activeBikeId = bikeId
             bikeImportStatus = "Imported \(bikeId)"
             refreshBikes()
+            refreshServiceStatus()
         } catch {
             bikeImportStatus = "Import failed: \(error)"
         }
@@ -208,19 +514,38 @@ final class VeloSimModel: ObservableObject {
             activeRouteId = routeId
             tiles3dEnabled = handle.routeTiles3dEnabled()
             tilesAttribution = handle.tilesAttribution()
+            refreshServiceStatus()
             routeImportStatus = "Riding: \(routeId)"
             rideState = handle.rideState()
             simGrade = rideState.grade
+            pinRoute(routeId)
         } catch {
             routeImportStatus = "Failed to load route: \(error)"
         }
     }
 
+    var tilesKeysConfigured: Bool {
+        AppSecretsStore.load(account: .googleMapTilesApiKey) != nil
+            || AppSecretsStore.load(account: .cesiumIonAccessToken) != nil
+    }
+
+    var preRideBlockReason: String? {
+        PreRideValidation.blockReason(
+            tiles3dEnabled: tiles3dEnabled,
+            tilesKeysConfigured: tilesKeysConfigured,
+            tilesLastError: tilesLastError
+        )
+    }
+
     func setTiles3d(_ enabled: Bool) {
+        if enabled {
+            applySecretsToCore()
+        }
         do {
             try handle.setRouteTiles3d(enabled: enabled)
             tiles3dEnabled = enabled
             tilesAttribution = handle.tilesAttribution()
+            refreshServiceStatus()
         } catch {
             routeImportStatus = "3D Tiles toggle failed: \(error)"
         }
@@ -274,13 +599,26 @@ final class VeloSimModel: ObservableObject {
         }
     }
 
+    func startRideFromActivities() {
+        guard preRideBlockReason == nil else { return }
+        startRide()
+    }
+
     func startRide() {
-        guard !isRideRecording else { return }
+        guard !isRideRecording, preRideBlockReason == nil else { return }
+        applySecretsToCore()
+        if tiles3dEnabled {
+            try? handle.setRouteTiles3d(enabled: true)
+        }
         mediaCapture.ringBuffer.reset()
         handle.startRide()
+        hudCoordinator.reset()
         isRideRecording = handle.isRideRecording()
+        shellPhase = .riding
+        ridePaused = false
         lastPublishResult = nil
         rideFlowStatus = "recording"
+        startSimLoop()
     }
 
     func stopRideAndPublish() {
@@ -297,6 +635,9 @@ final class VeloSimModel: ObservableObject {
                 )
                 lastPublishResult = result
                 lastRideSummary = handle.lastRideSummary()
+                highlightedRideId = result.rideId
+                shellPhase = .browse
+                shellDestination = .home
                 showRideSummarySheet = lastRideSummary != nil
                 isRideRecording = handle.isRideRecording()
                 rideFlowStatus = result.savedLocally
@@ -304,6 +645,7 @@ final class VeloSimModel: ObservableObject {
                     : "uploaded to Strava"
                 refreshRideHistory()
                 logs = handle.recentLogs(limit: 12)
+                stopSimLoop()
             } catch {
                 rideFlowStatus = "finish failed: \(error)"
             }
@@ -332,7 +674,9 @@ final class VeloSimModel: ObservableObject {
                 width: UInt32(max(size.width, 1)),
                 height: UInt32(max(size.height, 1))
             )
+            handle.setHudDrawEnabled(enabled: false)
             rendererReady = true
+            rustHudDrawEnabled = false
         } catch {
             rendererReady = false
             logs.append("renderer init failed: \(error)")
@@ -376,6 +720,22 @@ final class VeloSimModel: ObservableObject {
 
     func dismissRideSummary() {
         showRideSummarySheet = false
+        shellDestination = .home
+    }
+
+    private func installRideKeyMonitor() {
+        rideKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            guard self.shellPhase == .riding,
+                  !self.showRideSummarySheet,
+                  event.keyCode == 32,
+                  !event.modifierFlags.contains(.command)
+            else {
+                return event
+            }
+            self.toggleHudMinimalMode()
+            return nil
+        }
     }
 
     func openHighlightClip() {
@@ -413,18 +773,27 @@ final class VeloSimModel: ObservableObject {
     }
 
     private func simTick() {
+        guard shellPhase == .riding else { return }
+
         switch sensorMode {
         case .fake:
-            handle.tick(sensors: fakeSensors, trainer: activeTrainer())
+            handle.tick(sensors: fakeSensors, trainer: activeTrainer(), steering: activeSteering())
         case .replay:
-            handle.tick(sensors: replaySensors, trainer: loggingTrainer)
+            handle.tick(sensors: replaySensors, trainer: loggingTrainer, steering: activeSteering())
         case .bluetooth:
-            handle.tick(sensors: ftmsBridge, trainer: ftmsBridge)
+            handle.tick(sensors: ftmsBridge, trainer: ftmsBridge, steering: activeSteering())
         }
 
         toggleCount = handle.toggleCount()
         rideState = handle.rideState()
         workoutLive = handle.workoutLive()
+        hudCoordinator.ingest(
+            rideState: rideState,
+            workoutLive: workoutLive,
+            ftp: ftp,
+            riderWeightKg: riderWeightKg,
+            minimalMode: hudMinimalMode
+        )
         isRideRecording = handle.isRideRecording()
         switch sensorMode {
         case .fake, .replay:
@@ -435,7 +804,9 @@ final class VeloSimModel: ObservableObject {
             trainerSimGrade = ftmsBridge.lastSimGrade
         }
         logs = handle.recentLogs(limit: 12)
-        renderFrame()
+        if tiles3dEnabled { refreshServiceStatus() }
+        if !ridePaused { renderFrame() }
+        tickRampTestIfNeeded()
     }
 
     private func activeTrainer() -> TrainerControlCallback {
@@ -447,6 +818,16 @@ final class VeloSimModel: ObservableObject {
 
     deinit {
         tickTimer?.invalidate()
+        if let rideKeyMonitor {
+            NSEvent.removeMonitor(rideKeyMonitor)
+        }
         ftmsBridge.disconnect()
     }
+}
+
+/// Shown after an FTP test updates the rider's FTP (guide §6.3).
+struct FTPAnnouncement: Identifiable {
+    let id = UUID()
+    let oldFTP: Int
+    let newFTP: Int
 }

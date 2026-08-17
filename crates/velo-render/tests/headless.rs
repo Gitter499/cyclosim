@@ -29,7 +29,7 @@ fn headless_capture_produces_full_frame() {
         ..Default::default()
     };
     let frame = renderer
-        .capture_framebuffer_rgba(&hud, 1234.0, None)
+        .capture_framebuffer_rgba(&hud, 1234.0, None, 0.0)
         .expect("capture");
     assert_eq!(frame.width, 320);
     assert_eq!(frame.height, 200);
@@ -55,7 +55,7 @@ fn headless_resize_changes_capture_dimensions() {
     renderer.resize(200, 150);
     let hud = HudSnapshot::default();
     let frame = renderer
-        .capture_framebuffer_rgba(&hud, 0.0, None)
+        .capture_framebuffer_rgba(&hud, 0.0, None, 0.0)
         .expect("capture after resize");
     assert_eq!((frame.width, frame.height), (200, 150));
 }
@@ -66,5 +66,5 @@ fn headless_render_frame_without_capture_ok() {
         return;
     };
     let hud = HudSnapshot::default();
-    renderer.render_frame(&hud, 0.0, None).expect("render");
+    renderer.render_frame(&hud, 0.0, None, 0.0).expect("render");
 }

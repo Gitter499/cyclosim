@@ -15,6 +15,19 @@ pub fn headless_renderer(width: u32, height: u32) -> Result<Renderer, String> {
 /// Build the HUD snapshot the shell would show for the app's current state.
 pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
     let (interval, target_w) = workout_hud_fields(app);
+    let (interval_duration_s, interval_elapsed_s) = app
+        .workout_engine
+        .as_ref()
+        .and_then(|e| {
+            let st = e.state();
+            e.current_interval()
+                .map(|i| (Some(i.duration_s), Some(st.interval_elapsed_s)))
+        })
+        .unwrap_or((None, None));
+    let elevation_m = app
+        .route
+        .as_ref()
+        .map(|r| r.lat_lon_elev_at(app.ride.distance_m).2);
     HudSnapshot {
         power_w: app.ride.power_w,
         cadence_rpm: app.ride.cadence_rpm,
@@ -23,9 +36,12 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         distance_m: app.ride.distance_m,
         elapsed_s: app.ride.elapsed_s,
         grade: app.ride.grade,
+        elevation_m,
         mode: mode_label,
         workout_interval: interval,
         workout_target_w: target_w,
+        interval_duration_s,
+        interval_elapsed_s,
         attribution: None,
     }
 }
@@ -34,7 +50,7 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
 pub fn follow_from_app(app: &VeloApp) -> Option<RouteFollow> {
     let route = app.route.as_ref()?;
     let d = app.ride.distance_m;
-    let (east, up, north) = app.steered_position_enu()?;
+    let (east, up, north) = route.position_enu_at(d);
     let (east_ahead, _, north_ahead) = route.position_enu_at(d + 5.0);
     Some(RouteFollow {
         east,
@@ -50,9 +66,10 @@ pub fn capture_png(
     hud: &HudSnapshot,
     distance_m: f64,
     follow: Option<RouteFollow>,
+    steer_yaw_rad: f32,
 ) -> Result<Vec<u8>, String> {
     let frame = renderer
-        .capture_framebuffer_rgba(hud, distance_m, follow)
+        .capture_framebuffer_rgba(hud, distance_m, follow, steer_yaw_rad)
         .map_err(|e| e.to_string())?;
     encode_png(&frame)
 }

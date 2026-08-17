@@ -1,15 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use thiserror::Error;
 use url::Url;
 
 use crate::attribution::{attribution_for_provider, TileAttribution, TileProvider};
+use crate::credentials::tiles_credentials;
 use crate::gltf::{decode_gltf_bytes, GltfDecodeError};
 use crate::mesh::TileMesh;
 use crate::policy::{OnlineOnlyPolicy, PolicyError};
 use crate::synthetic::synthetic_triangle_glb;
 use crate::tileset::{TilesetDocument, TilesetError};
 use crate::DEV_ION_ASSET_ID;
+
+const GOOGLE_ROOT_TILESET: &str = "https://tile.googleapis.com/v1/3dtiles/root.json";
+const GOOGLE_TILES_ORIGIN: &str = "https://tile.googleapis.com";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ViewCorridor {
@@ -30,6 +34,67 @@ pub enum SessionError {
     Network(String),
     #[error("session offline — 3D Tiles require network during ride")]
     Offline,
+    #[error("missing API key for configured tile provider")]
+    MissingApiKey,
+}
+
+/// HTTP fetch options for tile requests (API keys via header or query).
+#[derive(Debug, Clone, Default)]
+struct FetchAuth {
+    google_api_key: Option<String>,
+    cesium_ion_token: Option<String>,
+}
+
+impl FetchAuth {
+    fn from_credentials() -> Self {
+        let creds = tiles_credentials();
+        Self {
+            google_api_key: creds.google_key(),
+            cesium_ion_token: creds.cesium_ion_token(),
+        }
+    }
+
+    fn google_root_url(&self) -> Option<String> {
+        self.google_api_key
+            .as_ref()
+            .map(|key| format!("{GOOGLE_ROOT_TILESET}?key={}", urlencoding::encode(key)))
+    }
+
+    fn resolve_tile_url(&self, base: &Url, href: &str) -> Result<String, SessionError> {
+        let joined = base
+            .join(href)
+            .map_err(|e| SessionError::Network(e.to_string()))?;
+        Self::append_google_key(joined, self.google_api_key.as_deref())
+    }
+
+    /// Google returns path-only URIs (`/v1/3dtiles/...?session=…`) that must be resolved
+    /// against `tile.googleapis.com`, preserving `session` and appending `key`.
+    fn resolve_google_url(&self, href: &str) -> Result<String, SessionError> {
+        let combined = if href.starts_with("http://") || href.starts_with("https://") {
+            href.to_string()
+        } else if href.starts_with('/') {
+            format!("{GOOGLE_TILES_ORIGIN}{href}")
+        } else {
+            format!("{GOOGLE_TILES_ORIGIN}/{href}")
+        };
+        let url = Url::parse(&combined).map_err(|e| SessionError::Network(e.to_string()))?;
+        Self::append_google_key(url, self.google_api_key.as_deref())
+    }
+
+    fn append_google_key(mut url: Url, key: Option<&str>) -> Result<String, SessionError> {
+        if let Some(key) = key {
+            let has_key = url.query_pairs().any(|(k, _)| k == "key");
+            if !has_key {
+                url.query_pairs_mut().append_pair("key", key);
+            }
+        }
+        Ok(url.to_string())
+    }
+}
+
+fn looks_like_tileset_ref(uri: &str) -> bool {
+    let path = uri.split('?').next().unwrap_or(uri);
+    path.ends_with(".json")
 }
 
 /// In-memory 3D Tiles session. Never persists tile bytes to disk.
@@ -37,11 +102,13 @@ pub struct TilesSession {
     policy: OnlineOnlyPolicy,
     provider: TileProvider,
     attribution: TileAttribution,
+    fetch_auth: FetchAuth,
     /// In-memory tile payload cache (cleared on drop — not disk-backed).
     memory_cache: HashMap<String, Vec<u8>>,
     loaded_meshes: Vec<TileMesh>,
     online: bool,
     tileset_url: Option<String>,
+    last_error: Option<String>,
 }
 
 impl TilesSession {
@@ -52,10 +119,12 @@ impl TilesSession {
             policy: OnlineOnlyPolicy::new(),
             provider,
             attribution: attribution_for_provider(provider),
+            fetch_auth: FetchAuth::default(),
             memory_cache: HashMap::new(),
             loaded_meshes: Vec::new(),
             online: false,
             tileset_url: None,
+            last_error: None,
         };
         let glb = synthetic_triangle_glb();
         if let Ok(mesh) = decode_gltf_bytes(&glb, "synthetic") {
@@ -64,14 +133,19 @@ impl TilesSession {
         session
     }
 
-    /// Online session — uses Google tiles when `GOOGLE_MAP_TILES_API_KEY` is set,
-    /// otherwise the public Cesium ion dev asset.
+    /// Online session — Google tiles when key configured, else Cesium ion (token or dev asset).
     pub fn online_default() -> Result<Self, SessionError> {
-        let google_key = std::env::var("GOOGLE_MAP_TILES_API_KEY").ok();
-        let (provider, tileset_url) = if google_key.is_some() {
+        let auth = FetchAuth::from_credentials();
+        let (provider, tileset_url) = if let Some(url) = auth.google_root_url() {
+            (TileProvider::GooglePhotorealistic, Some(url))
+        } else if auth.cesium_ion_token.is_some() {
             (
-                TileProvider::GooglePhotorealistic,
-                None, // Google root URL resolved at fetch time in follow-up PR
+                TileProvider::CesiumIonDev,
+                Some(format!(
+                    "https://assets.ion.cesium.com/{}/tileset.json?access_token={}",
+                    DEV_ION_ASSET_ID,
+                    urlencoding::encode(auth.cesium_ion_token.as_ref().unwrap())
+                )),
             )
         } else {
             (
@@ -87,10 +161,12 @@ impl TilesSession {
             policy: OnlineOnlyPolicy::new(),
             attribution: attribution_for_provider(provider),
             provider,
+            fetch_auth: auth,
             memory_cache: HashMap::new(),
             loaded_meshes: Vec::new(),
             online: true,
             tileset_url,
+            last_error: None,
         })
     }
 
@@ -110,6 +186,11 @@ impl TilesSession {
         &self.loaded_meshes
     }
 
+    /// Last bootstrap/network error (for HUD / setup status).
+    pub fn last_error(&self) -> Option<&str> {
+        self.last_error.as_deref()
+    }
+
     /// Update visible tiles for the current view. Fetches into memory only.
     pub fn tick(&mut self, view: ViewCorridor) -> Result<&[TileMesh], SessionError> {
         self.policy.check_no_disk_write()?;
@@ -118,35 +199,91 @@ impl TilesSession {
         }
 
         if self.loaded_meshes.is_empty() {
-            self.bootstrap_online_tiles(view)?;
+            if let Err(e) = self.bootstrap_online_tiles(view) {
+                self.last_error = Some(e.to_string());
+                self.load_synthetic_fallback()?;
+            }
         }
         Ok(&self.loaded_meshes)
     }
 
     fn bootstrap_online_tiles(&mut self, _view: ViewCorridor) -> Result<(), SessionError> {
         let Some(tileset_url) = self.tileset_url.clone() else {
-            // Google path: load synthetic placeholder until full API wiring lands.
-            return self.load_synthetic_fallback();
+            return Err(SessionError::MissingApiKey);
         };
 
-        let tileset_json = fetch_bytes_in_memory(&tileset_url, &mut self.memory_cache)?;
-        let doc = TilesetDocument::parse_json(std::str::from_utf8(&tileset_json).map_err(|e| {
-            SessionError::Network(e.to_string())
-        })?)?;
-
-        let base = Url::parse(&tileset_url)
-            .map_err(|e| SessionError::Network(e.to_string()))?;
-
-        for uri in doc.content_uris(1).into_iter().take(1) {
-            let tile_url = base.join(&uri).map_err(|e| SessionError::Network(e.to_string()))?;
-            let bytes = fetch_bytes_in_memory(tile_url.as_str(), &mut self.memory_cache)?;
-            let mesh = decode_gltf_bytes(&bytes, uri)?;
-            self.loaded_meshes.push(mesh);
-        }
+        self.load_meshes_from_tileset(&tileset_url, 0)?;
 
         if self.loaded_meshes.is_empty() {
-            self.load_synthetic_fallback()?;
+            return Err(SessionError::Network(
+                "tileset contained no decodable meshes".into(),
+            ));
         }
+        self.last_error = None;
+        Ok(())
+    }
+
+    /// Breadth-first tileset traversal: follow external `.json` tilesets, decode GLB/GLTF leaves.
+    fn load_meshes_from_tileset(
+        &mut self,
+        tileset_url: &str,
+        depth: u32,
+    ) -> Result<(), SessionError> {
+        if depth > 6 {
+            return Err(SessionError::Network(
+                "tileset nesting exceeded max depth".into(),
+            ));
+        }
+
+        let tileset_json =
+            fetch_bytes_in_memory(tileset_url, &mut self.memory_cache, &self.fetch_auth)?;
+        let doc = TilesetDocument::parse_json(
+            std::str::from_utf8(&tileset_json).map_err(|e| SessionError::Network(e.to_string()))?,
+        )?;
+
+        let ion_base = Url::parse(tileset_url).map_err(|e| SessionError::Network(e.to_string()))?;
+        let mut pending: Vec<String> = doc.content_uris(4);
+        let mut seen: HashSet<String> = HashSet::new();
+
+        while let Some(uri) = pending.pop() {
+            if self.loaded_meshes.len() >= 2 {
+                break;
+            }
+            if !seen.insert(uri.clone()) {
+                continue;
+            }
+
+            let tile_url = match self.provider {
+                TileProvider::GooglePhotorealistic => self.fetch_auth.resolve_google_url(&uri)?,
+                _ => self.fetch_auth.resolve_tile_url(&ion_base, &uri)?,
+            };
+
+            if looks_like_tileset_ref(&uri) {
+                if self.load_meshes_from_tileset(&tile_url, depth + 1).is_ok()
+                    && !self.loaded_meshes.is_empty()
+                {
+                    continue;
+                }
+            }
+
+            let bytes = fetch_bytes_in_memory(&tile_url, &mut self.memory_cache, &self.fetch_auth)?;
+            if bytes.first() == Some(&b'{') {
+                if let Ok(nested) = std::str::from_utf8(&bytes) {
+                    if let Ok(nested_doc) = TilesetDocument::parse_json(nested) {
+                        pending.extend(nested_doc.content_uris(3));
+                        continue;
+                    }
+                }
+            }
+
+            match decode_gltf_bytes(&bytes, &uri) {
+                Ok(mesh) => self.loaded_meshes.push(mesh),
+                Err(e) => {
+                    self.last_error = Some(format!("decode {uri}: {e}"));
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -178,6 +315,7 @@ impl Drop for TilesSession {
 fn fetch_bytes_in_memory(
     url: &str,
     cache: &mut HashMap<String, Vec<u8>>,
+    auth: &FetchAuth,
 ) -> Result<Vec<u8>, SessionError> {
     if let Some(bytes) = cache.get(url) {
         return Ok(bytes.clone());
@@ -186,13 +324,23 @@ fn fetch_bytes_in_memory(
         .redirect(reqwest::redirect::Policy::limited(8))
         .build()
         .map_err(|e| SessionError::Network(e.to_string()))?;
-    let resp = client
+    let mut req = client
         .get(url)
-        .header("User-Agent", "VeloSim/0.1 (M3b spike)")
+        .header("User-Agent", "VeloSim/0.1 (M3b spike)");
+    if auth.google_api_key.is_some() && url.contains("tile.googleapis.com") {
+        if let Some(key) = &auth.google_api_key {
+            req = req.header("X-GOOG-API-KEY", key.as_str());
+        }
+    }
+    let resp = req
         .send()
         .map_err(|e| SessionError::Network(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(SessionError::Network(format!("HTTP {}", resp.status())));
+        return Err(SessionError::Network(format!(
+            "HTTP {} for {}",
+            resp.status(),
+            redact_url(url)
+        )));
     }
     let bytes = resp
         .bytes()
@@ -203,8 +351,16 @@ fn fetch_bytes_in_memory(
 }
 
 #[cfg(not(feature = "network"))]
-fn fetch_bytes_in_memory(_url: &str, _cache: &mut HashMap<String, Vec<u8>>) -> Result<Vec<u8>, SessionError> {
+fn fetch_bytes_in_memory(
+    _url: &str,
+    _cache: &mut HashMap<String, Vec<u8>>,
+    _auth: &FetchAuth,
+) -> Result<Vec<u8>, SessionError> {
     Err(SessionError::Offline)
+}
+
+fn redact_url(url: &str) -> String {
+    url.split('?').next().unwrap_or(url).to_string()
 }
 
 #[cfg(test)]
@@ -237,5 +393,38 @@ mod tests {
         let before = session.meshes().len();
         session.inject_glb_for_test(&glb, "extra").unwrap();
         assert_eq!(session.meshes().len(), before + 1);
+    }
+
+    #[test]
+    fn google_root_url_includes_key() {
+        let auth = FetchAuth {
+            google_api_key: Some("abc123".into()),
+            ..Default::default()
+        };
+        let url = auth.google_root_url().unwrap();
+        assert!(url.contains("tile.googleapis.com"));
+        assert!(url.contains("key=abc123"));
+    }
+
+    #[test]
+    fn google_child_url_preserves_session_and_adds_key() {
+        let auth = FetchAuth {
+            google_api_key: Some("my-key".into()),
+            ..Default::default()
+        };
+        let url = auth
+            .resolve_google_url("/v1/3dtiles/datasets/CgA/files/foo.glb?session=abc")
+            .unwrap();
+        assert!(url.starts_with("https://tile.googleapis.com/v1/3dtiles/"));
+        assert!(url.contains("session=abc"));
+        assert!(url.contains("key=my-key"));
+    }
+
+    #[test]
+    fn looks_like_tileset_ref_detects_json() {
+        assert!(looks_like_tileset_ref(
+            "/v1/3dtiles/datasets/x/files/y.json?session=s"
+        ));
+        assert!(!looks_like_tileset_ref("tile.glb"));
     }
 }

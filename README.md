@@ -1,10 +1,12 @@
-# cyclosim
+# VeloSim (cyclosim)
+
+[![CI](https://github.com/Gitter499/cyclosim/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Gitter499/cyclosim/actions/workflows/ci.yml)
 
 Native offline cycling simulator for macOS. Rust simulation core, Swift shell, smart trainer support.
 
 ## Requirements
 
-- macOS (Apple Silicon)
+- macOS 26+ recommended (Liquid Glass UI); macOS 14+ with solid fallbacks
 - [Rust](https://www.rust-lang.org/tools/install) (stable)
 - [Xcode](https://developer.apple.com/xcode/) (Swift, Metal)
 
@@ -12,19 +14,20 @@ Native offline cycling simulator for macOS. Rust simulation core, Swift shell, s
 
 ```bash
 cargo test
-just build && just run
+./scripts/build.sh
+open shell-macos/.build/release/VeloSim
 ```
 
-Optional: [just](https://github.com/casey/just) wraps common tasks (`just test`, `just lint`).
+Optional: [just](https://github.com/casey/just) wraps common tasks (`just build`, `just run`, `just lint`).
 
 ## Documentation
 
 | Doc | Description |
 |-----|-------------|
-| [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) | Architecture and milestones |
+| [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) | Architecture, milestones, testing, quality log |
+| [VeloSim-Roadmap.md](VeloSim-Roadmap.md) | Product parity vs Zwift/MyWhoosh, UI spec, issue tracker |
 | [AGENTS.md](AGENTS.md) | Agent and contributor guide |
 | [STRAVA.md](STRAVA.md) | Strava OAuth setup |
-| [docs/QUALITY_PASS.md](docs/QUALITY_PASS.md) | Quality pass log |
 
 ## Crates
 

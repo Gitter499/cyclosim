@@ -10,10 +10,11 @@ description: >-
 
 Post-milestone cleanup. Consumes the **entire** codebase and restores cohesion after parallel milestone work.
 
-**Companion skills** — apply all three on a full pass:
+**Companion skills** — apply all four on a full pass:
 
 - [rust-best-practices](../rust-best-practices/SKILL.md) — portable crates, tests, lint
 - [swift-best-practices](../swift-best-practices/SKILL.md) — shell UI, UniFFI, Package.swift
+- [velo-ui-parity](../velo-ui-parity/SKILL.md) — multi-page shell IA, dashboard, ride HUD layout (required for shell chrome work)
 
 ## When to run
 
@@ -39,7 +40,7 @@ Copy and track:
 
 ```
 Quality pass progress:
-- [ ] Read quality-pass + rust-best-practices + swift-best-practices skills
+- [ ] Read quality-pass + rust-best-practices + swift-best-practices (+ velo-ui-parity if shell changed)
 - [ ] Read VeloSim-Technical-Plan.md + root README + every crate README
 - [ ] Map crate boundaries vs actual deps (Cargo.toml, Package.swift)
 - [ ] Find dead code, duplicate logic, inconsistent naming
@@ -47,11 +48,11 @@ Quality pass progress:
 - [ ] Run cargo test && just lint (if available)
 - [ ] Add/strengthen integration tests (prefer cross-crate)
 - [ ] Sync documentation (READMEs, STRAVA.md, inline rustdoc where thin)
-- [ ] Write docs/QUALITY_PASS.md report (findings + deferred items)
+- [ ] Append quality log entry to [VeloSim-Technical-Plan.md §22](../../../VeloSim-Technical-Plan.md)
 - [ ] Granular commits on dev (refactor / test / docs prefixes)
 ```
 
-Also read [rust-best-practices](../rust-best-practices/SKILL.md) and [swift-best-practices](../swift-best-practices/SKILL.md) when touching those languages.
+Also read [rust-best-practices](../rust-best-practices/SKILL.md) and [swift-best-practices](../swift-best-practices/SKILL.md) when touching those languages. For shell navigation or ride layout changes, read [velo-ui-parity](../velo-ui-parity/SKILL.md) and [VeloSim-Roadmap.md](../../../VeloSim-Roadmap.md) Part II.
 
 ## Priorities (high → low)
 
@@ -90,26 +91,14 @@ chore(quality): quality pass report for M3 merge
 
 ## Report template
 
-Append or replace `docs/QUALITY_PASS.md`:
+Append to [VeloSim-Technical-Plan.md §22](../../../VeloSim-Technical-Plan.md):
 
 ```markdown
-# Quality pass — YYYY-MM-DD
-
-## Scope
-Milestone / trigger: …
-
-## Changes made
-- …
-
-## Findings (deferred)
-- …
-
-## Doc sync
-- …
-
-## Test coverage added
-- …
+| YYYY-MM-DD | Trigger | Summary |
+| … | … | … |
 ```
+
+Include deferred findings and test coverage in the commit message or PR body.
 
 ## Output
 

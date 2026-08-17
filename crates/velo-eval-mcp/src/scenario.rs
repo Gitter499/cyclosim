@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use velo_core::{
     RideMode, RouteModel, RoutePoint, VeloApp, Workout,
 };
-use velo_platform::{MockSensorSource, RecordingTrainerControl, TelemetrySample};
+use velo_platform::{MockAudioDirector, MockSensorSource, MockSteeringInput, RecordingTrainerControl, TelemetrySample};
 use velo_units::{Bpm, Rpm, Watts};
 
 const DT_S: f64 = 0.01;
@@ -88,7 +88,7 @@ pub struct ScenarioParams {
     /// Timeline sampling period in seconds.
     #[serde(default = "default_sample_every")]
     pub sample_every_s: f64,
-    /// Steering axis held for the whole scenario, [-1, 1] (M6).
+    /// Steering axis held for the whole scenario, [-1, 1]; yaws the camera (M6).
     #[serde(default)]
     pub steer_axis: f64,
 }
@@ -127,7 +127,7 @@ pub struct ScenarioSummary {
     pub trainer_last_erg_w: Option<f64>,
     pub trainer_last_sim_grade: Option<f64>,
     pub recorded_samples: Option<u32>,
-    pub lateral_offset_m: f64,
+    pub steer_yaw_rad: f64,
 }
 
 /// A completed scenario: the app (for rendering/FIT export) plus telemetry.
@@ -222,8 +222,9 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
         app.start_ride();
     }
 
+    let steering = MockSteeringInput::with_axis(params.steer_axis as f32);
     if params.steer_axis != 0.0 {
-        app.set_steering(params.steer_axis, false);
+        app.set_steering_enabled(true);
     }
 
     let has_workout = app.workout_active();
@@ -255,7 +256,12 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
             heart_rate: params.heart_rate_bpm.map(Bpm::new),
             wheel_speed: None,
         });
-        app.tick(&mut sensors, &trainer);
+        app.tick(
+            &mut sensors,
+            &trainer,
+            Some(&steering),
+            None::<&MockAudioDirector>,
+        );
         max_speed = max_speed.max(app.ride.speed_mps);
 
         if tick % sample_every_ticks == 0 || tick + 1 == ticks {
@@ -289,7 +295,7 @@ pub fn run_scenario(params: &ScenarioParams) -> Result<ScenarioRun, String> {
         trainer_last_erg_w: trainer.last_power().map(|w| w.0),
         trainer_last_sim_grade: trainer.last_sim().map(|(g, _, _)| g.0),
         recorded_samples: recorded,
-        lateral_offset_m: app.ride.lateral_offset_m,
+        steer_yaw_rad: app.steer_yaw_rad() as f64,
     };
 
     Ok(ScenarioRun {
