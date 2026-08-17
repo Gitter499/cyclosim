@@ -6,6 +6,7 @@ let rustLibPath = "../target/release"
 
 let supportExclude = [
     "VeloSimApp.swift",
+    "ScreenshotMode.swift",
     "ContentView.swift",
     "VeloSimModel.swift",
     "WorkoutBuilderView.swift",
