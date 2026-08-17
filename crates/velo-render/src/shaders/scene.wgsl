@@ -12,6 +12,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec3<f32>,
+    @location(1) view_depth: f32,
 }
 
 @vertex
@@ -19,10 +20,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.clip_position = uniforms.mvp * vec4<f32>(in.position, 1.0);
     out.color = in.color;
+    out.view_depth = out.clip_position.w;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color, 1.0);
+    // Fade the fallback grid into the same horizon haze as sky.wgsl.
+    let fog = clamp(1.0 - exp(-in.view_depth / 900.0), 0.0, 0.88);
+    let haze = vec3<f32>(0.82, 0.87, 0.93);
+    return vec4<f32>(mix(in.color, haze, fog), 1.0);
 }
