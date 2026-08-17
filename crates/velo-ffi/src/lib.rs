@@ -1038,6 +1038,11 @@ impl VeloHandle {
             .set_segment_music_enabled(enabled);
     }
 
+    /// Retry the current interval's audio callback (post-enable/auth, #29).
+    pub fn resync_audio_segment(&self) {
+        self.inner.lock().unwrap().app.resync_audio_segment();
+    }
+
     pub fn segment_music_enabled(&self) -> bool {
         self.inner.lock().unwrap().app.segment_music_enabled()
     }
