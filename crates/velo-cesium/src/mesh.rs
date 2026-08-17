@@ -11,6 +11,10 @@ pub struct TileVertex {
 pub struct TileMesh {
     pub vertices: Vec<TileVertex>,
     pub indices: Vec<u32>,
+    /// Per-vertex COLOR_0 (linear RGB) when the source glTF carries it;
+    /// empty otherwise. Kept out of `TileVertex` so GPU layouts that don't
+    /// use color (terrain tiles) are unaffected.
+    pub colors: Vec<[f32; 3]>,
     pub tile_id: String,
 }
 
@@ -23,6 +27,7 @@ impl TileMesh {
                 TileVertex { position: c, uv: [0.5, 1.0] },
             ],
             indices: vec![0, 1, 2],
+            colors: Vec::new(),
             tile_id: id.into(),
         }
     }

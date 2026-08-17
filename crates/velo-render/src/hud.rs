@@ -404,10 +404,18 @@ impl HudRenderer {
         self.place(strip_idx, strip_x, strip_y);
 
         // ---- Primary block (bottom-left): hero power + CAD/HR row ----
-        let block_w = 236.0;
+        // Inner grid: everything (label, band, CAD/HR) shares the PAD_PX
+        // inset; the zone band gets real breathing room around the numeral so
+        // digits never touch its edges.
+        let block_w = 248.0;
         let hero_h = HERO_SIZE * 1.02;
+        let band_pad_y = 9.0;
+        let band_h = hero_h + band_pad_y * 2.0;
+        let label_gap = 6.0;
+        let row_gap = 10.0;
         let row_h = METRIC_SIZE * 1.25 + LABEL_SIZE * 1.3;
-        let block_h = LABEL_SIZE * 1.3 + hero_h + 8.0 + row_h + PAD_PX * 2.0;
+        let block_h =
+            PAD_PX + LABEL_SIZE * 1.3 + label_gap + band_h + row_gap + row_h + PAD_PX;
         let block_x = MARGIN_PX;
         let block_y = h - MARGIN_PX - block_h;
         self.quad(
@@ -420,38 +428,41 @@ impl HudRenderer {
             h,
         );
 
-        // Zone-tinted surface behind the hero numeral.
+        let (pl_idx, _) = self.shape(Role::Label, "POWER · 3s", TEXT_SECONDARY, w, h);
+        self.place(pl_idx, block_x + PAD_PX, block_y + PAD_PX);
+
+        // Zone-tinted surface behind the hero numeral, on the inner grid.
         let ftp = hud.ftp_w.unwrap_or(0.0);
         let zone = display_power
             .map(|p| zone_color(p, ftp.max(1.0)))
             .unwrap_or([0.35, 0.38, 0.42]);
-        let hero_top = block_y + PAD_PX + LABEL_SIZE * 1.3;
+        let band_top = block_y + PAD_PX + LABEL_SIZE * 1.3 + label_gap;
         self.quad(
-            block_x + PAD_PX / 2.0,
-            hero_top - 2.0,
-            block_x + block_w - PAD_PX / 2.0,
-            hero_top + hero_h + 2.0,
+            block_x + PAD_PX,
+            band_top,
+            block_x + block_w - PAD_PX,
+            band_top + band_h,
             [zone[0], zone[1], zone[2], 0.42],
             w,
             h,
         );
 
-        let (pl_idx, _) = self.shape(Role::Label, "POWER  ·  3s", TEXT_SECONDARY, w, h);
-        self.place(pl_idx, block_x + PAD_PX, block_y + PAD_PX);
-
-        // Fixed-slot right-aligned hero numeral: no jitter between frames.
+        // Fixed-slot right-aligned hero numeral + unit, both fully inside the
+        // band with an inner margin (the unit must never straddle the edge).
+        let hero_top = band_top + band_pad_y;
         let hero_text = match display_power {
             Some(p) => format!("{:>4.0}", p),
             None => "   —".into(),
         };
+        let (unit_idx, unit_w) = self.shape(Role::Metric, "W", TEXT_SECONDARY, w, h);
+        let unit_x = block_x + block_w - PAD_PX - 12.0 - unit_w;
         let (hero_idx, hero_w) = self.shape(Role::Hero, &hero_text, TEXT_PRIMARY, w, h);
-        let unit_x = block_x + block_w - PAD_PX - 26.0;
-        self.place(hero_idx, unit_x - 6.0 - hero_w, hero_top);
-        let (unit_idx, _) = self.shape(Role::Metric, "W", TEXT_SECONDARY, w, h);
-        self.place(unit_idx, unit_x, hero_top + hero_h - METRIC_SIZE * 1.6);
+        self.place(hero_idx, unit_x - 8.0 - hero_w, hero_top);
+        // Baseline-align the unit with the numeral (both bottom-anchored).
+        self.place(unit_idx, unit_x, hero_top + hero_h - METRIC_SIZE * 1.25);
 
         // Secondary row: CAD · HR (labels above values, one row).
-        let row_top = hero_top + hero_h + 8.0;
+        let row_top = band_top + band_h + row_gap;
         let half = (block_w - PAD_PX * 2.0) / 2.0;
         let cad = hud
             .cadence_rpm

@@ -57,13 +57,17 @@ impl BikeScene {
         anchor: AnchorTransform,
     ) -> Result<Self, String> {
         let decoded = decode_gltf_bytes(bytes, "bike").map_err(|e| e.to_string())?;
+        // Honor per-vertex COLOR_0 when the mesh carries it (the placeholder
+        // colors its jersey/wheels/frame differently); flat tint otherwise.
         let tint = [0.72, 0.22, 0.18];
+        let has_colors = decoded.colors.len() == decoded.vertices.len();
         let vertices: Vec<BikeGpuVertex> = decoded
             .vertices
             .iter()
-            .map(|v| BikeGpuVertex {
+            .enumerate()
+            .map(|(i, v)| BikeGpuVertex {
                 position: v.position,
-                color: tint,
+                color: if has_colors { decoded.colors[i] } else { tint },
             })
             .collect();
 

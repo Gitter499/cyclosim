@@ -47,6 +47,11 @@ pub fn decode_gltf_bytes(bytes: &[u8], tile_id: impl Into<String>) -> Result<Til
         .map(|iter| iter.into_u32().collect())
         .unwrap_or_else(|| (0..positions.len() as u32).collect());
 
+    let colors: Vec<[f32; 3]> = reader
+        .read_colors(0)
+        .map(|iter| iter.into_rgb_f32().collect())
+        .unwrap_or_default();
+
     let vertices: Vec<TileVertex> = positions
         .into_iter()
         .zip(uvs)
@@ -56,6 +61,7 @@ pub fn decode_gltf_bytes(bytes: &[u8], tile_id: impl Into<String>) -> Result<Til
     Ok(TileMesh {
         vertices,
         indices,
+        colors,
         tile_id: tile_id.into(),
     })
 }
