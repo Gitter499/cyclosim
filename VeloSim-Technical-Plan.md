@@ -492,7 +492,7 @@ So the trait is `AudioDirector`, not "AudioMixer."
 playlists/queues, swaps tracks at boundaries, and uses MusicKit's playback controls
 (play/skip/volume duck) to transition. Track selection uses whatever tempo/energy metadata is
 available — best-effort, not true BPM-locked mixing. Ship this as "smart segment-aware playback,"
-which is honest and still good.
+which is honest and still good. **Shipped in M6** via `AudioDirectorCallback` + `VeloMusicDirector`.
 
 ---
 
@@ -542,6 +542,7 @@ M2b saves FIT + PNG to ad-hoc folders (`LocalRideStore`). **M2c** replaces that 
 - Deadzone + low-pass filter + an explicit **recenter gesture** (drift is real). Only active on routes
   that support steering offset. Keyboard/gamepad implement the same `SteeringInput` trait as the default.
 - Treat as a fun optional input, never a required control path.
+- **M6:** filtering and yaw integration live in `velo-core::SteeringController`; shell supplies raw axis from keyboard or `CMHeadphoneMotionManager`.
 
 ---
 
@@ -625,12 +626,19 @@ summary with an auto-generated highlight clip.
 **Shipped:** `WorkoutEngine` + sample template, ERG auto-target, FFI `workout_live` /
 `start_sample_workout` / `start_workout(WorkoutDto)` / `parse_zwo_xml`, in-app workout builder with
 `.zwo` import, Liquid Glass setup chrome and ride summary sheet, `plan_highlight_clips` + schema v2
-`highlight_clip_path` + shell encode on finish.
-**Remaining:** cinematic replay camera for clips.
+`highlight_clip_path` + shell encode on finish, **cinematic replay camera**
+(`velo-core::replay_camera`: drone rise / orbit / low flyby / chase pull per clip label; FFI
+`replay_camera_poses` + `set_replay_camera_pose` for shell-side clip encoding).
 
-**M6 — Apple Music + AirPods (lowest priority).**
+**M6 — Apple Music + AirPods (lowest priority).** ✅
 `AudioDirector` (MusicKit segment-aware playback), `SteeringInput` (AirPods yaw → steering).
 *Done when:* music shifts energy at interval boundaries and head-turn nudges steering on supported routes.
+**Evaluation tooling (cross-cutting).** `velo-eval-mcp` (MCP stdio server + CLI, `/.mcp.json`)
+drives the sim headlessly and renders real scene+HUD PNGs via `velo-render`'s offscreen mode so a
+multimodal agent can evaluate UI and features from any host; deterministic scenarios double as
+golden screenshots.
+
+**Shipped:** `SteeringController` in core (deadzone + low-pass + yaw integration); chase camera yaw offset in `velo-render`; UniFFI `SteeringInputCallback` + `AudioDirectorCallback`; keyboard default + `CMHeadphoneMotionManager` shell; MusicKit playlist search by segment energy; Liquid Glass setup toggles.
 
 ---
 
@@ -660,7 +668,8 @@ summary with an auto-generated highlight clip.
 - **Physics:** unit tests (steady-state, climb, coast-down) + golden-file replay of recorded rides.
 - **Determinism:** same route + same telemetry log + injected `Clock` → identical `RideState` trace.
 - **Trait boundary:** mock implementations of every `velo-platform` trait so core is fully testable
-  headless, no hardware, no Apple frameworks.
+  headless, no hardware, no Apple frameworks. See §21 (Headless testing).
+- **Scenario tests:** user-story named integration tests in `velo-core/tests/scenarios/`, `velo-ffi/tests/app_scenarios.rs`, and `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`.
 - **Hardware-in-the-loop:** a manual M2 checklist against the real Kickr (pair, ERG hold, SIM grade
   response, dropout/reconnect).
 - **Render:** snapshot tests of terrain + HUD; visual review for splat passes.
@@ -714,3 +723,43 @@ Fuse in this order; each layer shrinks what FLUX has to invent:
 **Licensing gradient:** open/free (OSM & Overture ODbL; USGS 3DEP no-restriction; Copernicus; WorldCover;
 Mapillary & KartaView CC BY-SA) → paid/restrictive (Maxar/Nearmap; Google 3D Tiles billed + attribution;
 Google Street View — off-limits for derivative use). Personal use is permissive; revisit before any release.
+
+---
+
+## 21. Headless testing (no Kickr)
+
+Automated coverage mirroring rider flows without Wahoo Kickr, MusicKit auth, or live BLE. Uses `velo-platform` trait mocks, FFI doubles, or replay buffers.
+
+```bash
+cargo test --workspace
+./scripts/lint-apple-symbols.sh
+./scripts/lint-shell-ui.sh
+cargo build --release -p velo-ffi && cd shell-macos && swift build --product VeloSim
+cd shell-macos && swift test   # Xcode + Metal; not in default CI
+```
+
+| Real hardware | Test substitute | Where |
+|---------------|-----------------|-------|
+| Kickr ERG/SIM | `RecordingTrainerControl` | `velo-platform`, `velo-ffi/tests/common` |
+| BLE sensors | `MockSensorSource`, `ReplaySensors`, `FakeSensorSource` | core, FFI, shell |
+| Steering | `MockSteeringInput`, `NoopSteeringInput` | core, FFI, shell |
+| Apple Music | `RecordingAudioDirector`, `NoopAudioDirector` | core, FFI, shell |
+| Strava | `MockPublisher` | `velo-ffi/tests/common` |
+| GPX route | `simple_climb.gpx` fixture | `velo-route-import/tests/fixtures/` |
+
+Key scenario tests: `velo-core/tests/scenarios/`, `velo-ffi/tests/app_scenarios.rs`, `shell-macos/Tests/VeloSimTests/AppScenarioTests.swift`, `RideFlowTests.swift`.
+
+---
+
+## 22. Quality pass log
+
+Cross-cutting cleanup on `dev` before `main` releases. Workflow: [.cursor/skills/quality-pass/SKILL.md](.cursor/skills/quality-pass/SKILL.md).
+
+| Date | Trigger | Summary |
+|------|---------|---------|
+| 2026-06-30 | UI cleanup prep (#34) | UI folder restructure, HUDModel ~8 Hz, lint-shell-ui |
+| 2026-07-01 | Post-M7 sprint (#46) | P2-A UI merged; scroll + HR fixes; formatting unify; ParityHelpers split deferred → #42 |
+
+Run `cargo test --workspace`, `./scripts/lint-apple-symbols.sh`, `./scripts/lint-shell-ui.sh` after each pass.
+
+Product/UI parity tracking: [VeloSim-Roadmap.md](VeloSim-Roadmap.md).

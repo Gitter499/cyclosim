@@ -41,7 +41,12 @@ fn route_grade_drives_sim_and_physics() {
             heart_rate: None,
             wheel_speed: None,
         });
-        app.tick(&mut sensors, &trainer);
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&velo_platform::MockSteeringInput>,
+            None::<&velo_platform::MockAudioDirector>,
+        );
     }
 
     assert!(app.ride.distance_m > 50.0);

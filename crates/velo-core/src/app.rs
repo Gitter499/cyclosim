@@ -1,10 +1,12 @@
-use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
+use velo_platform::{AudioDirector, SensorSource, SteeringInput, TelemetrySample, TrainerControl};
 use velo_units::{Grade, MetersPerSecond, Watts};
 
+use crate::audio::{playback_intent_for_index, segment_energy_for_interval};
 use crate::physics::{integrate_step, PhysicsConfig};
 use crate::ride::{RideMode, RideState};
 use crate::ride_session::{RideSample, RideSession, RideSummary};
 use crate::route::RouteModel;
+use crate::steering::SteeringController;
 use crate::workout::{Workout, WorkoutEngine};
 
 const DT: f32 = 1.0 / 100.0;
@@ -17,6 +19,13 @@ pub struct VeloApp {
     pub route: Option<RouteModel>,
     pub active_route_id: Option<String>,
     pub workout_engine: Option<WorkoutEngine>,
+    pub steering: SteeringController,
+    pub segment_music_enabled: bool,
+    pub rolling_power: crate::metrics::RollingPower,
+    /// ERG bias percent applied to workout targets (100 = as written).
+    erg_bias_pct: f64,
+    pub laps: crate::metrics::LapTracker,
+    last_audio_interval: Option<usize>,
     log: Vec<String>,
     tick: u64,
     target_power: Watts,
@@ -34,6 +43,12 @@ impl VeloApp {
             route: None,
             active_route_id: None,
             workout_engine: None,
+            steering: SteeringController::default(),
+            segment_music_enabled: false,
+            rolling_power: crate::metrics::RollingPower::default(),
+            erg_bias_pct: 100.0,
+            laps: crate::metrics::LapTracker::default(),
+            last_audio_interval: None,
             log: Vec::new(),
             tick: 0,
             target_power: Watts::new(150.0),
@@ -51,9 +66,21 @@ impl VeloApp {
         self.ride_session.is_active()
     }
 
+    /// Close the current lap at the live ride position.
+    pub fn mark_lap(&mut self) -> crate::metrics::Lap {
+        self.laps.mark(self.ride.elapsed_s, self.ride.distance_m)
+    }
+
+    /// Metrics block for the most recent (or in-progress) ride.
+    pub fn current_ride_metrics(&self) -> crate::metrics::RideMetrics {
+        crate::metrics::ride_metrics(self.ride_session.samples(), self.physics.ftp_w)
+    }
+
     pub fn start_ride(&mut self) {
         if !self.ride_session.is_active() {
             self.ride_session.start(self.clock_unix);
+            self.rolling_power.clear();
+            self.laps.reset();
             self.push_log("ride started".into());
         }
     }
@@ -102,13 +129,72 @@ impl VeloApp {
     pub fn start_workout(&mut self, workout: Workout) {
         let engine = WorkoutEngine::new(workout, self.physics.ftp_w);
         self.workout_engine = Some(engine);
+        self.last_audio_interval = None;
         self.set_ride_mode(RideMode::Erg);
         self.push_log("workout started".into());
     }
 
     pub fn clear_workout(&mut self) {
         self.workout_engine = None;
+        self.last_audio_interval = None;
         self.push_log("workout cleared".into());
+    }
+
+    pub fn set_segment_music_enabled(&mut self, enabled: bool) {
+        let was = self.segment_music_enabled;
+        self.segment_music_enabled = enabled;
+        if enabled && !was {
+            self.last_audio_interval = None;
+        }
+    }
+
+    pub fn segment_music_enabled(&self) -> bool {
+        self.segment_music_enabled
+    }
+
+    pub fn resync_segment_music(&mut self) {
+        self.last_audio_interval = None;
+    }
+
+    pub fn set_steering_enabled(&mut self, enabled: bool) {
+        self.steering.set_enabled(enabled);
+    }
+
+    pub fn steering_enabled(&self) -> bool {
+        self.steering.enabled()
+    }
+
+    pub fn steer_yaw_rad(&self) -> f32 {
+        self.steering.yaw_offset_rad()
+    }
+
+    pub fn steer_axis(&self) -> f32 {
+        self.steering.filtered_axis()
+    }
+
+    /// Nudge ERG targets up/down (HUD ± buttons). Clamped to 50–150%.
+    /// Re-notify the AudioDirector for the current workout interval on the
+    /// next tick. Call after segment music is enabled or authorization
+    /// completes — the shell may have skipped the boundary callback (#29).
+    pub fn resync_audio_segment(&mut self) {
+        self.last_audio_interval = None;
+    }
+
+    pub fn set_erg_bias_pct(&mut self, pct: f64) {
+        self.erg_bias_pct = pct.clamp(50.0, 150.0);
+    }
+
+    pub fn erg_bias_pct(&self) -> f64 {
+        self.erg_bias_pct
+    }
+
+    /// Skip to the next workout interval (HUD skip button).
+    pub fn skip_workout_interval(&mut self) {
+        if let Some(engine) = self.workout_engine.as_mut() {
+            engine.skip_interval();
+            self.last_audio_interval = None;
+            self.push_log("interval skipped".into());
+        }
     }
 
     pub fn workout_active(&self) -> bool {
@@ -159,12 +245,13 @@ impl VeloApp {
         }
     }
 
-    fn sync_workout_targets(&mut self) {
+    fn sync_workout_targets<A: AudioDirector>(&mut self, audio: Option<&A>) {
         let Some(engine) = self.workout_engine.as_mut() else {
             return;
         };
         if engine.state().finished {
             self.workout_engine = None;
+            self.last_audio_interval = None;
             self.push_log("workout finished".into());
             return;
         }
@@ -172,16 +259,50 @@ impl VeloApp {
             self.ride.mode = RideMode::Sim;
         } else if let Some(w) = engine.target_watts() {
             self.ride.mode = RideMode::Erg;
-            self.target_power = w;
+            self.target_power = velo_units::Watts::new(w.0 * self.erg_bias_pct / 100.0);
         }
+
+        let prev_index = engine.state().interval_index;
         engine.tick(DT as f64);
+
+        if engine.state().interval_index != prev_index || self.last_audio_interval.is_none() {
+            self.notify_workout_segment(audio);
+        }
+    }
+
+    fn notify_workout_segment<A: AudioDirector>(&mut self, audio: Option<&A>) {
+        if !self.segment_music_enabled {
+            return;
+        }
+        let Some(audio) = audio else {
+            return;
+        };
+        let Some(engine) = self.workout_engine.as_ref() else {
+            return;
+        };
+        if engine.state().finished {
+            return;
+        }
+        let idx = engine.state().interval_index;
+        if self.last_audio_interval == Some(idx) {
+            return;
+        }
+        self.last_audio_interval = Some(idx);
+        let Some(interval) = engine.current_interval() else {
+            return;
+        };
+        let energy = segment_energy_for_interval(interval, self.physics.ftp_w);
+        let intent = playback_intent_for_index(idx);
+        audio.on_segment(energy, intent);
     }
 
     /// Fixed-step sim tick: drain sensor samples, integrate, emit trainer commands.
-    pub fn tick<S: SensorSource, T: TrainerControl>(
+    pub fn tick<S: SensorSource, T: TrainerControl, ST: SteeringInput, A: AudioDirector>(
         &mut self,
         sensors: &mut S,
         trainer: &T,
+        steering: Option<&ST>,
+        audio: Option<&A>,
     ) {
         self.tick = self.tick.wrapping_add(1);
         let samples = sensors.drain_samples();
@@ -191,7 +312,15 @@ impl VeloApp {
         }
 
         self.sync_grade_from_route();
-        self.sync_workout_targets();
+
+        if let Some(st) = steering {
+            self.steering
+                .poll(st, DT, self.route.is_some());
+        } else {
+            self.steering.poll(&velo_platform::MockSteeringInput::default(), DT, false);
+        }
+
+        self.sync_workout_targets(audio);
 
         let grade = Grade::new(self.ride.grade);
         let power = self
@@ -205,6 +334,10 @@ impl VeloApp {
         self.ride.distance_m += snap.distance.0;
         self.ride.speed_mps = self.speed.0;
         self.ride.elapsed_s += DT as f64;
+        if let Some(p) = self.ride.power_w {
+            self.rolling_power.push(self.ride.elapsed_s, p);
+        }
+        self.laps.tick(self.ride.elapsed_s, self.ride.power_w);
 
         if self.ride_session.is_active() {
             self.ride_session.record_tick(RideSample {
@@ -298,10 +431,90 @@ mod tests {
             wheel_speed: None,
         });
         let trainer = RecordingTrainerControl::default();
-        app.tick(&mut sensors, &trainer);
+        app.tick(&mut sensors, &trainer, None::<&velo_platform::MockSteeringInput>, None::<&velo_platform::MockAudioDirector>);
         assert_eq!(app.ride.power_w, Some(198.0));
         assert_eq!(trainer.last_power(), Some(Watts::new(200.0)));
         assert!(app.ride.distance_m > 0.0);
+    }
+
+    #[test]
+    fn resync_audio_segment_renotifies_current_interval() {
+        use crate::workout::{Workout, WorkoutInterval, WorkoutTarget};
+        use velo_platform::{MockSteeringInput, RecordingAudioDirector};
+
+        let mut app = VeloApp::new();
+        app.set_segment_music_enabled(true);
+        app.start_workout(Workout {
+            name: "resync".into(),
+            intervals: vec![WorkoutInterval {
+                name: "Warmup".into(),
+                duration_s: 60.0,
+                target: WorkoutTarget::FtpPercent(55.0),
+            }],
+        });
+
+        let mut sensors = MockSensorSource::default();
+        let trainer = RecordingTrainerControl::default();
+        let audio = RecordingAudioDirector::default();
+        for _ in 0..10 {
+            app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+        }
+        let first = audio.calls().len();
+        assert_eq!(first, 1, "one Start notification for interval 0");
+
+        // Shell enables music mid-interval → resync retries the same interval.
+        app.resync_audio_segment();
+        for _ in 0..10 {
+            app.tick(&mut sensors, &trainer, None::<&MockSteeringInput>, Some(&audio));
+        }
+        assert_eq!(audio.calls().len(), first + 1, "resync re-notifies once, not per tick");
+    }
+
+    #[test]
+    fn erg_bias_scales_workout_target_and_skip_advances() {
+        use crate::workout::{Workout, WorkoutInterval, WorkoutTarget};
+        use velo_platform::{MockAudioDirector, MockSteeringInput};
+
+        let mut app = VeloApp::new();
+        app.set_ftp(200.0);
+        app.start_workout(Workout {
+            name: "bias".into(),
+            intervals: vec![
+                WorkoutInterval {
+                    name: "A".into(),
+                    duration_s: 60.0,
+                    target: WorkoutTarget::ErgWatts(200.0),
+                },
+                WorkoutInterval {
+                    name: "B".into(),
+                    duration_s: 60.0,
+                    target: WorkoutTarget::ErgWatts(300.0),
+                },
+            ],
+        });
+        app.set_erg_bias_pct(110.0);
+
+        let mut sensors = MockSensorSource::default();
+        let trainer = RecordingTrainerControl::default();
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&MockSteeringInput>,
+            None::<&MockAudioDirector>,
+        );
+        assert_eq!(trainer.last_power(), Some(Watts::new(220.0)));
+
+        app.skip_workout_interval();
+        app.tick(
+            &mut sensors,
+            &trainer,
+            None::<&MockSteeringInput>,
+            None::<&MockAudioDirector>,
+        );
+        assert_eq!(trainer.last_power(), Some(Watts::new(330.0)));
+
+        app.set_erg_bias_pct(500.0); // clamps to 150
+        assert_eq!(app.erg_bias_pct(), 150.0);
     }
 
     #[test]
@@ -320,7 +533,7 @@ mod tests {
                 heart_rate: Some(Bpm::new(140.0)),
                 wheel_speed: None,
             });
-            app.tick(&mut sensors, &trainer);
+            app.tick(&mut sensors, &trainer, None::<&velo_platform::MockSteeringInput>, None::<&velo_platform::MockAudioDirector>);
         }
         let summary = app.stop_ride().unwrap();
         assert_eq!(summary.sample_count, 100);

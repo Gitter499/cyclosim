@@ -4,6 +4,7 @@
 //! Optional `cesium-native` feature links a cxx stub for future Cesium Native integration.
 
 pub mod attribution;
+pub mod credentials;
 pub mod gltf;
 pub mod mesh;
 pub mod policy;
@@ -15,6 +16,9 @@ pub mod tileset;
 mod bridge;
 
 pub use attribution::{attribution_for_provider, TileAttribution, TileProvider};
+pub use credentials::{
+    set_tiles_credentials, tiles_credentials, tiles_provider_status, TilesCredentials,
+};
 pub use gltf::{decode_gltf_bytes, GltfDecodeError};
 pub use mesh::{TileMesh, TileVertex};
 pub use policy::{OnlineOnlyPolicy, PolicyError};

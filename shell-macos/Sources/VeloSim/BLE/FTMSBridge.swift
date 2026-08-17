@@ -2,8 +2,19 @@ import CoreBluetooth
 import Foundation
 import VeloFFI
 import VeloSimBLE
+import VeloSimSupport
 
 /// CoreBluetooth FTMS client — sensor polling + trainer control for Rust core.
+/// Per-device connection snapshot for the pairing UI (#47).
+struct BLEDeviceStatus: Equatable {
+    var trainerName: String?
+    var trainerConnected = false
+    var hrName: String?
+    var hrConnected = false
+    /// Live preview BPM while the strap is connected (pre-ride).
+    var latestHeartRateBpm: Int?
+}
+
 final class FTMSBridge: NSObject, SensorSourceCallback, TrainerControlCallback, @unchecked Sendable {
     private enum SetupPhase {
         case idle
@@ -58,7 +69,10 @@ final class FTMSBridge: NSObject, SensorSourceCallback, TrainerControlCallback, 
     private(set) var lastTargetPower: Double = 0
     private(set) var lastSimGrade: Double = 0
 
+    private(set) var deviceStatus = BLEDeviceStatus()
+
     var onStateChange: ((String) -> Void)?
+    var onDeviceStatusChange: ((BLEDeviceStatus) -> Void)?
     var onCapabilitiesChange: ((FitnessMachineCapabilities) -> Void)?
     var onTrainerStatusChange: ((String) -> Void)?
     var onControlErrorChange: ((String?) -> Void)?
@@ -111,14 +125,11 @@ final class FTMSBridge: NSObject, SensorSourceCallback, TrainerControlCallback, 
         lock.lock()
         defer { lock.unlock() }
         let elapsedMs = UInt64(Date().timeIntervalSince(startTime) * 1000)
-        var out = pendingSamples
-        pendingSamples.removeAll()
-        if out.isEmpty, latestSample.powerW != nil || latestSample.cadenceRpm != nil {
-            var s = latestSample
-            s.elapsedMs = elapsedMs
-            out = [s]
-        }
-        return out
+        return TelemetrySamplePoll.drain(
+            latest: latestSample,
+            pending: &pendingSamples,
+            elapsedMs: elapsedMs
+        )
     }
 
     // MARK: - TrainerControlCallback
@@ -424,7 +435,6 @@ extension FTMSBridge: CBCentralManagerDelegate {
             peripheral.delegate = self
             connectionState = "connecting \(name)"
             notifyState()
-            central.stopScan()
             central.connect(peripheral, options: nil)
         } else if isHR, hrPeripheral == nil {
             hrPeripheral = peripheral
@@ -439,10 +449,21 @@ extension FTMSBridge: CBCentralManagerDelegate {
             setupPhase = .discoveringCharacteristics
             connectionState = "connected \(peripheral.name ?? "device")"
             notifyState()
+            deviceStatus.trainerName = peripheral.name
+            deviceStatus.trainerConnected = true
+            notifyDeviceStatus()
             peripheral.discoverServices([FTMS.service])
         } else if peripheral === hrPeripheral {
+            deviceStatus.hrName = peripheral.name
+            deviceStatus.hrConnected = true
+            notifyDeviceStatus()
             peripheral.discoverServices([FTMS.heartRateService])
         }
+    }
+
+    private func notifyDeviceStatus() {
+        let status = deviceStatus
+        onDeviceStatusChange?(status)
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
@@ -457,8 +478,14 @@ extension FTMSBridge: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         if peripheral === trainerPeripheral {
             resetConnectionState()
+            deviceStatus.trainerConnected = false
         }
-        if peripheral === hrPeripheral { hrPeripheral = nil }
+        if peripheral === hrPeripheral {
+            hrPeripheral = nil
+            deviceStatus.hrConnected = false
+            deviceStatus.latestHeartRateBpm = nil
+        }
+        notifyDeviceStatus()
         connectionState = "disconnected"
         notifyState()
     }
@@ -563,9 +590,15 @@ extension FTMSBridge: CBPeripheralDelegate {
 
         case FTMS.heartRateMeasurement:
             if let hr = FTMSParser.parseHeartRate(data) {
+                let elapsedMs = UInt64(Date().timeIntervalSince(startTime) * 1000)
                 lock.lock()
                 latestSample.heartRateBpm = hr
+                deviceStatus.latestHeartRateBpm = Int(hr.rounded())
+                notifyDeviceStatus()
+                latestSample.elapsedMs = elapsedMs
+                let sample = latestSample
                 lock.unlock()
+                pushSample(sample)
             }
 
         default:

@@ -1,6 +1,6 @@
 //! Integration tests for Zwift `.zwo` import.
 
-use velo_core::{parse_zwo_xml, WorkoutTarget, ZwoError};
+use velo_core::{parse_zwo_xml, WorkoutEngine, WorkoutTarget, ZwoError};
 
 const THRESHOLD_ZWO: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <workout_file>
@@ -42,6 +42,23 @@ fn zwo_skips_text_steps() {
     let workout = parse_zwo_xml(xml).expect("parse");
     assert_eq!(workout.intervals.len(), 1);
     workout.validate().expect("valid");
+}
+
+#[test]
+fn zwo_ftp_intervals_drive_workout_engine_targets() {
+    let xml = r#"<workout_file><name>FTP step</name><workout>
+    <SteadyState Duration="60" Power="0.95" />
+  </workout></workout_file>"#;
+    let workout = parse_zwo_xml(xml).expect("parse");
+    workout.validate().expect("valid");
+    let engine = WorkoutEngine::new(workout, 250.0);
+    assert!(
+        engine
+            .target_watts()
+            .map(|w| (w.0 - 237.5).abs() < 0.1)
+            .unwrap_or(false),
+        "expected ~237.5 W at 95% FTP"
+    );
 }
 
 #[test]

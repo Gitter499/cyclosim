@@ -10,7 +10,7 @@ use velo_ffi::{
     WorkoutTargetDto,
 };
 
-use common::{RecordingTrainerCallback};
+use common::{NoopSteering, RecordingTrainerCallback};
 
 struct EmptySensors;
 
@@ -43,7 +43,7 @@ fn workout_live_state_round_trip() {
         last_power: Arc::clone(&last_power),
         last_sim: Arc::new(Mutex::new(None)),
     };
-    handle.tick(Box::new(EmptySensors), Box::new(trainer));
+    handle.tick(Box::new(EmptySensors), Box::new(trainer), Box::new(NoopSteering));
     assert_eq!(*last_power.lock().unwrap(), Some(110.0));
 
     handle.clear_workout();
@@ -85,7 +85,7 @@ fn custom_workout_start_and_erg_tick() {
         last_power: Arc::clone(&last_power),
         last_sim: Arc::new(Mutex::new(None)),
     };
-    handle.tick(Box::new(EmptySensors), Box::new(trainer));
+    handle.tick(Box::new(EmptySensors), Box::new(trainer), Box::new(NoopSteering));
     assert_eq!(*last_power.lock().unwrap(), Some(150.0));
 }
 

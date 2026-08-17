@@ -100,9 +100,10 @@ impl Default for ChaseCamera {
 }
 
 impl ChaseCamera {
-    pub fn view_proj(&self, aspect: f32, rider_z: f32) -> Mat4 {
+    pub fn view_proj(&self, aspect: f32, rider_z: f32, steer_yaw_rad: f32) -> Mat4 {
         let rider = Vec3::new(0.0, 0.0, rider_z);
-        self.view_proj_at(aspect, rider, Vec3::Z)
+        let forward = apply_steer_yaw_for_camera(Vec3::Z, steer_yaw_rad);
+        self.view_proj_at(aspect, rider, forward)
     }
 
     pub fn view_proj_at(&self, aspect: f32, rider: Vec3, forward: Vec3) -> Mat4 {
@@ -117,5 +118,18 @@ impl ChaseCamera {
         let view = Mat4::look_at_rh(eye, target, Vec3::Y);
         let proj = Mat4::perspective_rh(60.0_f32.to_radians(), aspect, 0.1, 2000.0);
         proj * view
+    }
+}
+
+/// Rotate a forward vector around world Y for steering look offset.
+pub fn apply_steer_yaw_for_camera(forward: Vec3, yaw_rad: f32) -> Vec3 {
+    if yaw_rad.abs() < 1e-6 {
+        return forward;
+    }
+    let rotated = glam::Quat::from_rotation_y(yaw_rad) * forward;
+    if rotated.length_squared() < 1e-6 {
+        forward
+    } else {
+        rotated.normalize()
     }
 }

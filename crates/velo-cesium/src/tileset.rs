@@ -34,6 +34,9 @@ pub struct TileNode {
     pub refine: Option<String>,
     #[serde(default)]
     pub content: Option<TileContent>,
+    /// 3D Tiles 1.1 multiple contents per tile (Google photorealistic uses this).
+    #[serde(default)]
+    pub contents: Vec<TileContent>,
     #[serde(default)]
     pub children: Vec<TileNode>,
 }
@@ -67,6 +70,11 @@ impl TilesetDocument {
         let mut queue: Vec<(&TileNode, u32)> = vec![(&self.root, 0)];
         while let Some((node, depth)) = queue.pop() {
             if let Some(content) = &node.content {
+                if let Some(href) = content.href() {
+                    out.push(href.to_string());
+                }
+            }
+            for content in &node.contents {
                 if let Some(href) = content.href() {
                     out.push(href.to_string());
                 }

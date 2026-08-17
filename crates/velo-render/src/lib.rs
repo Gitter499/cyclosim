@@ -9,11 +9,11 @@ mod tiles;
 
 use std::path::Path;
 
-use velo_bikegen::AnchorTransform;
-use velo_cesium::{TilesSession, ViewCorridor};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use thiserror::Error;
+use velo_bikegen::AnchorTransform;
+use velo_cesium::{TilesSession, ViewCorridor};
 use wgpu::util::DeviceExt;
 
 pub use bike::BikeScene;
@@ -50,7 +50,8 @@ struct SceneUniforms {
 }
 
 pub struct Renderer {
-    surface: wgpu::Surface<'static>,
+    surface: Option<wgpu::Surface<'static>>,
+    offscreen: Option<wgpu::Texture>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -73,12 +74,19 @@ pub struct Renderer {
     tiles_attribution: String,
     rider_z: f32,
     bike: Option<BikeScene>,
+    replay_pose: Option<velo_core::CameraPose>,
+    /// When false, shell draws Swift HUD overlay instead of glyphon text pass.
+    hud_draw_enabled: bool,
 }
 
 impl Renderer {
     /// Create a renderer from a raw CAMetalLayer pointer (Swift passes `Unmanaged.passRetained`).
     #[cfg(target_os = "macos")]
-    pub fn from_metal_layer(layer_ptr: *mut std::ffi::c_void, width: u32, height: u32) -> Result<Self, RenderError> {
+    pub fn from_metal_layer(
+        layer_ptr: *mut std::ffi::c_void,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
         if layer_ptr.is_null() {
             return Err(RenderError::Wgpu("null CAMetalLayer".into()));
         }
@@ -98,11 +106,68 @@ impl Renderer {
     }
 
     #[cfg(not(target_os = "macos"))]
-    pub fn from_metal_layer(_layer_ptr: *mut std::ffi::c_void, width: u32, height: u32) -> Result<Self, RenderError> {
+    pub fn from_metal_layer(
+        _layer_ptr: *mut std::ffi::c_void,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
         let _ = (width, height);
-        Err(RenderError::Wgpu("Metal layer rendering is macOS-only".into()))
+        Err(RenderError::Wgpu(
+            "Metal layer rendering is macOS-only".into(),
+        ))
     }
 
+    /// Create a headless renderer that draws into an offscreen texture.
+    ///
+    /// No window or surface required — works on any host with a wgpu adapter
+    /// (including software rasterizers like lavapipe). Frames are retrieved
+    /// with [`Renderer::capture_framebuffer_rgba`]. This is the entry point
+    /// for CI snapshot tests and the `velo-eval-mcp` evaluation server.
+    pub fn headless(width: u32, height: u32) -> Result<Self, RenderError> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::LowPower,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }))
+        .ok_or_else(|| RenderError::Wgpu("no adapter".into()))?;
+
+        let (device, queue) = Self::request_device(&adapter)?;
+        let format = wgpu::TextureFormat::Bgra8UnormSrgb;
+
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            format,
+            width: width.max(1),
+            height: height.max(1),
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        let offscreen = Some(create_offscreen(&device, format, config.width, config.height));
+
+        Self::build(None, offscreen, device, queue, config)
+    }
+
+    fn request_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), RenderError> {
+        pollster::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: Some("velo-render"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: wgpu::MemoryHints::Performance,
+            },
+            None,
+        ))
+        .map_err(|e| RenderError::Wgpu(e.to_string()))
+    }
+
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     fn init(
         instance: wgpu::Instance,
         surface: wgpu::Surface<'static>,
@@ -116,16 +181,7 @@ impl Renderer {
         }))
         .ok_or_else(|| RenderError::Wgpu("no adapter".into()))?;
 
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("velo-render"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-                memory_hints: wgpu::MemoryHints::Performance,
-            },
-            None,
-        ))
-        .map_err(|e| RenderError::Wgpu(e.to_string()))?;
+        let (device, queue) = Self::request_device(&adapter)?;
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps
@@ -146,6 +202,18 @@ impl Renderer {
             desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
+
+        Self::build(Some(surface), None, device, queue, config)
+    }
+
+    fn build(
+        surface: Option<wgpu::Surface<'static>>,
+        offscreen: Option<wgpu::Texture>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        config: wgpu::SurfaceConfiguration,
+    ) -> Result<Self, RenderError> {
+        let format = config.format;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene-shader"),
@@ -214,7 +282,7 @@ impl Renderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[vertex_layout.clone()],
+                buffers: std::slice::from_ref(&vertex_layout),
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -258,7 +326,7 @@ impl Renderer {
             cache: None,
         });
 
-        let mesh = GroundMesh::grid(40, 2.0);
+        let mesh = GroundMesh::grid(60, 5.0);
         let total = mesh.vertices.len() as u32;
         let fill_vertex_start = total - 6;
         let grid_vertex_count = fill_vertex_start;
@@ -274,6 +342,7 @@ impl Renderer {
 
         Ok(Self {
             surface,
+            offscreen,
             device,
             queue,
             config,
@@ -296,7 +365,18 @@ impl Renderer {
             tiles_attribution: String::new(),
             rider_z: 0.0,
             bike: None,
+            replay_pose: None,
+            hud_draw_enabled: true,
         })
+    }
+
+    /// Disable in-canvas HUD when the shell draws a Swift overlay on the Metal view.
+    pub fn set_hud_draw_enabled(&mut self, enabled: bool) {
+        self.hud_draw_enabled = enabled;
+    }
+
+    pub fn hud_draw_enabled(&self) -> bool {
+        self.hud_draw_enabled
     }
 
     /// Load rider bike glTF for the foreground-object pass.
@@ -312,7 +392,7 @@ impl Renderer {
             gltf_path,
             anchor,
         )
-        .map_err(|e| RenderError::Wgpu(e))?;
+        .map_err(RenderError::Wgpu)?;
         self.bike = Some(bike);
         Ok(())
     }
@@ -351,7 +431,8 @@ impl Renderer {
     /// Enable or disable Tier B 3D Tiles overlay (online-only during ride).
     pub fn set_tiles_mode(&mut self, enabled: bool) {
         if enabled && self.tiles_session.is_none() {
-            let session = TilesSession::online_default().unwrap_or_else(|_| TilesSession::synthetic());
+            let session =
+                TilesSession::online_default().unwrap_or_else(|_| TilesSession::synthetic());
             self.tiles_attribution = session.attribution().text.clone();
             self.tiles_session = Some(session);
         }
@@ -371,6 +452,25 @@ impl Renderer {
         &self.tiles_attribution
     }
 
+    pub fn tiles_provider_status(&self) -> String {
+        velo_cesium::tiles_provider_status()
+    }
+
+    pub fn tiles_last_error(&self) -> Option<String> {
+        self.tiles_session
+            .as_ref()
+            .and_then(|s| s.last_error().map(str::to_string))
+    }
+
+    /// Recreate the online tile session (after API keys change in Settings).
+    pub fn refresh_tiles_session(&mut self) {
+        if self.tiles_mode {
+            self.tiles_session = None;
+            self.tiles = None;
+            self.set_tiles_mode(true);
+        }
+    }
+
     /// Refresh visible tile meshes for the current rider position (ENU origin frame).
     pub fn update_tiles_view(&mut self, lat: f64, lon: f64, radius_m: f64) {
         if !self.tiles_mode {
@@ -379,11 +479,7 @@ impl Renderer {
         let Some(session) = self.tiles_session.as_mut() else {
             return;
         };
-        let view = ViewCorridor {
-            lat,
-            lon,
-            radius_m,
-        };
+        let view = ViewCorridor { lat, lon, radius_m };
         if session.tick(view).is_ok() {
             let meshes = session.meshes();
             if !meshes.is_empty() {
@@ -403,8 +499,9 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<(), RenderError> {
-        self.draw_scene(hud, distance_m, follow)?;
+        self.draw_scene(hud, distance_m, follow, steer_yaw_rad)?;
         Ok(())
     }
 
@@ -413,34 +510,44 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<(), RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .map_err(|e| RenderError::Wgpu(e.to_string()))?;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let frame = match &self.surface {
+            Some(surface) => Some(
+                surface
+                    .get_current_texture()
+                    .map_err(|e| RenderError::Wgpu(e.to_string()))?,
+            ),
+            None => None,
+        };
+        let target: &wgpu::Texture = match &frame {
+            Some(f) => &f.texture,
+            None => self.offscreen.as_ref().ok_or(RenderError::NotInitialized)?,
+        };
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let view_proj = self.scene_mvp(aspect, follow, steer_yaw_rad);
+        let mvp = self.grid_mvp(view_proj, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
         self.queue
             .write_buffer(&self.scene_uniforms, 0, bytemuck::bytes_of(&uniforms));
 
-        self.hud
-            .prepare(
-                &self.device,
-                &self.queue,
-                hud,
-                self.config.width,
-                self.config.height,
-            )
-            .map_err(|e| RenderError::Hud(e.to_string()))?;
+        if self.hud_draw_enabled {
+            self.hud
+                .prepare(
+                    &self.device,
+                    &self.queue,
+                    hud,
+                    self.config.width,
+                    self.config.height,
+                )
+                .map_err(|e| RenderError::Hud(e.to_string()))?;
+        }
 
         let mut encoder = self
             .device
@@ -493,18 +600,11 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, view_proj, rider, forward);
             }
         }
 
-        {
+        if self.hud_draw_enabled {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("hud"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -525,33 +625,90 @@ impl Renderer {
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
-        self.hud.trim();
-        frame.present();
+        if self.hud_draw_enabled {
+            self.hud.trim();
+        }
+        if let Some(frame) = frame {
+            frame.present();
+        }
         Ok(())
     }
 
-    fn scene_mvp(&self, aspect: f32, follow: Option<RouteFollow>) -> glam::Mat4 {
+    /// Override the live chase camera with a cinematic replay pose
+    /// (highlight clips). `None` restores the chase camera.
+    pub fn set_replay_camera(&mut self, pose: Option<velo_core::CameraPose>) {
+        self.replay_pose = pose;
+    }
+
+    fn scene_mvp(
+        &self,
+        aspect: f32,
+        follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
+    ) -> glam::Mat4 {
+        if let Some(p) = &self.replay_pose {
+            let eye = Vec3::new(p.eye_east as f32, p.eye_up as f32, p.eye_north as f32);
+            let look = Vec3::new(p.look_east as f32, p.look_up as f32, p.look_north as f32);
+            let view = glam::Mat4::look_at_rh(eye, look, Vec3::Y);
+            let proj =
+                glam::Mat4::perspective_rh(60.0_f32.to_radians(), aspect, 0.1, 2000.0);
+            return proj * view;
+        }
         if let Some(f) = follow {
             let rider = Vec3::new(f.east as f32, f.up as f32 + 1.5, f.north as f32);
-            self.camera.view_proj_at(aspect, rider, f.forward)
+            let forward = scene::apply_steer_yaw_for_camera(f.forward, steer_yaw_rad);
+            self.camera.view_proj_at(aspect, rider, forward)
         } else {
-            self.camera.view_proj(aspect, self.rider_z)
+            self.camera.view_proj(aspect, self.rider_z, steer_yaw_rad)
         }
+    }
+
+    /// MVP for the fallback ground grid. Without terrain or tiles the grid is
+    /// the only ground reference, so keep it under the rider on route rides:
+    /// translate to the rider's elevation and snap horizontally to the major
+    /// grid pitch so the pattern doesn't swim.
+    fn grid_mvp(&self, mvp: glam::Mat4, follow: Option<RouteFollow>) -> glam::Mat4 {
+        if self.terrain.is_some() || self.tiles.is_some() {
+            return mvp;
+        }
+        const SNAP_M: f64 = 10.0;
+        let snap = |v: f64| (v / SNAP_M).floor() * SNAP_M;
+        let offset = match follow {
+            Some(f) => Vec3::new(snap(f.east) as f32, f.up as f32, snap(f.north) as f32),
+            // No route: the camera still scrolls forward with distance, so the
+            // grid must scroll with it or it falls behind on long rides.
+            None => Vec3::new(0.0, 0.0, snap(self.rider_z as f64) as f32),
+        };
+        mvp * glam::Mat4::from_translation(offset)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
+            if let Some(surface) = &self.surface {
+                surface.configure(&self.device, &self.config);
+            }
+            if self.offscreen.is_some() {
+                self.offscreen = Some(create_offscreen(
+                    &self.device,
+                    self.config.format,
+                    width,
+                    height,
+                ));
+            }
             let (depth_texture, depth_view) = create_depth(&self.device, width, height);
             self.depth_texture = depth_texture;
             self.depth_view = depth_view;
         }
     }
 
-    pub fn render_frame_legacy(&mut self, hud: &HudSnapshot, distance_m: f64) -> Result<(), RenderError> {
-        self.render_frame(hud, distance_m, None)
+    pub fn render_frame_legacy(
+        &mut self,
+        hud: &HudSnapshot,
+        distance_m: f64,
+    ) -> Result<(), RenderError> {
+        self.render_frame(hud, distance_m, None, 0.0)
     }
 
     /// Grab the current framebuffer as raw RGBA8 pixels from the framebuffer.
@@ -560,18 +717,27 @@ impl Renderer {
         hud: &HudSnapshot,
         distance_m: f64,
         follow: Option<RouteFollow>,
+        steer_yaw_rad: f32,
     ) -> Result<FramebufferRgba, RenderError> {
         self.rider_z = distance_m as f32 * 0.05;
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .map_err(|e| RenderError::Wgpu(e.to_string()))?;
-        let texture = &frame.texture;
+        let frame = match &self.surface {
+            Some(surface) => Some(
+                surface
+                    .get_current_texture()
+                    .map_err(|e| RenderError::Wgpu(e.to_string()))?,
+            ),
+            None => None,
+        };
+        let texture: &wgpu::Texture = match &frame {
+            Some(f) => &f.texture,
+            None => self.offscreen.as_ref().ok_or(RenderError::NotInitialized)?,
+        };
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mvp = self.scene_mvp(aspect, follow);
+        let view_proj = self.scene_mvp(aspect, follow, steer_yaw_rad);
+        let mvp = self.grid_mvp(view_proj, follow);
         let uniforms = SceneUniforms {
             mvp: mvp.to_cols_array_2d(),
         };
@@ -639,14 +805,7 @@ impl Renderer {
 
             if let Some(bike) = &self.bike {
                 let (rider, forward) = rider_pose(follow, self.rider_z);
-                bike.draw(
-                    &mut pass,
-                    &self.queue,
-                    aspect,
-                    &self.camera,
-                    rider,
-                    forward,
-                );
+                bike.draw(&mut pass, &self.queue, view_proj, rider, forward);
             }
         }
 
@@ -724,12 +883,17 @@ impl Renderer {
             let src_start = row as usize * bytes_per_row as usize;
             let dst_start = row as usize * width as usize * 4;
             let row_bgra = &mapped[src_start..src_start + (width * 4) as usize];
-            bgra_to_rgba(row_bgra, &mut pixels[dst_start..dst_start + (width * 4) as usize]);
+            bgra_to_rgba(
+                row_bgra,
+                &mut pixels[dst_start..dst_start + (width * 4) as usize],
+            );
         }
         drop(mapped);
         readback.unmap();
 
-        frame.present();
+        if let Some(frame) = frame {
+            frame.present();
+        }
 
         Ok(FramebufferRgba {
             width,
@@ -754,7 +918,33 @@ fn align_to_256(n: u32) -> u32 {
     (n + 255) & !255
 }
 
-fn create_depth(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
+fn create_offscreen(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    width: u32,
+    height: u32,
+) -> wgpu::Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("offscreen-target"),
+        size: wgpu::Extent3d {
+            width: width.max(1),
+            height: height.max(1),
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    })
+}
+
+fn create_depth(
+    device: &wgpu::Device,
+    width: u32,
+    height: u32,
+) -> (wgpu::Texture, wgpu::TextureView) {
     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("depth"),
         size: wgpu::Extent3d {

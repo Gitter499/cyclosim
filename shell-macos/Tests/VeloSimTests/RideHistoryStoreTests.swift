@@ -101,7 +101,7 @@ final class RideHistoryStoreTests: XCTestCase {
 
         handle.startRide()
         for _ in 0..<3 {
-            handle.tick(sensors: FakeSensorSource(), trainer: MockTrainerControl())
+            handle.tick(sensors: FakeSensorSource(), trainer: MockTrainerControl(), steering: NoopSteeringInput())
         }
         _ = try handle.finishRideAndPublish(
             media: PassthroughMediaCapture(),

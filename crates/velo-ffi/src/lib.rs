@@ -1,24 +1,29 @@
 uniffi::setup_scaffolding!();
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use velo_bikegen::{
-    default_bikes_dir, import_bike_from_images, list_bikes, load_bike_asset, BikeSummary,
+    bikegen_mode_status, default_bikes_dir, import_bike_from_images, list_bikes, load_bike_asset,
+    set_bikegen_credentials, BikeSummary, BikegenCredentials,
 };
+use velo_cesium::{set_tiles_credentials, tiles_provider_status, TilesCredentials};
 use velo_core::{
     default_packs_dir, list_route_packs, load_route_pack, load_scenery_config, pack_dir_for_id,
     parse_zwo_xml as parse_zwo_xml_core, save_scenery_config, SceneryConfig, VeloApp, Workout,
     WorkoutInterval, WorkoutTarget,
 };
-use velo_platform::{SensorSource, TelemetrySample, TrainerControl};
-use velo_render::{forward_from_enu, RouteFollow, Renderer};
-use velo_route_import::import_file;
+use velo_platform::{
+    AudioDirector, PlaybackIntent, SegmentEnergy, SensorSource, SteeringInput, TelemetrySample,
+    TrainerControl,
+};
+use velo_render::{forward_from_enu, Renderer, RouteFollow};
 use velo_rides::{
     default_artifacts_base, default_db_path, NewRideRecord, PublishStatus as StorePublishStatus,
     RideLibrary, RideRecord,
 };
+use velo_route_import::import_file;
 use velo_terrain::{bake_terrain_for_route, DEFAULT_CELL_M, DEFAULT_CORRIDOR_M};
 use velo_units::{Bpm, Grade, MetersPerSecond, Rpm, Watts};
 
@@ -48,13 +53,39 @@ struct FfiTrainerControl {
     callback: Box<dyn TrainerControlCallback>,
 }
 
+struct FfiSteeringInput {
+    callback: Box<dyn SteeringInputCallback>,
+}
+
+impl SteeringInput for FfiSteeringInput {
+    fn poll(&self) -> velo_platform::SteerState {
+        let dto = self.callback.poll();
+        velo_platform::SteerState {
+            axis: dto.axis,
+            recenter: dto.recenter,
+        }
+    }
+}
+
+struct FfiAudioDirector {
+    callback: Arc<dyn AudioDirectorCallback>,
+}
+
+impl AudioDirector for FfiAudioDirector {
+    fn on_segment(&self, energy: SegmentEnergy, intent: PlaybackIntent) {
+        self.callback
+            .on_segment(map_segment_energy(energy), map_playback_intent(intent));
+    }
+}
+
 impl TrainerControl for FfiTrainerControl {
     fn set_target_power(&self, watts: Watts) {
         self.callback.set_target_power(watts.0);
     }
 
     fn set_simulation(&self, grade: Grade, crr: f32, cw_a: f32) {
-        self.callback.set_simulation(grade.0, crr as f64, cw_a as f64);
+        self.callback
+            .set_simulation(grade.0, crr as f64, cw_a as f64);
     }
 
     fn stop(&self) {
@@ -103,9 +134,12 @@ pub struct RideStateDto {
     pub speed_mps: f64,
     pub elapsed_s: f64,
     pub grade: f64,
+    pub elevation_m: Option<f64>,
     pub power_w: Option<f64>,
     pub cadence_rpm: Option<f64>,
     pub heart_rate_bpm: Option<f64>,
+    pub steer_axis: f32,
+    pub steer_yaw_rad: f32,
 }
 
 #[derive(uniffi::Record, Clone, Debug, Default)]
@@ -114,6 +148,7 @@ pub struct WorkoutLiveDto {
     pub workout_name: String,
     pub interval_name: String,
     pub interval_elapsed_s: f64,
+    pub interval_duration_s: f64,
     pub workout_elapsed_s: f64,
     pub target_watts: Option<f64>,
     pub finished: bool,
@@ -157,11 +192,56 @@ pub struct HighlightClipRequestDto {
     pub label: String,
 }
 
+/// Live HUD metrics for P2-B: rolling power graph, lap state (M7 #48).
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct HudMetricsDto {
+    /// Rolling ~60 s power window downsampled for the graph, oldest first.
+    pub rolling_power_series: Vec<f64>,
+    pub rolling_avg_w: Option<f64>,
+    pub lap_count: u32,
+    pub current_lap_elapsed_s: f64,
+}
+
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct LapDto {
+    pub index: u32,
+    pub start_elapsed_s: f64,
+    pub end_elapsed_s: f64,
+    pub distance_m: f64,
+    pub avg_power_w: Option<f64>,
+}
+
+/// Post-ride training metrics (NP/IF/TSS/elevation gain) for the summary.
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct RideMetricsDto {
+    pub normalized_power_w: Option<f64>,
+    pub intensity_factor: Option<f64>,
+    pub tss: Option<f64>,
+    pub elevation_gain_m: f64,
+}
+
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct ElevationPointDto {
+    pub distance_m: f64,
+    pub elevation_m: f64,
+}
+
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct FramebufferDto {
     pub width: u32,
     pub height: u32,
     pub rgba_pixels: Vec<u8>,
+}
+
+/// Cinematic replay camera pose in the route's local ENU frame (M5).
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct CameraPoseDto {
+    pub eye_east: f64,
+    pub eye_up: f64,
+    pub eye_north: f64,
+    pub look_east: f64,
+    pub look_up: f64,
+    pub look_north: f64,
 }
 
 #[derive(uniffi::Record, Clone, Debug)]
@@ -192,6 +272,15 @@ pub struct BikeInfoDto {
     pub name: String,
 }
 
+/// Runtime API keys/tokens injected by the macOS shell (Keychain → FFI). Never persisted by Rust.
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct RuntimeSecretsDto {
+    pub google_map_tiles_api_key: Option<String>,
+    pub cesium_ion_access_token: Option<String>,
+    pub meshy_api_key: Option<String>,
+    pub prefer_hosted_bike_generation: bool,
+}
+
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct RideRecordDto {
     pub id: String,
@@ -206,6 +295,39 @@ pub struct RideRecordDto {
     pub strava_activity_id: Option<String>,
     pub publish_status: PublishStatus,
     pub route_id: Option<String>,
+}
+
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SegmentEnergyDto {
+    Warmup,
+    Build,
+    Threshold,
+    Recovery,
+    Cooldown,
+}
+
+#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaybackIntentDto {
+    Start,
+    Transition,
+    Duck,
+}
+
+#[derive(uniffi::Record, Clone, Debug, Default)]
+pub struct SteerStateDto {
+    pub axis: f32,
+    pub recenter: bool,
+}
+
+#[uniffi::export(callback_interface)]
+pub trait SteeringInputCallback: Send + Sync {
+    fn poll(&self) -> SteerStateDto;
+}
+
+/// Shell maps segment energy to MusicKit queues/playlists (playback control only).
+#[uniffi::export(callback_interface)]
+pub trait AudioDirectorCallback: Send + Sync {
+    fn on_segment(&self, energy: SegmentEnergyDto, intent: PlaybackIntentDto);
 }
 
 #[uniffi::export(callback_interface)]
@@ -245,6 +367,24 @@ pub trait ActivityPublisherCallback: Send + Sync {
     ) -> PublishResultDto;
 }
 
+fn map_segment_energy(energy: SegmentEnergy) -> SegmentEnergyDto {
+    match energy {
+        SegmentEnergy::Warmup => SegmentEnergyDto::Warmup,
+        SegmentEnergy::Build => SegmentEnergyDto::Build,
+        SegmentEnergy::Threshold => SegmentEnergyDto::Threshold,
+        SegmentEnergy::Recovery => SegmentEnergyDto::Recovery,
+        SegmentEnergy::Cooldown => SegmentEnergyDto::Cooldown,
+    }
+}
+
+fn map_playback_intent(intent: PlaybackIntent) -> PlaybackIntentDto {
+    match intent {
+        PlaybackIntent::Start => PlaybackIntentDto::Start,
+        PlaybackIntent::Transition => PlaybackIntentDto::Transition,
+        PlaybackIntent::Duck => PlaybackIntentDto::Duck,
+    }
+}
+
 fn map_ride_mode(mode: velo_core::ride::RideMode) -> RideMode {
     match mode {
         velo_core::ride::RideMode::Free => RideMode::Free,
@@ -258,6 +398,16 @@ fn map_ride_mode_in(mode: RideMode) -> velo_core::ride::RideMode {
         RideMode::Free => velo_core::ride::RideMode::Free,
         RideMode::Erg => velo_core::ride::RideMode::Erg,
         RideMode::Sim => velo_core::ride::RideMode::Sim,
+    }
+}
+
+fn map_lap(lap: &velo_core::Lap) -> LapDto {
+    LapDto {
+        index: lap.index,
+        start_elapsed_s: lap.start_elapsed_s,
+        end_elapsed_s: lap.end_elapsed_s,
+        distance_m: lap.distance_m,
+        avg_power_w: lap.avg_power_w,
     }
 }
 
@@ -431,9 +581,11 @@ impl RideLibraryHandle {
     }
 
     pub fn delete_ride(&self, id: String) -> Result<bool, VeloError> {
-        self.inner.delete_ride(&id).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })
+        self.inner
+            .delete_ride(&id)
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })
     }
 }
 
@@ -446,6 +598,7 @@ struct VeloHandleInner {
     bikes_dir: PathBuf,
     active_bike_id: Option<String>,
     tiles_3d_enabled: bool,
+    audio_director: Option<Arc<dyn AudioDirectorCallback>>,
 }
 
 #[derive(uniffi::Object)]
@@ -475,6 +628,12 @@ impl VeloHandle {
     #[doc(hidden)]
     pub fn with_packs_dir_for_tests(packs_dir: PathBuf) -> Self {
         Self::with_dirs(packs_dir, default_bikes_dir())
+    }
+}
+
+impl Default for VeloHandle {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -533,9 +692,11 @@ impl VeloHandle {
         .map_err(|e| VeloError::RideError {
             message: e.to_string(),
         })?;
-        model.save_pack(&pack_dir).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        model
+            .save_pack(&pack_dir)
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         bake_terrain_for_route(&model, &pack_dir, DEFAULT_CORRIDOR_M, DEFAULT_CELL_M).map_err(
             |e| VeloError::RideError {
                 message: e.to_string(),
@@ -608,15 +769,10 @@ impl VeloHandle {
     ) -> Result<(), VeloError> {
         let paths: Vec<PathBuf> = image_paths.into_iter().map(PathBuf::from).collect();
         let mut inner = self.inner.lock().unwrap();
-        let asset = import_bike_from_images(
-            &inner.bikes_dir,
-            &paths,
-            &bike_id,
-            name.as_deref(),
-        )
-        .map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        let asset = import_bike_from_images(&inner.bikes_dir, &paths, &bike_id, name.as_deref())
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         inner.active_bike_id = Some(bike_id);
         if let Some(renderer) = inner.renderer.as_mut() {
             let _ = renderer.load_bike_gltf(&asset.gltf_path, asset.anchor);
@@ -626,9 +782,10 @@ impl VeloHandle {
 
     pub fn set_active_bike(&self, bike_id: String) -> Result<(), VeloError> {
         let mut inner = self.inner.lock().unwrap();
-        let asset = load_bike_asset(&inner.bikes_dir, &bike_id).map_err(|e| VeloError::RideError {
-            message: e.to_string(),
-        })?;
+        let asset =
+            load_bike_asset(&inner.bikes_dir, &bike_id).map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         inner.active_bike_id = Some(bike_id);
         if let Some(renderer) = inner.renderer.as_mut() {
             renderer
@@ -691,18 +848,49 @@ impl VeloHandle {
             .unwrap_or_default()
     }
 
+    /// Apply shell Keychain secrets before ride / 3D Tiles use.
+    pub fn configure_runtime_secrets(&self, secrets: RuntimeSecretsDto) {
+        set_tiles_credentials(TilesCredentials {
+            google_map_tiles_api_key: secrets.google_map_tiles_api_key,
+            cesium_ion_access_token: secrets.cesium_ion_access_token,
+        });
+        set_bikegen_credentials(BikegenCredentials {
+            meshy_api_key: secrets.meshy_api_key,
+            prefer_hosted_generation: secrets.prefer_hosted_bike_generation,
+        });
+        let mut inner = self.inner.lock().unwrap();
+        if let Some(renderer) = inner.renderer.as_mut() {
+            renderer.refresh_tiles_session();
+        }
+    }
+
+    pub fn tiles_provider_status(&self) -> String {
+        tiles_provider_status()
+    }
+
+    pub fn bikegen_mode_status(&self) -> String {
+        bikegen_mode_status()
+    }
+
+    pub fn tiles_last_error(&self) -> Option<String> {
+        self.inner
+            .lock()
+            .unwrap()
+            .renderer
+            .as_ref()
+            .and_then(|r| r.tiles_last_error())
+    }
+
     /// Open or create the ride library at custom paths (for tests).
     pub fn configure_ride_library(
         &self,
         db_path: String,
         artifacts_base: String,
     ) -> Result<(), VeloError> {
-        let library =
-            RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base)).map_err(
-                |e| VeloError::RideError {
-                    message: e.to_string(),
-                },
-            )?;
+        let library = RideLibrary::open(PathBuf::from(db_path), PathBuf::from(artifacts_base))
+            .map_err(|e| VeloError::RideError {
+                message: e.to_string(),
+            })?;
         self.inner.lock().unwrap().ride_library = Some(library);
         Ok(())
     }
@@ -781,7 +969,9 @@ impl VeloHandle {
 
     pub fn start_workout(&self, workout: WorkoutDto) -> Result<(), VeloError> {
         let workout = map_workout_dto(workout)?;
-        workout.validate().map_err(|message| VeloError::RideError { message })?;
+        workout
+            .validate()
+            .map_err(|message| VeloError::RideError { message })?;
         self.inner.lock().unwrap().app.start_workout(workout);
         Ok(())
     }
@@ -817,12 +1007,7 @@ impl VeloHandle {
     }
 
     pub fn stop_ride(&self) -> Option<RideSummaryDto> {
-        self.inner
-            .lock()
-            .unwrap()
-            .app
-            .stop_ride()
-            .map(map_summary)
+        self.inner.lock().unwrap().app.stop_ride().map(map_summary)
     }
 
     pub fn export_fit(&self) -> Result<Vec<u8>, VeloError> {
@@ -845,36 +1030,92 @@ impl VeloHandle {
             .map(map_summary)
     }
 
-    pub fn tick(
-        &self,
-        sensors: Box<dyn SensorSourceCallback>,
-        trainer: Box<dyn TrainerControlCallback>,
-    ) {
-        let mut inner = self.inner.lock().unwrap();
-        let mut sensor = FfiSensorSource { callback: sensors };
-        let trainer = FfiTrainerControl { callback: trainer };
-        inner.app.tick(&mut sensor, &trainer);
-    }
-
-    pub fn recent_logs(&self, limit: u32) -> Vec<String> {
+    pub fn set_segment_music_enabled(&self, enabled: bool) {
         self.inner
             .lock()
             .unwrap()
             .app
-            .recent_logs(limit as usize)
+            .set_segment_music_enabled(enabled);
+    }
+
+    /// Retry the current interval's audio callback (post-enable/auth, #29).
+    pub fn resync_audio_segment(&self) {
+        self.inner.lock().unwrap().app.resync_audio_segment();
+    }
+
+    pub fn segment_music_enabled(&self) -> bool {
+        self.inner.lock().unwrap().app.segment_music_enabled()
+    }
+
+    pub fn resync_segment_music(&self) {
+        self.inner.lock().unwrap().app.resync_segment_music();
+    }
+
+    pub fn set_steering_enabled(&self, enabled: bool) {
+        self.inner.lock().unwrap().app.set_steering_enabled(enabled);
+    }
+
+    pub fn steering_enabled(&self) -> bool {
+        self.inner.lock().unwrap().app.steering_enabled()
+    }
+
+    /// Register MusicKit (or mock) segment playback handler for workout intervals.
+    pub fn set_audio_director(&self, director: Box<dyn AudioDirectorCallback>) {
+        self.inner.lock().unwrap().audio_director = Some(Arc::from(director));
+    }
+
+    pub fn clear_audio_director(&self) {
+        self.inner.lock().unwrap().audio_director = None;
+    }
+
+    pub fn tick(
+        &self,
+        sensors: Box<dyn SensorSourceCallback>,
+        trainer: Box<dyn TrainerControlCallback>,
+        steering: Box<dyn SteeringInputCallback>,
+    ) {
+        let mut inner = self.inner.lock().unwrap();
+        let mut sensor = FfiSensorSource { callback: sensors };
+        let trainer = FfiTrainerControl { callback: trainer };
+        let steer = FfiSteeringInput { callback: steering };
+        if let Some(audio_cb) = inner.audio_director.clone() {
+            let audio = FfiAudioDirector { callback: audio_cb };
+            inner
+                .app
+                .tick(&mut sensor, &trainer, Some(&steer), Some(&audio));
+        } else {
+            inner.app.tick(
+                &mut sensor,
+                &trainer,
+                Some(&steer),
+                None::<&velo_platform::MockAudioDirector>,
+            );
+        }
+    }
+
+    pub fn recent_logs(&self, limit: u32) -> Vec<String> {
+        self.inner.lock().unwrap().app.recent_logs(limit as usize)
     }
 
     pub fn ride_state(&self) -> RideStateDto {
-        let ride = &self.inner.lock().unwrap().app.ride;
+        let app = &self.inner.lock().unwrap().app;
+        let ride = &app.ride;
+        let elevation_m = app.route.as_ref().map(|route| {
+            let (_, _, elev) = route.lat_lon_elev_at(ride.distance_m);
+            elev
+        });
         RideStateDto {
             mode: map_ride_mode(ride.mode),
             distance_m: ride.distance_m,
             speed_mps: ride.speed_mps,
             elapsed_s: ride.elapsed_s,
             grade: ride.grade,
+            elevation_m,
             power_w: ride.power_w,
             cadence_rpm: ride.cadence_rpm,
             heart_rate_bpm: ride.heart_rate_bpm,
+            steer_axis: app.steer_axis(),
+            steer_yaw_rad: app.steer_yaw_rad(),
         }
     }
 
@@ -904,6 +1145,13 @@ impl VeloHandle {
         Ok(())
     }
 
+    /// When false, live frames skip the in-canvas HUD (shell draws Swift overlay).
+    pub fn set_hud_draw_enabled(&self, enabled: bool) {
+        if let Some(renderer) = self.inner.lock().unwrap().renderer.as_mut() {
+            renderer.set_hud_draw_enabled(enabled);
+        }
+    }
+
     pub fn render_frame(&self) -> Result<(), VeloError> {
         let mut inner = self.inner.lock().unwrap();
         let ride = inner.app.ride.clone();
@@ -916,6 +1164,7 @@ impl VeloHandle {
         let hud = hud_snapshot(&inner.app, tiles_attr);
         let distance_m = ride.distance_m;
         let follow = route_follow(&inner.app);
+        let steer_yaw = inner.app.steer_yaw_rad();
         let route_for_tiles = inner.app.route.clone();
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
         if tiles_on {
@@ -924,7 +1173,7 @@ impl VeloHandle {
             }
         }
         renderer
-            .render_frame(&hud, distance_m, follow)
+            .render_frame(&hud, distance_m, follow, steer_yaw)
             .map_err(|_| VeloError::RenderError)
     }
 
@@ -939,15 +1188,180 @@ impl VeloHandle {
         let hud = hud_snapshot(&inner.app, tiles_attr);
         let distance_m = inner.app.ride.distance_m;
         let follow = route_follow(&inner.app);
+        let steer_yaw = inner.app.steer_yaw_rad();
         let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
         let fb = renderer
-            .capture_framebuffer_rgba(&hud, distance_m, follow)
+            .capture_framebuffer_rgba(&hud, distance_m, follow, steer_yaw)
             .map_err(|_| VeloError::RenderError)?;
         Ok(FramebufferDto {
             width: fb.width,
             height: fb.height,
             rgba_pixels: fb.pixels,
         })
+    }
+
+    /// Nudge workout ERG targets (HUD bias buttons); clamped 50-150%.
+    pub fn set_erg_bias_pct(&self, pct: f64) {
+        self.inner.lock().unwrap().app.set_erg_bias_pct(pct);
+    }
+
+    pub fn erg_bias_pct(&self) -> f64 {
+        self.inner.lock().unwrap().app.erg_bias_pct()
+    }
+
+    /// Skip to the next workout interval (HUD skip button).
+    pub fn skip_workout_interval(&self) {
+        self.inner.lock().unwrap().app.skip_workout_interval();
+    }
+
+    /// Live rolling-power + lap state for the in-ride HUD (P2-B).
+    pub fn hud_metrics(&self, series_points: u32) -> HudMetricsDto {
+        let inner = self.inner.lock().unwrap();
+        let app = &inner.app;
+        HudMetricsDto {
+            rolling_power_series: app.rolling_power.series(series_points.clamp(2, 512) as usize),
+            rolling_avg_w: app.rolling_power.avg_w(),
+            lap_count: app.laps.laps().len() as u32,
+            current_lap_elapsed_s: app.laps.current_lap_elapsed_s(app.ride.elapsed_s),
+        }
+    }
+
+    /// Close the current lap and return it (HUD lap button).
+    pub fn mark_lap(&self) -> LapDto {
+        let mut inner = self.inner.lock().unwrap();
+        let lap = inner.app.mark_lap();
+        map_lap(&lap)
+    }
+
+    pub fn laps(&self) -> Vec<LapDto> {
+        let inner = self.inner.lock().unwrap();
+        inner.app.laps.laps().iter().map(map_lap).collect()
+    }
+
+    /// NP / IF / TSS / elevation gain over the recorded ride (post-ride sheet).
+    pub fn ride_metrics(&self) -> RideMetricsDto {
+        let inner = self.inner.lock().unwrap();
+        let m = inner.app.current_ride_metrics();
+        RideMetricsDto {
+            normalized_power_w: m.normalized_power_w,
+            intensity_factor: m.intensity_factor,
+            tss: m.tss,
+            elevation_gain_m: m.elevation_gain_m,
+        }
+    }
+
+    /// Elevation profile for any installed route pack (Activities sparklines).
+    pub fn route_elevation_profile_for(
+        &self,
+        route_id: String,
+        points: u32,
+    ) -> Vec<ElevationPointDto> {
+        let inner = self.inner.lock().unwrap();
+        let pack_dir = pack_dir_for_id(&inner.packs_dir, &route_id);
+        match load_route_pack(&pack_dir) {
+            Ok(route) => route
+                .elevation_profile(points.clamp(2, 4096) as usize)
+                .into_iter()
+                .map(|(distance_m, elevation_m)| ElevationPointDto {
+                    distance_m,
+                    elevation_m,
+                })
+                .collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    /// The built-in 2x20 threshold template as a DTO (library metadata).
+    pub fn sample_workout_dto(&self) -> WorkoutDto {
+        map_workout_to_dto(Workout::sample_threshold())
+    }
+
+    /// Estimated TSS for a workout plan at the given FTP (library badges).
+    pub fn estimate_workout_tss(&self, workout: WorkoutDto, ftp_w: f64) -> f64 {
+        match map_workout_dto(workout) {
+            Ok(w) => velo_core::estimate_workout_tss(&w, ftp_w),
+            Err(_) => 0.0,
+        }
+    }
+
+    /// Downsampled elevation profile of the loaded route (HUD elevation bar).
+    pub fn route_elevation_profile(&self, points: u32) -> Vec<ElevationPointDto> {
+        let inner = self.inner.lock().unwrap();
+        inner
+            .app
+            .route
+            .as_ref()
+            .map(|r| {
+                r.elevation_profile(points.clamp(2, 4096) as usize)
+                    .into_iter()
+                    .map(|(distance_m, elevation_m)| ElevationPointDto {
+                        distance_m,
+                        elevation_m,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Sample the cinematic replay camera for a highlight clip at `fps`.
+    ///
+    /// Requires a loaded route and a recorded ride (samples are retained
+    /// after `stop`). The shell replays these poses through
+    /// `set_replay_camera_pose` + `capture_framebuffer_rgba` and feeds the
+    /// frames to its H.264 encoder.
+    pub fn replay_camera_poses(
+        &self,
+        clip: HighlightClipRequestDto,
+        fps: f64,
+    ) -> Result<Vec<CameraPoseDto>, VeloError> {
+        let inner = self.inner.lock().unwrap();
+        let route = inner.app.route.as_ref().ok_or(VeloError::RideError {
+            message: "no route loaded".into(),
+        })?;
+        let samples = inner.app.ride_session.samples();
+        if samples.is_empty() {
+            return Err(VeloError::RideError {
+                message: "no recorded ride samples".into(),
+            });
+        }
+        let core_clip = velo_core::HighlightClipRequest {
+            start_elapsed_s: clip.start_elapsed_s,
+            duration_s: clip.duration_s,
+            label: clip.label,
+        };
+        let track = velo_core::build_rider_track(route, samples);
+        let camera = velo_core::ReplayCamera::for_clip(track, &core_clip).ok_or(
+            VeloError::RideError {
+                message: "could not build replay camera".into(),
+            },
+        )?;
+        Ok(camera
+            .sample_fps(fps)
+            .into_iter()
+            .map(|p| CameraPoseDto {
+                eye_east: p.eye_east,
+                eye_up: p.eye_up,
+                eye_north: p.eye_north,
+                look_east: p.look_east,
+                look_up: p.look_up,
+                look_north: p.look_north,
+            })
+            .collect())
+    }
+
+    /// Override the live chase camera with a replay pose (None restores it).
+    pub fn set_replay_camera_pose(&self, pose: Option<CameraPoseDto>) -> Result<(), VeloError> {
+        let mut inner = self.inner.lock().unwrap();
+        let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
+        renderer.set_replay_camera(pose.map(|p| velo_core::CameraPose {
+            eye_east: p.eye_east,
+            eye_up: p.eye_up,
+            eye_north: p.eye_north,
+            look_east: p.look_east,
+            look_up: p.look_up,
+            look_north: p.look_north,
+        }));
+        Ok(())
     }
 
     /// Stop ride, capture screenshot, export FIT, publish via shell callback.
@@ -957,12 +1371,9 @@ impl VeloHandle {
         publisher: Box<dyn ActivityPublisherCallback>,
     ) -> Result<PublishResultDto, VeloError> {
         let mut inner = self.inner.lock().unwrap();
-        let summary = inner
-            .app
-            .stop_ride()
-            .ok_or(VeloError::RideError {
-                message: "no active or completed ride".into(),
-            })?;
+        let summary = inner.app.stop_ride().ok_or(VeloError::RideError {
+            message: "no active or completed ride".into(),
+        })?;
         let summary_dto = map_summary(summary);
 
         let fit_bytes = inner.app.export_fit().map_err(|e| VeloError::RideError {
@@ -979,16 +1390,21 @@ impl VeloHandle {
             let hud = hud_snapshot(&inner.app, tiles_attr);
             let distance_m = ride.distance_m;
             let follow = route_follow(&inner.app);
+            let steer_yaw = inner.app.steer_yaw_rad();
             let renderer = inner.renderer.as_mut().ok_or(VeloError::RenderError)?;
             let fb = renderer
-                .capture_framebuffer_rgba(&hud, distance_m, follow)
+                .capture_framebuffer_rgba(&hud, distance_m, follow, steer_yaw)
                 .map_err(|_| VeloError::RenderError)?;
             Some(media.encode_png_rgba(fb.width, fb.height, fb.pixels))
         } else {
             None
         };
 
-        let mut publish = publisher.publish_ride(fit_bytes.clone(), screenshot_png.clone(), summary_dto.clone());
+        let mut publish = publisher.publish_ride(
+            fit_bytes.clone(),
+            screenshot_png.clone(),
+            summary_dto.clone(),
+        );
         publish.highlight_clip_path = None;
 
         if let Some(library) = inner.ride_library.as_ref() {
@@ -1062,14 +1478,25 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         velo_core::ride::RideMode::Erg => "ERG",
         velo_core::ride::RideMode::Sim => "SIM",
     };
-    let (workout_interval, workout_target_w) = match app.workout_engine.as_ref() {
-        Some(engine) if !engine.state().finished => (
-            engine.current_interval().map(|i| i.name.clone()),
-            engine.target_watts().map(|w| w.0),
-        ),
-        _ => (None, None),
-    };
+    let (workout_interval, workout_target_w, interval_duration_s, interval_elapsed_s) =
+        match app.workout_engine.as_ref() {
+            Some(engine) if !engine.state().finished => {
+                let interval = engine.current_interval();
+                (
+                    interval.map(|i| i.name.clone()),
+                    engine.target_watts().map(|w| w.0),
+                    interval.map(|i| i.duration_s),
+                    Some(engine.state().interval_elapsed_s),
+                )
+            }
+            _ => (None, None, None, None),
+        };
+    let elevation_m = app.route.as_ref().map(|route| {
+        let (_, _, elev) = route.lat_lon_elev_at(ride.distance_m);
+        elev
+    });
     velo_render::HudSnapshot {
+        ftp_w: Some(app.ftp()),
         power_w: ride.power_w,
         cadence_rpm: ride.cadence_rpm,
         heart_rate_bpm: ride.heart_rate_bpm,
@@ -1077,9 +1504,12 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         distance_m: ride.distance_m,
         elapsed_s: ride.elapsed_s,
         grade: ride.grade,
+        elevation_m,
         mode,
         workout_interval,
         workout_target_w,
+        interval_duration_s,
+        interval_elapsed_s,
         attribution,
     }
 }
@@ -1148,6 +1578,7 @@ fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {
         workout_name: engine.workout().name.clone(),
         interval_name: interval.map(|i| i.name.clone()).unwrap_or_default(),
         interval_elapsed_s: state.interval_elapsed_s,
+        interval_duration_s: interval.map(|i| i.duration_s).unwrap_or(0.0),
         workout_elapsed_s: state.workout_elapsed_s,
         target_watts: engine.target_watts().map(|w| w.0),
         finished: state.finished,
