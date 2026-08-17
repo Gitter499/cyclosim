@@ -103,7 +103,7 @@ struct ActivitiesCatalogView: View {
     @ViewBuilder
     private var detailColumn: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Tok.s4) {
                 switch model.activitiesTab {
                 case .routes:
                     routeDetail
@@ -122,11 +122,11 @@ struct ActivitiesCatalogView: View {
     @ViewBuilder
     private var routeDetail: some View {
         if let route = selectedRoute {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Tok.s3) {
                 Text(route.name)
                     .font(.title2.bold())
 
-                HStack(spacing: 16) {
+                HStack(spacing: Tok.s4) {
                     RouteElevationSparkline(samples: model.routeProfiles[route.routeId])
                         .frame(width: 120, height: 40)
                         .id(route.routeId)
@@ -201,7 +201,7 @@ struct ActivitiesCatalogView: View {
     }
 
     private var workoutDetail: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Tok.s3) {
             Text("Workouts")
                 .font(.title2.bold())
 
@@ -236,7 +236,7 @@ private struct RouteCatalogRow: View {
     var samples: [Double]?
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Tok.s3) {
             RouteElevationSparkline(samples: samples)
                 .frame(width: 64, height: 28)
 
@@ -254,9 +254,11 @@ private struct RouteCatalogRow: View {
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
+                    .accessibilityLabel("Selected")
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -269,7 +271,7 @@ private struct WorkoutCatalogRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: Tok.s3) {
                 IntervalGraphPreview(blocks: blocks)
                     .frame(width: 72, height: 28)
                 VStack(alignment: .leading, spacing: 2) {
@@ -282,6 +284,8 @@ private struct WorkoutCatalogRow: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(duration), TSS \(tss). Starts the workout.")
     }
 }
 
