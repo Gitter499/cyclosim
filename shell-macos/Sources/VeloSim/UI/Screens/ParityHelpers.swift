@@ -43,44 +43,50 @@ struct RideControlCluster: View {
 struct WorkoutBarView: View {
     let workout: WorkoutHUD
     var ergBiasPct: Double = 100.0
+    var ftp: Int = 0
     var onBiasDown: (() -> Void)?
     var onBiasUp: (() -> Void)?
     var onSkip: (() -> Void)?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VeloHUDGlassContainer(spacing: Tok.glassGap) {
-            HStack(spacing: Tok.s4) {
-                VStack(alignment: .leading, spacing: Tok.s1) {
-                    Text(workout.blockName)
-                        .font(Typo.label())
-                        .foregroundStyle(.secondary)
-                    Text("\(workout.actualWatts) / \(workout.targetWatts) W")
+            VStack(spacing: Tok.s2) {
+                HStack(spacing: Tok.s4) {
+                    VStack(alignment: .leading, spacing: Tok.s1) {
+                        Text(workout.blockName)
+                            .font(Typo.label())
+                            .foregroundStyle(.secondary)
+                        // Zone color codes power elsewhere on the HUD, so
+                        // on-target state stays neutral (hud-design skill §4).
+                        Text("\(workout.actualWatts) / \(workout.targetWatts) W")
+                            .font(Typo.metric())
+                            .monospacedDigit()
+                            .contentTransition(reduceMotion ? .identity : .numericText())
+                            .foregroundStyle(.white)
+                    }
+                    Spacer()
+                    if onBiasDown != nil || onBiasUp != nil || onSkip != nil {
+                        HStack(spacing: Tok.s2) {
+                            biasButton("minus", label: "Lower target") { onBiasDown?() }
+                            Text(String(format: "%.0f%%", ergBiasPct))
+                                .font(Typo.label())
+                                .monospacedDigit()
+                                .foregroundStyle(ergBiasPct == 100 ? Color.secondary : Color.primary)
+                                .frame(minWidth: 40)
+                                .accessibilityLabel("ERG bias \(Int(ergBiasPct)) percent")
+                            biasButton("plus", label: "Raise target") { onBiasUp?() }
+                            biasButton("forward.end.fill", label: "Skip interval") { onSkip?() }
+                        }
+                    }
+                    Text(HUDDurationFormat.mmss(seconds: workout.intervalRemainingS))
                         .font(Typo.metric())
                         .monospacedDigit()
-                        .contentTransition(.numericText())
-                        .foregroundStyle(
-                            abs(workout.actualWatts - workout.targetWatts) <= 10 ? Color.green : Color.primary
-                        )
+                        .contentTransition(reduceMotion ? .identity : .numericText())
                 }
-                Spacer()
-                if onBiasDown != nil || onBiasUp != nil || onSkip != nil {
-                    HStack(spacing: Tok.s2) {
-                        biasButton("minus", label: "Lower target") { onBiasDown?() }
-                        Text(String(format: "%.0f%%", ergBiasPct))
-                            .font(Typo.label())
-                            .monospacedDigit()
-                            .foregroundStyle(ergBiasPct == 100 ? Color.secondary : Color.orange)
-                            .frame(minWidth: 40)
-                            .accessibilityLabel("ERG bias \(Int(ergBiasPct)) percent")
-                        biasButton("plus", label: "Raise target") { onBiasUp?() }
-                        biasButton("forward.end.fill", label: "Skip interval") { onSkip?() }
-                    }
-                }
-                Text(HUDDurationFormat.mmss(seconds: workout.intervalRemainingS))
-                    .font(Typo.metric())
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
+
+                intervalProgressBar
             }
             .padding(Tok.s4)
             .hudSurface(RoundedRectangle(cornerRadius: Tok.rCard), reduceTransparency: reduceTransparency)
@@ -89,6 +95,23 @@ struct WorkoutBarView: View {
         .accessibilityLabel(
             "Workout \(workout.blockName), \(workout.actualWatts) of \(workout.targetWatts) watts"
         )
+    }
+
+    /// Track + fill per hud-design skill: white 12% track, fill in the zone
+    /// color of the *target* watts. Gauges may animate at frame rate.
+    private var intervalProgressBar: some View {
+        GeometryReader { geo in
+            let zone = PowerZone.of(watts: workout.targetWatts, ftp: ftp)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.white.opacity(0.12))
+                Capsule()
+                    .fill(zone.color)
+                    .frame(width: max(0, geo.size.width * workout.intervalProgress))
+            }
+        }
+        .frame(height: 5)
+        .allowsHitTesting(false)
     }
     private func biasButton(_ systemImage: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {

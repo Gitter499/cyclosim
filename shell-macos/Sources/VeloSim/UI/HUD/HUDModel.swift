@@ -7,6 +7,8 @@ public struct WorkoutHUD: Equatable {
     public let targetWatts: Int
     public let actualWatts: Int
     public let intervalRemainingS: Double
+    /// Fraction of the current interval elapsed, 0…1 (drives the progress fill).
+    public let intervalProgress: Double
     public let blockName: String
     public let nextBlockName: String?
 
@@ -14,12 +16,14 @@ public struct WorkoutHUD: Equatable {
         targetWatts: Int,
         actualWatts: Int,
         intervalRemainingS: Double,
+        intervalProgress: Double = 0,
         blockName: String,
         nextBlockName: String?
     ) {
         self.targetWatts = targetWatts
         self.actualWatts = actualWatts
         self.intervalRemainingS = intervalRemainingS
+        self.intervalProgress = intervalProgress
         self.blockName = blockName
         self.nextBlockName = nextBlockName
     }
@@ -64,6 +68,9 @@ public final class HUDModel {
             targetWatts: target,
             actualWatts: actualWatts,
             intervalRemainingS: remainingS,
+            intervalProgress: live.intervalDurationS > 0
+                ? min(1, max(0, live.intervalElapsedS / live.intervalDurationS))
+                : 0,
             blockName: live.intervalName,
             nextBlockName: nil
         )

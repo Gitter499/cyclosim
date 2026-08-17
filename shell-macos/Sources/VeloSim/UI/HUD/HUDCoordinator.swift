@@ -10,6 +10,11 @@ public final class HUDCoordinator {
     private let minInterval: TimeInterval = 0.125
     private let onThrottledUpdate: (() -> Void)?
 
+    /// Raw power samples from the last ~3 s. The HUD never shows instantaneous
+    /// watts (hud-design skill §3); smoothing lives here so every view agrees.
+    private var powerSamples: [(t: CFAbsoluteTime, w: Double)] = []
+    private let smoothingWindowS: TimeInterval = 3.0
+
     public init(model: HUDModel, onThrottledUpdate: (() -> Void)? = nil) {
         self.model = model
         self.onThrottledUpdate = onThrottledUpdate
@@ -26,12 +31,23 @@ public final class HUDCoordinator {
         ergBiasPct: Double = 100.0
     ) {
         let now = CFAbsoluteTimeGetCurrent()
+
+        // Accumulate every tick (pre-throttle) so the 3 s average is dense.
+        if let watts = rideState.powerW {
+            powerSamples.append((now, watts))
+        }
+        powerSamples.removeAll { now - $0.t > smoothingWindowS }
+
         guard now - lastUpdate >= minInterval else { return }
         lastUpdate = now
 
+        let smoothedW = powerSamples.isEmpty
+            ? (rideState.powerW ?? 0)
+            : powerSamples.reduce(0) { $0 + $1.w } / Double(powerSamples.count)
+
         model.minimalMode = minimalMode
         model.ftp = max(1, Int(ftp.rounded()))
-        model.power = Int((rideState.powerW ?? 0).rounded())
+        model.power = Int(smoothedW.rounded())
         model.cadence = Int((rideState.cadenceRpm ?? 0).rounded())
         model.heartRate = Int((rideState.heartRateBpm ?? 0).rounded())
         model.speedMps = rideState.speedMps
@@ -40,8 +56,8 @@ public final class HUDCoordinator {
         model.elapsedS = rideState.elapsedS
         model.elevationM = rideState.elevationM
 
-        if riderWeightKg > 0, let watts = rideState.powerW {
-            model.wattsPerKg = ((watts / riderWeightKg) * 10).rounded() / 10
+        if riderWeightKg > 0, rideState.powerW != nil {
+            model.wattsPerKg = ((smoothedW / riderWeightKg) * 10).rounded() / 10
         } else {
             model.wattsPerKg = 0
         }
@@ -58,6 +74,7 @@ public final class HUDCoordinator {
 
     public func reset() {
         lastUpdate = 0
+        powerSamples = []
         model.power = 0
         model.cadence = 0
         model.heartRate = 0

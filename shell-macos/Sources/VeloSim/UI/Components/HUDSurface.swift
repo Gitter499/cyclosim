@@ -16,6 +16,9 @@ extension View {
     }
 
     /// Zone-tinted power card — the only tinted HUD element (§5).
+    ///
+    /// The zone hue always sits on a dark base so white text keeps contrast
+    /// over bright scenes (hud-design skill §5: tint, don't flood).
     @ViewBuilder
     public func hudPowerSurface(
         zone: PowerZone,
@@ -24,7 +27,7 @@ extension View {
     ) -> some View {
         let shape = RoundedRectangle(cornerRadius: Tok.rCard)
         if reduceTransparency {
-            background(zone.color.opacity(0.35), in: shape)
+            hudZoneTintedFill(zone: zone, shape: shape)
         } else {
             #if VELO_LIQUID_GLASS
             if #available(macOS 26, *) {
@@ -36,11 +39,18 @@ extension View {
                         .animation(.snappy, value: zone)
                 }
             } else {
-                background(zone.color.opacity(0.35), in: shape)
+                hudZoneTintedFill(zone: zone, shape: shape)
             }
             #else
-            background(zone.color.opacity(0.35), in: shape)
+            hudZoneTintedFill(zone: zone, shape: shape)
             #endif
         }
+    }
+
+    /// Zone tint layered over a dark scrim: later `background` renders behind,
+    /// so the order is tint-over-dark, both clipped to the card shape.
+    private func hudZoneTintedFill(zone: PowerZone, shape: RoundedRectangle) -> some View {
+        background(zone.color.opacity(0.35), in: shape)
+            .background(Color.black.opacity(0.55), in: shape)
     }
 }
