@@ -52,6 +52,10 @@ pub struct HudSnapshot {
     /// Rider FTP for power-zone tinting (None → neutral zone color).
     pub ftp_w: Option<f64>,
     pub attribution: Option<String>,
+    /// Downsampled route elevations for the top elevation bar (empty → hidden).
+    pub elevation_profile: Vec<f32>,
+    /// Route length backing the elevation bar's rider-position dot.
+    pub route_total_m: Option<f64>,
 }
 
 impl HudSnapshot {
@@ -159,7 +163,7 @@ struct UiVertex {
     radius: f32,
 }
 
-const MAX_QUADS: usize = 64;
+const MAX_QUADS: usize = 192;
 
 /// Antialiased rounded-rectangle panels via a signed-distance field, so HUD
 /// surfaces read as cards and pills instead of hard-edged slabs.
@@ -465,6 +469,66 @@ impl HudRenderer {
             h,
         );
         self.place(strip_idx, strip_x, strip_y);
+
+        // ---- Elevation bar (top, under the strip): route silhouette + dot ----
+        // A map, not a metric (hud-design skill §1): low-contrast column fill,
+        // one accent dot, never taller than ~40 px.
+        if !hud.elevation_profile.is_empty() {
+            if let Some(total) = hud.route_total_m.filter(|t| *t > 0.0) {
+                let bar_w = (w * 0.34).clamp(240.0, 420.0);
+                let bar_h = 34.0;
+                let bar_x = (w - bar_w) / 2.0;
+                let bar_y = MARGIN_PX + METRIC_SIZE * 1.25 + 6.0 + 8.0;
+                self.quad(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, 10.0, PANEL_RGBA, w, h);
+
+                let n = hud.elevation_profile.len();
+                let (mut min_e, mut max_e) = (f32::MAX, f32::MIN);
+                for &e in &hud.elevation_profile {
+                    min_e = min_e.min(e);
+                    max_e = max_e.max(e);
+                }
+                let range = (max_e - min_e).max(1.0);
+                let pad = 6.0;
+                let usable_h = bar_h - pad * 2.0 - 3.0;
+                let col_w = (bar_w - pad * 2.0) / n as f32;
+                let col_top = |e: f32| -> f32 {
+                    let frac = (e - min_e) / range;
+                    bar_y + bar_h - pad - (3.0 + frac * usable_h)
+                };
+                // Columns overlap slightly so the profile reads as one
+                // continuous silhouette, not an equalizer.
+                for (i, &e) in hud.elevation_profile.iter().enumerate() {
+                    let x0 = bar_x + pad + i as f32 * col_w;
+                    self.quad(
+                        x0,
+                        col_top(e),
+                        x0 + col_w + 0.5,
+                        bar_y + bar_h - pad,
+                        0.0,
+                        [1.0, 1.0, 1.0, 0.20],
+                        w,
+                        h,
+                    );
+                }
+
+                // Rider position dot (radius = half-size → SDF circle).
+                let p = (hud.distance_m / total).clamp(0.0, 1.0) as f32;
+                let idx = ((p * (n - 1) as f32).round() as usize).min(n - 1);
+                let cx = bar_x + pad + p * (bar_w - pad * 2.0);
+                let cy = col_top(hud.elevation_profile[idx]);
+                let r_dot = 4.5;
+                self.quad(
+                    cx - r_dot,
+                    cy - r_dot,
+                    cx + r_dot,
+                    cy + r_dot,
+                    r_dot,
+                    [1.0, 1.0, 1.0, 0.95],
+                    w,
+                    h,
+                );
+            }
+        }
 
         // ---- Primary block (bottom-left): hero power + CAD/HR row ----
         // Inner grid: everything (label, band, CAD/HR) shares the PAD_PX
