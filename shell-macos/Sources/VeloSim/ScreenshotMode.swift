@@ -53,7 +53,10 @@ enum ScreenshotMode {
             elevationGainM: 412
         )
         capture(
-            RideSummarySheet(model: model, summary: summary, publishResult: nil),
+            RideSummarySheet(model: model, summary: summary, publishResult: nil)
+                // In the app this sits over the window; give the capture the
+                // same backing or dark-scheme text lands on default white.
+                .background(Color(nsColor: .windowBackgroundColor)),
             size: CGSize(width: 640, height: 640), to: dir, name: "ride-summary"
         )
 
@@ -167,6 +170,9 @@ enum ScreenshotMode {
             backing: .buffered,
             defer: false
         )
+        // AppKit-backed materials read the window appearance, not just the
+        // SwiftUI color scheme.
+        window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = hosting
         window.orderFrontRegardless()
 
