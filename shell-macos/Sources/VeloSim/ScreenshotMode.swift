@@ -34,6 +34,29 @@ enum ScreenshotMode {
                 to: dir, name: "activities")
         capture(SettingsView(model: model), size: CGSize(width: 1100, height: 720),
                 to: dir, name: "settings")
+        let summary = RideSummaryDto(
+            elapsedS: 3_612,
+            distanceM: 31_240,
+            sampleCount: 3_612,
+            avgPowerW: 212,
+            maxPowerW: 640,
+            startedAtUnix: 1_754_913_600,
+            highlightClips: [
+                HighlightClipRequestDto(startElapsedS: 1_204, durationS: 20, label: "Power surge"),
+                HighlightClipRequestDto(startElapsedS: 3_312, durationS: 20, label: "Finish"),
+            ]
+        )
+        model.lastRideMetrics = RideMetricsDto(
+            normalizedPowerW: 228,
+            intensityFactor: 0.91,
+            tss: 92,
+            elevationGainM: 412
+        )
+        capture(
+            RideSummarySheet(model: model, summary: summary, publishResult: nil),
+            size: CGSize(width: 640, height: 640), to: dir, name: "ride-summary"
+        )
+
         capture(
             RideHUDOverlay(model: model)
                 .background(
