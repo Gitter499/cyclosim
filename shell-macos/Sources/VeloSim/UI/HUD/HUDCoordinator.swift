@@ -15,6 +15,11 @@ public final class HUDCoordinator {
     private var powerSamples: [(t: CFAbsoluteTime, w: Double)] = []
     private let smoothingWindowS: TimeInterval = 3.0
 
+    /// Transient-event triggers are model-side (hud-design §3b).
+    private var lastIntervalName: String?
+    private var lastLapCount: Int = 0
+    private let transientHoldS: TimeInterval = 2.0
+
     public init(model: HUDModel, onThrottledUpdate: (() -> Void)? = nil) {
         self.model = model
         self.onThrottledUpdate = onThrottledUpdate
@@ -69,12 +74,45 @@ public final class HUDCoordinator {
             model.currentLapElapsedS = metrics.currentLapElapsedS
         }
         model.ergBiasPct = ergBiasPct
+
+        updateTransientEvents(workoutLive: workoutLive, now: now)
         onThrottledUpdate?()
+    }
+
+    /// Raise interval-change/lap announcements and expire the current one
+    /// after its hold window (hud-design §3b — no view-side timers).
+    private func updateTransientEvents(workoutLive: WorkoutLiveDto, now: CFAbsoluteTime) {
+        let intervalName: String? =
+            workoutLive.active && !workoutLive.finished ? workoutLive.intervalName : nil
+        if let name = intervalName, lastIntervalName != nil, name != lastIntervalName {
+            model.transientEvent = TransientHUDEvent(
+                title: name,
+                detail: workoutLive.targetWatts.map { "\(Int($0.rounded())) W" },
+                raisedAt: now
+            )
+        }
+        lastIntervalName = intervalName
+
+        if model.lapCount > lastLapCount {
+            model.transientEvent = TransientHUDEvent(
+                title: "Lap \(model.lapCount + 1)",
+                detail: nil,
+                raisedAt: now
+            )
+        }
+        lastLapCount = model.lapCount
+
+        if let event = model.transientEvent, now - event.raisedAt > transientHoldS {
+            model.transientEvent = nil
+        }
     }
 
     public func reset() {
         lastUpdate = 0
         powerSamples = []
+        lastIntervalName = nil
+        lastLapCount = 0
+        model.transientEvent = nil
         model.power = 0
         model.cadence = 0
         model.heartRate = 0

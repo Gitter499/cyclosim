@@ -29,6 +29,14 @@ struct RideHUDOverlay: View {
                     .padding(.top, Tok.s2)
                 }
 
+                // Transient banner: upper third, near — not at — center;
+                // fade only, model-raised and model-expired (hud-design §3b).
+                if let event = hud.transientEvent, !model.hudMinimalMode {
+                    transientBanner(event)
+                        .padding(.top, Tok.s6)
+                        .transition(.opacity)
+                }
+
                 Spacer(minLength: 0)
 
                 if model.hudMinimalMode {
@@ -64,7 +72,30 @@ struct RideHUDOverlay: View {
             .padding(.bottom, Tok.s4)
         }
         .allowsHitTesting(!model.hudMinimalMode)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.25),
+            value: hud.transientEvent
+        )
         .onAppear { model.refreshElevationProfile() }
+    }
+
+    private func transientBanner(_ event: TransientHUDEvent) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Tok.s2) {
+            Text(event.title)
+                .font(Typo.metric())
+                .foregroundStyle(.white)
+            if let detail = event.detail {
+                Text(detail)
+                    .font(Typo.unit())
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.horizontal, Tok.s4)
+        .padding(.vertical, Tok.s3)
+        .hudSurface(RoundedRectangle(cornerRadius: Tok.rCard), reduceTransparency: reduceTransparency)
+        .allowsHitTesting(false)
+        .accessibilityLabel("\(event.title)\(event.detail.map { ", \($0)" } ?? "")")
     }
 
     // MARK: - Top pill: time · dist · grade

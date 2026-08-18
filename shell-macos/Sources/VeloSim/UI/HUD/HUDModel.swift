@@ -29,6 +29,20 @@ public struct WorkoutHUD: Equatable {
     }
 }
 
+/// One transient HUD announcement (interval change, lap) — hud-design §3b:
+/// single surface, one line, model-raised and model-expired.
+public struct TransientHUDEvent: Equatable {
+    public let title: String
+    public let detail: String?
+    public let raisedAt: TimeInterval
+
+    public init(title: String, detail: String?, raisedAt: TimeInterval) {
+        self.title = title
+        self.detail = detail
+        self.raisedAt = raisedAt
+    }
+}
+
 /// Throttled in-ride readout model (~8 Hz) per guide §5.3.
 @Observable
 @MainActor
@@ -51,6 +65,9 @@ public final class HUDModel {
     public var currentLapElapsedS = 0.0
     public var ergBiasPct = 100.0
     /// Route elevation profile heights (m), evenly spaced along the route.
+    /// Current transient announcement, if inside its ~2 s display window.
+    public var transientEvent: TransientHUDEvent?
+
     public var elevationProfile: [Double] = []
     public var routeTotalM = 0.0
 

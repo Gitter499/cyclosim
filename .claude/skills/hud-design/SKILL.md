@@ -97,6 +97,23 @@ Rules:
   `.contentTransition(.numericText())` is the maximum allowed flourish, and it must be
   disabled under Reduce Motion. Zone-color changes crossfade ≤ 250 ms.
 
+## 3b. Transient events (interval change, lap, FTP update)
+
+- **One event surface.** A single banner fades in near — not at — center
+  (upper third, below the elevation bar), announces, and leaves. Never two
+  transient surfaces at once; a newer event replaces the current one.
+- **Content: one line.** Event name plus the one number that matters
+  ("Threshold 2 · 250 W", "Lap 3"). Same surface treatment as permanent
+  panels (scrim ≥ 0.45, rounded card); an accent may edge the banner but
+  zone color never floods it.
+- **Timing:** fade in ≤ 250 ms, hold ~1.6 s, fade out ≤ 400 ms — gone within
+  ~2 s. Fade only: no slides, scales, or bounces. Under Reduce Motion the
+  banner appears and disappears without animation.
+- **Model-driven triggering.** The event is raised where state changes
+  (interval index, lap count), not inferred per-view, so both HUDs and
+  replays agree on when a flash happened. Expiry is also model-side (clear
+  after ~2 s on the next tick) — views never own timers for it.
+
 ## 4. Power-zone palette (Coggan 7-zone)
 
 Boundaries match `PowerZone.of(watts:ftp:)` in
