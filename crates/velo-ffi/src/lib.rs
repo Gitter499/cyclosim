@@ -1495,6 +1495,18 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         let (_, _, elev) = route.lat_lon_elev_at(ride.distance_m);
         elev
     });
+    let elevation_profile: Vec<f32> = app
+        .route
+        .as_ref()
+        .map(|route| {
+            route
+                .elevation_profile(48)
+                .into_iter()
+                .map(|(_, e)| e as f32)
+                .collect()
+        })
+        .unwrap_or_default();
+    let route_total_m = app.route.as_ref().map(|route| route.total_distance_m());
     velo_render::HudSnapshot {
         ftp_w: Some(app.ftp()),
         power_w: ride.power_w,
@@ -1511,6 +1523,8 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         interval_duration_s,
         interval_elapsed_s,
         attribution,
+        elevation_profile,
+        route_total_m,
     }
 }
 

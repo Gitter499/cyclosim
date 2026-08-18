@@ -28,6 +28,17 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         .route
         .as_ref()
         .map(|r| r.lat_lon_elev_at(app.ride.distance_m).2);
+    let elevation_profile: Vec<f32> = app
+        .route
+        .as_ref()
+        .map(|r| {
+            r.elevation_profile(48)
+                .into_iter()
+                .map(|(_, e)| e as f32)
+                .collect()
+        })
+        .unwrap_or_default();
+    let route_total_m = app.route.as_ref().map(|r| r.total_distance_m());
     HudSnapshot {
         ftp_w: Some(app.ftp()),
         power_w: app.ride.power_w,
@@ -44,6 +55,8 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         interval_duration_s,
         interval_elapsed_s,
         attribution: None,
+        elevation_profile,
+        route_total_m,
     }
 }
 
