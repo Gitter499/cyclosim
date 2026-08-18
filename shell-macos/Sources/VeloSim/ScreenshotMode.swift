@@ -111,6 +111,11 @@ enum ScreenshotMode {
             return 120.0 + hill + x * 1.5
         }
         hud.routeTotalM = 42_000
+        hud.transientEvent = TransientHUDEvent(
+            title: "Threshold 1",
+            detail: "250 W",
+            raisedAt: CFAbsoluteTimeGetCurrent()
+        )
         hud.workout = WorkoutHUD(
             targetWatts: 250,
             actualWatts: 264,
