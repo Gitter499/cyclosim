@@ -45,6 +45,7 @@ final class RideHUDFormattingTests: XCTestCase {
             intervalDurationS: 120,
             workoutElapsedS: 300,
             targetWatts: 250,
+            nextIntervalName: nil,
             finished: false
         )
         let bar = RideHUDFormatting.intervalBar(live: live)
@@ -64,6 +65,7 @@ final class RideHUDFormattingTests: XCTestCase {
             intervalDurationS: 120,
             workoutElapsedS: 300,
             targetWatts: 250,
+            nextIntervalName: nil,
             finished: false
         )
         XCTAssertEqual(RideHUDFormatting.workoutBanner(live: live), "Block 1 · 250 W · 1:00")
