@@ -195,6 +195,19 @@ struct ActivitiesCatalogView: View {
                                 Text(bike.name).tag(bike.bikeId)
                             }
                         }
+                        if let active = model.availableBikes.first(where: { $0.bikeId == model.activeBikeId }),
+                           let accent = bikeAccentColor(active) {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(accent)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 0.5))
+                                Text("Frame color from your photos")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityHidden(true)
+                        }
                     }
                 }
             }
@@ -230,6 +243,17 @@ struct ActivitiesCatalogView: View {
     private var selectedRoute: RouteInfoDto? {
         guard let id = selectedRouteId ?? model.activeRouteId else { return nil }
         return model.availableRoutes.first { $0.routeId == id }
+    }
+
+    /// Frame color sampled from the bike's source photos (0xRRGGBB via FFI).
+    private func bikeAccentColor(_ bike: BikeInfoDto) -> Color? {
+        bike.accentRgb.map { rgb in
+            Color(
+                red: Double((rgb >> 16) & 0xFF) / 255,
+                green: Double((rgb >> 8) & 0xFF) / 255,
+                blue: Double(rgb & 0xFF) / 255
+            )
+        }
     }
 
     private func syncSelection() {
