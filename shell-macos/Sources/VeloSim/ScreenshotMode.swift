@@ -34,6 +34,8 @@ enum ScreenshotMode {
                 to: dir, name: "activities")
         capture(SettingsView(model: model), size: CGSize(width: 1100, height: 720),
                 to: dir, name: "settings")
+        capture(RideHistoryView(model: model), size: CGSize(width: 1100, height: 720),
+                to: dir, name: "history")
         let summary = RideSummaryDto(
             elapsedS: 3_612,
             distanceM: 31_240,
