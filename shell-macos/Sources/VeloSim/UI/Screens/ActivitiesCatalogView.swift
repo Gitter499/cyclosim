@@ -229,8 +229,8 @@ struct ActivitiesCatalogView: View {
                 Text("FTP")
                 Slider(value: Binding(
                     get: { model.ftp },
-                    set: { model.applyFtp($0) }
-                ), in: 100...400, step: 5)
+                    set: { model.applyFtp(($0 / 5).rounded() * 5) }
+                ), in: 100...400)
                 Text("\(Int(model.ftp)) W")
                     .monospacedDigit()
                     .frame(width: 56, alignment: .trailing)

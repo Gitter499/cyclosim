@@ -107,10 +107,15 @@ struct WorkoutBuilderView: View {
             .pickerStyle(.segmented)
 
             switch binding.wrappedValue.targetKind {
+            // Snap in the binding, not step: — stepped macOS sliders draw a
+            // tick per increment across the whole track.
             case .ergWatts:
                 HStack {
                     Text("Watts")
-                    Slider(value: binding.ergWatts, in: 50...500, step: 5)
+                    Slider(value: Binding(
+                        get: { binding.wrappedValue.ergWatts },
+                        set: { binding.wrappedValue.ergWatts = ($0 / 5).rounded() * 5 }
+                    ), in: 50...500)
                     Text("\(Int(binding.wrappedValue.ergWatts)) W")
                         .monospacedDigit()
                         .frame(width: 56, alignment: .trailing)
@@ -118,7 +123,10 @@ struct WorkoutBuilderView: View {
             case .ftpPercent:
                 HStack {
                     Text("FTP %")
-                    Slider(value: binding.ftpPercent, in: 30...150, step: 1)
+                    Slider(value: Binding(
+                        get: { binding.wrappedValue.ftpPercent },
+                        set: { binding.wrappedValue.ftpPercent = $0.rounded() }
+                    ), in: 30...150)
                     Text("\(Int(binding.wrappedValue.ftpPercent))%")
                         .monospacedDigit()
                         .frame(width: 56, alignment: .trailing)

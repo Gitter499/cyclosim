@@ -26,19 +26,28 @@ the box via **BLE (FTMS)** in the pre-ride panel.
 
 ## Five-minute demo flow
 
-1. **Home** — rider card, Next Ride hero, quick start, lifetime stats.
+1. **Home** — rider card, Next Ride hero (hover it), colorful quick-start
+   tiles, pinned route/workout with interval-shape preview, lifetime stats.
 2. **Just Ride** — instant free ride on open terrain: chase camera, glass
    HUD (3 s power, zone-tinted card, sparkline), pause menu (Esc/Space).
+   Toggle minimal HUD mode for the pared-down pill layout.
 3. **Activities → Routes** — import any GPX (or use an installed pack);
-   sparkline previews, pre-ride readiness rail, Start ride. Note the road
-   band and elevation bar following the real profile.
-4. **Activities → Workouts** — start the 2x20 Threshold: workout bar with
-   target/countdown/progress, ERG bias ±, skip interval, interval-change
+   terrain-filled sparklines with distance chips, pre-ride readiness rail,
+   Start ride. Note the road band and elevation bar following the real
+   profile.
+4. **Activities → Workouts** — start the 2x20 Threshold: the pre-ride rail
+   previews the armed workout (duration-weighted zone bars, TSS) next to
+   Start; in-ride, the workout bar shows target/countdown/progress and the
+   next-interval hint, with ERG bias ±, skip interval, and interval-change
    flash banner.
 5. **FTP Test** (Home quick start) — ramp test steps ERG upward and
    announces the new FTP when you fade; the 20-min protocol is rider-paced.
 6. **End ride** — summary sheet: tinted stat tiles, NP/IF/TSS, elevation
-   gain; ride lands in History and (if connected) uploads to Strava.
+   gain, and detected highlight moments; ride lands in History (totals
+   strip, zone-tinted rows) and (if connected) uploads to Strava.
+7. **Bike import** (Activities → Routes → Bike) — 1–4 photos generate a
+   placeholder bike tinted from your photos; the sampled frame color shows
+   as a swatch and rides with you.
 
 ## Optional connections
 
@@ -49,5 +58,6 @@ the box via **BLE (FTMS)** in the pre-ride panel.
 ## Screenshot mode (CI / review)
 
 `swift run VeloSim --screenshots /tmp/shots` renders Home, Activities,
-Settings, the in-ride HUD, and the ride summary to PNGs headlessly and
-exits — the same path CI uses for visual review.
+Settings, History, the in-ride HUD (full and minimal), and the ride
+summary to PNGs headlessly and exits — the same path CI uses for visual
+review.
