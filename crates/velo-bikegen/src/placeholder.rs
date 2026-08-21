@@ -168,7 +168,7 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     colors.extend(std::iter::repeat(wheel_dark).take(16)); // wheel rims
     colors.extend(std::iter::repeat(wheel_dark).take(2)); // wheel centers
 
-    let mut push_quad = |positions: &mut Vec<[f32; 3]>,
+    let push_quad = |positions: &mut Vec<[f32; 3]>,
                          colors: &mut Vec<[f32; 3]>,
                          indices: &mut Vec<u16>,
                          quad: [[f32; 3]; 4],
