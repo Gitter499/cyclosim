@@ -87,7 +87,8 @@ struct ActivitiesCatalogView: View {
                     case let .ftpPercent(percent): return percent / 100.0
                     case .freeRide: return 0.6
                     }
-                }
+                },
+                weights: workout.intervals.map(\.durationS)
             ) {
                 model.startSampleWorkout()
             }
@@ -273,12 +274,13 @@ private struct WorkoutCatalogRow: View {
     let duration: String
     let tss: String
     let blocks: [Double]
+    var weights: [Double]?
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: Tok.s3) {
-                IntervalGraphPreview(blocks: blocks)
+                IntervalGraphPreview(blocks: blocks, weights: weights)
                     .frame(width: 72, height: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)

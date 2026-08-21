@@ -63,6 +63,8 @@ final class VeloSimModel: ObservableObject {
     @Published var ftp: Double = 250
     @Published var workoutLive: WorkoutLiveDto
     @Published var workoutStatus: String = "No workout"
+    /// Definition of the armed workout (drives the pre-ride interval preview).
+    @Published var armedWorkout: WorkoutDto?
 
     private let noopSteering = NoopSteeringInput()
     private let keyboardSteering = KeyboardSteeringInput()
@@ -455,6 +457,7 @@ final class VeloSimModel: ObservableObject {
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
         if workoutLive.active {
+            armedWorkout = sampleWorkout
             pinWorkout(workoutLive.workoutName)
         }
     }
@@ -465,6 +468,7 @@ final class VeloSimModel: ObservableObject {
         workoutStatus = workoutLive.active ? "Running: \(workoutLive.workoutName)" : "No workout"
         rideMode = .erg
         if workoutLive.active {
+            armedWorkout = workout
             pinWorkout(workoutLive.workoutName)
         }
     }
@@ -473,6 +477,7 @@ final class VeloSimModel: ObservableObject {
         handle.clearWorkout()
         workoutLive = handle.workoutLive()
         workoutStatus = "No workout"
+        armedWorkout = nil
     }
 
     func refreshRoutes() {
