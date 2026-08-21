@@ -106,6 +106,9 @@ pub fn bake_and_load_terrain(
     ));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     // Finer than the app defaults so the road band renders crisply in evals.
+    // NOTE: cell 3.0 (0.75 m texels) regresses the road to brown mottle —
+    // the road spatial-hash paint misses texels at that resolution. Fix the
+    // hash before dropping this below 5.0.
     let bake = velo_terrain::bake_terrain_for_route(route, &dir, 120.0, 5.0)
     .map(|_| ())
     .map_err(|e| e.to_string());
