@@ -269,6 +269,48 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         );
     }
 
+    // Crossed wheel discs (YZ plane) at each hub — the tree-billboard trick.
+    // At chase distance the strips above are sub-pixel; a full rotated disc
+    // keeps the wheels visible from dead astern (r19 eval: bike read as a
+    // torso slab on a stick).
+    for cx in [-0.50_f32, 0.50] {
+        let center = all_positions.len() as u16;
+        all_positions.push([cx, wheel_y, 0.0]);
+        colors.push(wheel_dark);
+        let rim_start = all_positions.len() as u16;
+        for i in 0..8 {
+            let angle = (i as f32) * std::f32::consts::TAU / 8.0;
+            all_positions.push([cx, wheel_y + wheel_r * angle.sin(), wheel_r * angle.cos()]);
+            colors.push(wheel_dark);
+        }
+        for i in 0..8u16 {
+            let next = (i + 1) % 8;
+            indices.extend([center, rim_start + i, rim_start + next]);
+        }
+    }
+
+    // Rider legs: two dark vertical quads from saddle height down toward the
+    // cranks, spanning z on either side of the frame plane.
+    let shorts = [
+        frame_color[0] * 0.35,
+        frame_color[1] * 0.35,
+        frame_color[2] * 0.35,
+    ];
+    for zc in [-0.10_f32, 0.10] {
+        push_quad(
+            &mut all_positions,
+            &mut colors,
+            &mut indices,
+            [
+                [-0.13, wheel_y + 0.05, zc - 0.05],
+                [-0.13, wheel_y + 0.05, zc + 0.05],
+                [-0.08, saddle_y + 0.04, zc + 0.05],
+                [-0.08, saddle_y + 0.04, zc - 0.05],
+            ],
+            shorts,
+        );
+    }
+
     let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; all_positions.len()];
     build_colored_glb(&all_positions, &uvs, &indices, &colors)
 }
