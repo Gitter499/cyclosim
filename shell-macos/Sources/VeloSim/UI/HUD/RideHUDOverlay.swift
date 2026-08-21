@@ -267,8 +267,21 @@ private struct ElevationProfileBar: View {
             fill.closeSubpath()
             context.fill(fill, with: .color(.white.opacity(0.22)))
 
+            // Progress wraps with the course (rides lap past the end) —
+            // mirrors the Rust HUD's wrapped-distance semantics.
+            let routeDistance = riderDistanceM > totalM
+                ? riderDistanceM.truncatingRemainder(dividingBy: totalM)
+                : riderDistanceM
+            let frac = min(max(routeDistance / totalM, 0), 1)
+
+            // The ridden part shades brighter so progress reads at a glance.
+            var ridden = context
+            ridden.clip(to: Path(CGRect(x: 0, y: 0,
+                                        width: size.width * CGFloat(frac),
+                                        height: size.height)))
+            ridden.fill(fill, with: .color(.white.opacity(0.24)))
+
             // Rider position dot on the silhouette.
-            let frac = min(max(riderDistanceM / totalM, 0), 1)
             let idx = min(Int(frac * Double(profile.count - 1)), profile.count - 1)
             let dot = CGPoint(x: size.width * CGFloat(frac), y: y(profile[idx]))
             // White accent dot: the elevation bar is a map, not a metric, and
