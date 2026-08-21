@@ -65,6 +65,10 @@ pub struct BikeMeta {
     pub source_images: Vec<String>,
     #[serde(default)]
     pub generator: String,
+    /// Representative frame color sampled from the source photos at import
+    /// (sRGB bytes); None on libraries written before this field existed.
+    #[serde(default)]
+    pub accent_rgb: Option<[u8; 3]>,
 }
 
 fn default_gltf_file() -> String {

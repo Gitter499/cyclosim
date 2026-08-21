@@ -5,6 +5,8 @@ import VeloSimSupport
 @MainActor
 struct DashboardView: View {
     @ObservedObject var model: VeloSimModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var heroHovered = false
 
     var body: some View {
         ScrollView {
@@ -82,6 +84,7 @@ struct DashboardView: View {
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 36))
                     .foregroundStyle(.white)
+                    .scaleEffect(heroHovered ? 1.12 : 1.0)
             }
             .padding(Tok.s4)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -105,8 +108,20 @@ struct DashboardView: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Tok.rCard))
             }
+            .overlay(
+                RoundedRectangle(cornerRadius: Tok.rCard)
+                    .stroke(.white.opacity(heroHovered ? 0.28 : 0), lineWidth: 1)
+            )
+            .brightness(heroHovered ? 0.05 : 0)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HeroCardButtonStyle())
+        .onHover { hovering in
+            if reduceMotion {
+                heroHovered = hovering
+            } else {
+                withAnimation(.easeOut(duration: 0.15)) { heroHovered = hovering }
+            }
+        }
         .accessibilityLabel(
             route.map { "Next ride: \($0.name), \(Int($0.totalDistanceM / 1000)) kilometers. Starts the ride." }
                 ?? "Just ride: free ride on open terrain. Starts the ride."
@@ -327,6 +342,22 @@ struct DashboardView: View {
         .padding(Tok.s3)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: Tok.rTile))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Press feedback for the hero card: a slight settle + dim, spring-released.
+/// Hover states live on the card itself (stroke/brightness/play-icon scale).
+private struct HeroCardButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
+            .brightness(configuration.isPressed ? -0.04 : 0)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.8),
+                value: configuration.isPressed
+            )
     }
 }
 
