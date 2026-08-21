@@ -60,6 +60,40 @@ final class HUDCoordinatorTests: XCTestCase {
         XCTAssertEqual(model.power, 200, "expected mean of [100, 300], not raw 300")
     }
 
+    /// Interval changes raise a transient banner event; the first sighting
+    /// of an interval (ride start) does not (hud-design §3b).
+    @MainActor
+    func testIntervalChangeRaisesTransientEvent() {
+        let model = HUDModel()
+        let coordinator = HUDCoordinator(model: model)
+        func live(_ name: String) -> WorkoutLiveDto {
+            WorkoutLiveDto(
+                active: true,
+                workoutName: "2x20",
+                intervalName: name,
+                intervalElapsedS: 0,
+                intervalDurationS: 300,
+                workoutElapsedS: 0,
+                targetWatts: 250,
+                finished: false
+            )
+        }
+
+        coordinator.ingest(
+            rideState: rideState(powerW: 200), workoutLive: live("Warmup"),
+            ftp: 250, riderWeightKg: 0, minimalMode: false
+        )
+        XCTAssertNil(model.transientEvent, "first interval sighting is not a change")
+
+        Thread.sleep(forTimeInterval: 0.15)
+        coordinator.ingest(
+            rideState: rideState(powerW: 200), workoutLive: live("Threshold 1"),
+            ftp: 250, riderWeightKg: 0, minimalMode: false
+        )
+        XCTAssertEqual(model.transientEvent?.title, "Threshold 1")
+        XCTAssertEqual(model.transientEvent?.detail, "250 W")
+    }
+
     @MainActor
     func testWorkoutHUDProgressFraction() {
         let live = WorkoutLiveDto(

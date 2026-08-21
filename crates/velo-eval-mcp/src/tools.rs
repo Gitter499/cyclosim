@@ -227,6 +227,7 @@ fn hud_probe(args: &Value) -> Result<ToolOutput, String> {
             .get("attribution")
             .and_then(Value::as_str)
             .map(String::from),
+        ..Default::default()
     };
 
     let mut renderer = frames::headless_renderer(width, height)?;

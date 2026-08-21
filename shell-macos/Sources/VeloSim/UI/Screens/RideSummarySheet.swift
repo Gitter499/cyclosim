@@ -8,6 +8,8 @@ struct RideSummarySheet: View {
     @ObservedObject var model: VeloSimModel
     let summary: RideSummaryDto
     let publishResult: PublishResultDto?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var sealShown = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +28,20 @@ struct RideSummarySheet: View {
 
     private var headerChrome: some View {
         VStack(spacing: 6) {
+            // Celebration seal: springs in once; static under Reduce Motion.
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(.green)
+                .scaleEffect(sealShown || reduceMotion ? 1.0 : 0.4)
+                .opacity(sealShown || reduceMotion ? 1.0 : 0.0)
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) {
+                        sealShown = true
+                    }
+                }
+                .accessibilityHidden(true)
+
             Text("Ride complete")
                 .font(.title2.bold())
             Text(RideSummaryFormatting.formatRideDate(summary.startedAtUnix))
@@ -48,10 +64,32 @@ struct RideSummarySheet: View {
 
     private var statsBody: some View {
         VStack(alignment: .leading, spacing: 12) {
-            statRow("Distance", RideSummaryFormatting.formatDistance(summary.distanceM))
-            statRow("Elapsed", RideSummaryFormatting.formatElapsed(summary.elapsedS))
-            statRow("Avg power", RideSummaryFormatting.formatPower(summary.avgPowerW))
-            statRow("Max power", RideSummaryFormatting.formatPower(summary.maxPowerW))
+            // Headline stats as tinted tiles — Home's tile language, colored.
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                spacing: Tok.s3
+            ) {
+                heroTile(
+                    "Distance", RideSummaryFormatting.formatDistance(summary.distanceM),
+                    systemImage: "point.topleft.down.to.point.bottomright.curvepath",
+                    tint: .blue
+                )
+                heroTile(
+                    "Time", RideSummaryFormatting.formatElapsed(summary.elapsedS),
+                    systemImage: "clock.fill",
+                    tint: .teal
+                )
+                heroTile(
+                    "Avg power", RideSummaryFormatting.formatPower(summary.avgPowerW),
+                    systemImage: "bolt.fill",
+                    tint: avgPowerTint
+                )
+                heroTile(
+                    "Max power", RideSummaryFormatting.formatPower(summary.maxPowerW),
+                    systemImage: "flame.fill",
+                    tint: .orange
+                )
+            }
 
             if let metrics = model.lastRideMetrics {
                 Divider()
@@ -120,6 +158,34 @@ struct RideSummarySheet: View {
                 }
             }
         }
+    }
+
+    /// Avg power tile tints by zone vs FTP — power is the only zone-coded color.
+    private var avgPowerTint: Color {
+        guard let avg = summary.avgPowerW else { return .gray }
+        return PowerZone.of(watts: Int(avg.rounded()), ftp: max(1, Int(model.ftp.rounded()))).color
+    }
+
+    private func heroTile(
+        _ label: String, _ value: String, systemImage: String, tint: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Tok.s1) {
+            HStack(spacing: Tok.s1) {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                    .foregroundStyle(tint)
+                Text(label)
+                    .font(Typo.label())
+                    .foregroundStyle(.secondary)
+            }
+            Text(value)
+                .font(.title3.weight(.bold))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Tok.s3)
+        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: Tok.rTile))
+        .accessibilityElement(children: .combine)
     }
 
     private func statRow(_ label: String, _ value: String) -> some View {
