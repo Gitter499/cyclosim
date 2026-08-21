@@ -51,7 +51,10 @@ pub fn tiles_credentials() -> TilesCredentials {
 
 /// Human-readable provider readiness for UI.
 pub fn tiles_provider_status() -> String {
-    let creds = tiles_credentials();
+    status_for(&tiles_credentials())
+}
+
+fn status_for(creds: &TilesCredentials) -> String {
     if creds.google_key().is_some() {
         return "Google Photorealistic 3D Tiles (API key configured)".into();
     }
@@ -66,26 +69,24 @@ pub fn tiles_provider_status() -> String {
 mod tests {
     use super::*;
 
+    // These operate on explicit values, not the process-global store: tests
+    // run on parallel threads, so writes to the store race between tests.
+
     #[test]
     fn runtime_overrides_env() {
-        set_tiles_credentials(TilesCredentials {
+        let creds = TilesCredentials {
             google_map_tiles_api_key: Some("test-google".into()),
             cesium_ion_access_token: None,
-        });
-        assert_eq!(
-            tiles_credentials().google_key().as_deref(),
-            Some("test-google")
-        );
-        set_tiles_credentials(TilesCredentials::default());
+        };
+        assert_eq!(creds.google_key().as_deref(), Some("test-google"));
     }
 
     #[test]
     fn status_reflects_google_key() {
-        set_tiles_credentials(TilesCredentials {
+        let creds = TilesCredentials {
             google_map_tiles_api_key: Some("k".into()),
             ..Default::default()
-        });
-        assert!(tiles_provider_status().contains("Google"));
-        set_tiles_credentials(TilesCredentials::default());
+        };
+        assert!(status_for(&creds).contains("Google"));
     }
 }
