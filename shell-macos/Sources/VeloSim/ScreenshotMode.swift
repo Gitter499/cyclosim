@@ -78,8 +78,10 @@ enum ScreenshotMode {
         )
 
         // Minimal mode hides the secondary chrome — capture it too so the
-        // pared-down layout stays reviewed.
-        model.hudModel.minimalMode = true
+        // pared-down layout stays reviewed. The overlay reads the shell-level
+        // flag, not HUDModel.minimalMode (r16: both captures came out
+        // byte-identical with the wrong flag set).
+        model.hudMinimalMode = true
         capture(
             RideHUDOverlay(model: model)
                 .background(
@@ -91,7 +93,7 @@ enum ScreenshotMode {
                 ),
             size: CGSize(width: 1280, height: 720), to: dir, name: "ride-hud-minimal"
         )
-        model.hudModel.minimalMode = false
+        model.hudMinimalMode = false
         return true
     }
 
