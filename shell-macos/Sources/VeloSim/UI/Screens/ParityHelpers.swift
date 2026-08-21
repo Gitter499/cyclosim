@@ -382,6 +382,7 @@ struct WorkoutLibraryView: View {
             duration: "\(Int((totalS / 60).rounded())) min",
             tss: String(format: "%.0f", model.estimatedTss(for: workout)),
             blocks: blocks,
+            weights: workout.intervals.map(\.durationS),
             action: action
         )
     }
@@ -391,11 +392,12 @@ struct WorkoutLibraryView: View {
         duration: String,
         tss: String,
         blocks: [Double],
+        weights: [Double]? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: Tok.s3) {
-                IntervalGraphPreview(blocks: blocks)
+                IntervalGraphPreview(blocks: blocks, weights: weights)
                     .frame(width: 96, height: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -421,14 +423,22 @@ struct WorkoutLibraryView: View {
 
 struct IntervalGraphPreview: View {
     let blocks: [Double]
+    /// Relative bar widths (interval durations). nil → equal widths.
+    var weights: [Double]?
 
     var body: some View {
         GeometryReader { geo in
+            let n = blocks.count
+            let total = weights.map { $0.reduce(0, +) } ?? Double(n)
+            let available = geo.size.width - CGFloat(max(0, n - 1))
             HStack(spacing: 1) {
-                ForEach(Array(blocks.enumerated()), id: \.offset) { _, pct in
+                ForEach(Array(blocks.enumerated()), id: \.offset) { i, pct in
+                    let weight = weights.flatMap { $0.indices.contains(i) ? $0[i] : nil } ?? 1
+                    let width = total > 0 ? available * CGFloat(weight / total) : 0
                     RoundedRectangle(cornerRadius: 2)
                         .fill(PowerZone.of(watts: Int(pct * 250), ftp: 250).color.opacity(0.85))
-                        .frame(height: geo.size.height * CGFloat(min(1, pct)))
+                        .frame(width: max(2, width),
+                               height: geo.size.height * CGFloat(min(1, pct)))
                         .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }

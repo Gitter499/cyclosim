@@ -27,6 +27,9 @@ enum ScreenshotMode {
         let model = VeloSimModel()
         seedDemoLibrary(model)
         seedDemoRide(model)
+        // Arm the sample workout through the real engine so the pre-ride
+        // rail's interval preview shows in the activities capture.
+        model.startSampleWorkout()
 
         capture(HomeDashboardView(model: model), size: CGSize(width: 1100, height: 720),
                 to: dir, name: "home")
