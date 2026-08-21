@@ -33,6 +33,27 @@ struct WorkoutBuilderView: View {
             TextField("Workout name", text: $workoutName)
                 .textFieldStyle(.roundedBorder)
 
+            // Live shape preview: duration-weighted zone bars update as the
+            // intervals are edited.
+            if !intervals.isEmpty {
+                IntervalGraphPreview(
+                    blocks: intervals.map { interval in
+                        switch interval.targetKind {
+                        case .ergWatts:
+                            return model.ftp > 0 ? interval.ergWatts / model.ftp : 0.6
+                        case .ftpPercent:
+                            return interval.ftpPercent / 100.0
+                        case .freeRide:
+                            return 0.6
+                        }
+                    },
+                    weights: intervals.map { max(1.0, $0.durationS) }
+                )
+                .frame(height: 36)
+                .padding(8)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            }
+
             ForEach(Array(intervals.enumerated()), id: \.element.id) { index, _ in
                 intervalRow(index: index)
             }
