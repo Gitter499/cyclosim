@@ -101,8 +101,22 @@ impl RouteModel {
         self.meta.total_distance_m
     }
 
-    /// Grade (rise/run) at distance along route; clamps to endpoints.
+    /// Distances beyond the end wrap onto the course again (rides loop);
+    /// exactly `total` stays `total` so profile/endpoint queries still see
+    /// the final point.
+    fn wrapped_distance(&self, distance_m: f64) -> f64 {
+        let total = self.total_distance_m();
+        if total > 0.0 && distance_m > total {
+            distance_m.rem_euclid(total)
+        } else {
+            distance_m
+        }
+    }
+
+    /// Grade (rise/run) at distance along route; clamps to endpoints and
+    /// laps the course past the end.
     pub fn grade_at(&self, distance_m: f64) -> f64 {
+        let distance_m = self.wrapped_distance(distance_m);
         if self.points.is_empty() {
             return 0.0;
         }
@@ -148,6 +162,7 @@ impl RouteModel {
     }
 
     pub fn lat_lon_elev_at(&self, distance_m: f64) -> (f64, f64, f64) {
+        let distance_m = self.wrapped_distance(distance_m);
         if self.points.is_empty() {
             return (0.0, 0.0, 0.0);
         }
@@ -248,6 +263,18 @@ mod tests {
                 grade: 0.05,
             },
         ]
+    }
+
+    #[test]
+    fn distances_past_the_end_lap_the_course() {
+        let route = RouteModel::new("r", "R", sample_points()).unwrap();
+        // 250 m on a 200 m course = 50 m into the next lap.
+        let lapped = route.lat_lon_elev_at(250.0);
+        let direct = route.lat_lon_elev_at(50.0);
+        assert_eq!(lapped, direct);
+        assert_eq!(route.grade_at(250.0), route.grade_at(50.0));
+        // Exactly the end still reads the final point (profile endpoints).
+        assert_eq!(route.lat_lon_elev_at(200.0).2, 410.0);
     }
 
     #[test]
