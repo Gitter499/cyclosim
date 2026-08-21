@@ -65,6 +65,11 @@ struct WorkoutBarView: View {
                             .monospacedDigit()
                             .contentTransition(reduceMotion ? .identity : .numericText())
                             .foregroundStyle(.white)
+                        if let next = workout.nextBlockName {
+                            Text("Next · \(next)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     if onBiasDown != nil || onBiasUp != nil || onSkip != nil {

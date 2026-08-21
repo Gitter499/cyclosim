@@ -29,6 +29,7 @@ final class HUDCoordinatorTests: XCTestCase {
             intervalDurationS: 0,
             workoutElapsedS: 0,
             targetWatts: nil,
+            nextIntervalName: nil,
             finished: false
         )
     }
@@ -75,6 +76,7 @@ final class HUDCoordinatorTests: XCTestCase {
                 intervalDurationS: 300,
                 workoutElapsedS: 0,
                 targetWatts: 250,
+                nextIntervalName: nil,
                 finished: false
             )
         }
@@ -104,6 +106,7 @@ final class HUDCoordinatorTests: XCTestCase {
             intervalDurationS: 120,
             workoutElapsedS: 30,
             targetWatts: 250,
+            nextIntervalName: nil,
             finished: false
         )
         let hud = HUDModel.mapWorkoutHUD(live: live, actualWatts: 245)
@@ -140,6 +143,7 @@ final class HUDCoordinatorTests: XCTestCase {
             intervalDurationS: 0,
             workoutElapsedS: 0,
             targetWatts: nil,
+            nextIntervalName: nil,
             finished: false
         )
 
