@@ -282,9 +282,11 @@ struct SettingsView: View {
     }
 
     /// Short pill text — the full provider sentence renders as a caption row.
+    /// Prefix matches only: the dev-tileset sentence *contains* "Google"
+    /// ("add Google key…"), which round-14 review caught mislabeling the pill.
     private var tilesShortStatus: String {
         let full = model.tilesProviderStatus
-        if full.contains("Google") { return "Google tiles" }
+        if full.hasPrefix("Google") { return "Google tiles" }
         if full.hasPrefix("Cesium ion (") { return "Cesium ion" }
         if full.isEmpty { return "Configure" }
         return "Dev tileset"
