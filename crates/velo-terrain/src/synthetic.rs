@@ -80,10 +80,16 @@ pub fn terrain_texture(
     texels_per_cell: usize,
 ) -> (Vec<u8>, u32, u32) {
     const ROAD_HALF_WIDTH_M: f64 = 3.0;
-    const ROAD_EDGE_M: f64 = 1.5;
+    // Narrow dirt fringe: at fine texels a wide shoulder resolves and
+    // bilinear-smears a brown halo over half the road.
+    const ROAD_EDGE_M: f64 = 0.8;
 
-    // Stay under conservative GPU texture limits (8192 per axis).
-    const MAX_TEXTURE_DIM: usize = 8192;
+    // Stay under common GPU texture limits (16384 per axis on Metal and
+    // desktop Vulkan, incl. lavapipe). One texture spans the whole route
+    // corridor, so this cap is what actually bounds texel size on long
+    // routes — at 8192 a 20 km route collapsed supersampling to 1x and the
+    // 3 m road band aliased into shoulder-brown mottle.
+    const MAX_TEXTURE_DIM: usize = 16384;
     let mut ss = texels_per_cell.clamp(1, 8);
     while ss > 1 && (hf.cols * ss > MAX_TEXTURE_DIM || hf.rows * ss > MAX_TEXTURE_DIM) {
         ss -= 1;
@@ -92,38 +98,69 @@ pub fn terrain_texture(
     let h = (hf.rows * ss).max(4).min(MAX_TEXTURE_DIM);
     let texel_m = hf.cell_m / ss as f64;
 
-    // Route polyline resampled into a spatial hash for fast distance lookup.
-    // Each sample also carries its arc length so road markings (dashed
-    // centerline) can follow the direction of travel.
+    // Route polyline resampled uniformly; a spatial hash of sample indices
+    // gives fast nearest-sample lookup, then the true perpendicular distance
+    // comes from projecting onto the adjacent segments. (Distance to the
+    // nearest *sample* scallops along-track, which shredded the thin edge
+    // lines into dashes and starved the centerline entirely.)
     let bucket_m = (ROAD_HALF_WIDTH_M + ROAD_EDGE_M).max(hf.cell_m);
-    let mut buckets: std::collections::HashMap<(i32, i32), Vec<(f64, f64, f64)>> =
-        std::collections::HashMap::new();
-    let step = (bucket_m / 2.0).max(1.0);
+    let step = (bucket_m / 2.0).clamp(1.0, 1.5);
     let total = route.total_distance_m();
+    let mut samples: Vec<(f64, f64)> = Vec::new();
     let mut d = 0.0;
     while d <= total {
         let (east, _, north) = route.position_enu_at(d);
-        let key = ((east / bucket_m).floor() as i32, (north / bucket_m).floor() as i32);
-        buckets.entry(key).or_default().push((east, north, d));
+        samples.push((east, north));
         d += step;
     }
-    // (perpendicular distance to route, arc length at the nearest sample)
+    let mut buckets: std::collections::HashMap<(i32, i32), Vec<usize>> =
+        std::collections::HashMap::new();
+    for (i, &(east, north)) in samples.iter().enumerate() {
+        let key = ((east / bucket_m).floor() as i32, (north / bucket_m).floor() as i32);
+        buckets.entry(key).or_default().push(i);
+    }
+    // (perpendicular distance to the route polyline, arc length at the foot)
     let route_dist = |east: f64, north: f64| -> (f64, f64) {
         let bx = (east / bucket_m).floor() as i32;
         let bz = (north / bucket_m).floor() as i32;
+        let mut nearest = usize::MAX;
         let mut best = f64::MAX;
-        let mut best_arc = 0.0;
         for dx in -1..=1 {
             for dz in -1..=1 {
-                if let Some(pts) = buckets.get(&(bx + dx, bz + dz)) {
-                    for &(pe, pn, arc) in pts {
+                if let Some(idxs) = buckets.get(&(bx + dx, bz + dz)) {
+                    for &i in idxs {
+                        let (pe, pn) = samples[i];
                         let dist = (pe - east).hypot(pn - north);
                         if dist < best {
                             best = dist;
-                            best_arc = arc;
+                            nearest = i;
                         }
                     }
                 }
+            }
+        }
+        if nearest == usize::MAX {
+            return (best, 0.0);
+        }
+        let mut best_arc = nearest as f64 * step;
+        for seg_start in [nearest.saturating_sub(1), nearest] {
+            let seg_end = seg_start + 1;
+            if seg_end >= samples.len() {
+                continue;
+            }
+            let (ax, az) = samples[seg_start];
+            let (bx_, bz_) = samples[seg_end];
+            let (abx, abz) = (bx_ - ax, bz_ - az);
+            let len2 = abx * abx + abz * abz;
+            if len2 <= f64::EPSILON {
+                continue;
+            }
+            let t = (((east - ax) * abx + (north - az) * abz) / len2).clamp(0.0, 1.0);
+            let (fx, fz) = (ax + t * abx, az + t * abz);
+            let dist = (fx - east).hypot(fz - north);
+            if dist < best {
+                best = dist;
+                best_arc = (seg_start as f64 + t) * step;
             }
         }
         (best, best_arc)
@@ -144,8 +181,12 @@ pub fn terrain_texture(
     let mut rgba = vec![0u8; w * h * 4];
     for row in 0..h {
         for col in 0..w {
-            let col_f = (col as f64 / ss as f64).min(hf.cols as f64 - 1.0);
-            let row_f = (row as f64 / ss as f64).min(hf.rows as f64 - 1.0);
+            // Texel centers span the mesh's UV space ([0, cols-1] grid units,
+            // matching u = col/(cols-1) on vertices). The old col/ss mapping
+            // spanned [0, cols], drifting up to a full cell across the
+            // corridor — the road band rendered ~half a cell off the route.
+            let col_f = (col as f64 + 0.5) / w as f64 * (hf.cols as f64 - 1.0);
+            let row_f = (row as f64 + 0.5) / h as f64 * (hf.rows as f64 - 1.0);
             let east = hf.origin_east_m + col_f * hf.cell_m;
             let north = hf.origin_north_m + row_f * hf.cell_m;
 
@@ -195,7 +236,9 @@ pub fn terrain_texture(
                     // at coarse texels a "line" floods the whole road, so
                     // skip (distant roads don't show markings anyway).
                     if texel_m <= 0.8 {
-                        let line_w = 0.35;
+                        // Wider than real paint: sub-texel lines alias into
+                        // wobble at 0.75 m texels.
+                        let line_w = 0.6;
                         let edge_c = ROAD_HALF_WIDTH_M - 0.45;
                         let on_edge = (dist - edge_c).abs() < line_w / 2.0;
                         // Dashed centerline: 6 m painted, 6 m gap.
@@ -247,4 +290,62 @@ pub fn procedural_texture(cols: usize, rows: usize) -> Vec<u8> {
         }
     }
     rgba
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use velo_core::RoutePoint;
+
+    fn straight_route(length_m: f64) -> RouteModel {
+        let n = (length_m / 10.0) as usize + 1;
+        let points = (0..n)
+            .map(|i| {
+                let d = i as f64 * 10.0;
+                RoutePoint {
+                    distance_m: d,
+                    lat: 45.0 + d / 111_320.0,
+                    lon: 7.0,
+                    elevation_m: 500.0,
+                    grade: 0.0,
+                }
+            })
+            .collect();
+        RouteModel::new("t", "T", points).unwrap()
+    }
+
+    /// Texels on and near the route centerline must be asphalt/paint (near-
+    /// neutral gray), never the brown dirt shoulder — the r7 eval regression
+    /// where the texture cap collapsed supersampling on longer routes.
+    #[test]
+    fn road_band_resolves_at_fine_cells() {
+        let route = straight_route(2_000.0);
+        let hf = synthetic_heightfield_for_route(&route, 120.0, 3.0);
+        let (rgba, w, h) = terrain_texture(&hf, &route, 4);
+        let (w, h) = (w as usize, h as usize);
+        let texel_m = hf.cell_m * hf.cols as f64 / w as f64;
+        assert!(texel_m <= 0.8, "expected marking-grade texels, got {texel_m}");
+
+        // Texel centers span [0, cols-1] grid units (the mesh UV space).
+        let to_texel = |world: f64, origin: f64, cells: usize, pixels: usize| -> usize {
+            let grid = (world - origin) / hf.cell_m;
+            let px = grid / (cells as f64 - 1.0) * pixels as f64 - 0.5;
+            px.round().max(0.0) as usize
+        };
+        for arc in [500.0_f64, 900.0, 1_500.0] {
+            let (east, _, north) = route.position_enu_at(arc);
+            for lateral in [-2.0_f64, 0.0, 2.0] {
+                // Route runs north; lateral offsets go east.
+                let col = to_texel(east + lateral, hf.origin_east_m, hf.cols, w);
+                let row = to_texel(north, hf.origin_north_m, hf.rows, h);
+                let i = (row.min(h - 1) * w + col.min(w - 1)) * 4;
+                let (r, g, b) = (rgba[i] as i32, rgba[i + 1] as i32, rgba[i + 2] as i32);
+                let spread = r.max(g).max(b) - r.min(g).min(b);
+                assert!(
+                    spread < 30,
+                    "texel at arc {arc} lateral {lateral} not road-neutral: ({r},{g},{b})"
+                );
+            }
+        }
+    }
 }
