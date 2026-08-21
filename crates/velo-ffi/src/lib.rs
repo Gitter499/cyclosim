@@ -151,6 +151,8 @@ pub struct WorkoutLiveDto {
     pub interval_duration_s: f64,
     pub workout_elapsed_s: f64,
     pub target_watts: Option<f64>,
+    /// Upcoming interval name for the HUD "next" hint (None on the last).
+    pub next_interval_name: Option<String>,
     pub finished: bool,
 }
 
@@ -1533,6 +1535,11 @@ fn hud_snapshot(app: &VeloApp, attribution: Option<String>) -> velo_render::HudS
         attribution,
         elevation_profile,
         route_total_m,
+        workout_next_interval: app
+            .workout_engine
+            .as_ref()
+            .and_then(|e| e.next_interval())
+            .map(|i| i.name.clone()),
     }
 }
 
@@ -1603,6 +1610,7 @@ fn map_workout_live(app: &VeloApp) -> WorkoutLiveDto {
         interval_duration_s: interval.map(|i| i.duration_s).unwrap_or(0.0),
         workout_elapsed_s: state.workout_elapsed_s,
         target_watts: engine.target_watts().map(|w| w.0),
+        next_interval_name: engine.next_interval().map(|i| i.name.clone()),
         finished: state.finished,
     }
 }

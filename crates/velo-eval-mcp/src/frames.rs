@@ -57,6 +57,11 @@ pub fn hud_from_app(app: &VeloApp, mode_label: &'static str) -> HudSnapshot {
         attribution: None,
         elevation_profile,
         route_total_m,
+        workout_next_interval: app
+            .workout_engine
+            .as_ref()
+            .and_then(|e| e.next_interval())
+            .map(|i| i.name.clone()),
     }
 }
 

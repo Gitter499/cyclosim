@@ -89,7 +89,7 @@ public final class HUDModel {
                 ? min(1, max(0, live.intervalElapsedS / live.intervalDurationS))
                 : 0,
             blockName: live.intervalName,
-            nextBlockName: nil
+            nextBlockName: live.nextIntervalName
         )
     }
 }
