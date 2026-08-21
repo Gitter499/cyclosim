@@ -159,11 +159,19 @@ impl Renderer {
     }
 
     fn request_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), RenderError> {
+        // Terrain bakes one texture across the whole route corridor, so ask
+        // for 16k textures when the adapter has them (default limit is 8k;
+        // long routes need the headroom for a resolvable road band).
+        let mut limits = wgpu::Limits::default();
+        limits.max_texture_dimension_2d = adapter
+            .limits()
+            .max_texture_dimension_2d
+            .clamp(limits.max_texture_dimension_2d, 16_384);
         pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("velo-render"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: limits,
                 memory_hints: wgpu::MemoryHints::Performance,
             },
             None,
