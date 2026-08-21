@@ -477,6 +477,16 @@ void uniffi_velo_ffi_fn_method_velohandle_configure_runtime_secrets(void*_Nonnul
 int8_t uniffi_velo_ffi_fn_method_velohandle_delete_ride(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ERG_BIAS_PCT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ERG_BIAS_PCT
+double uniffi_velo_ffi_fn_method_velohandle_erg_bias_pct(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ESTIMATE_WORKOUT_TSS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ESTIMATE_WORKOUT_TSS
+double uniffi_velo_ffi_fn_method_velohandle_estimate_workout_tss(void*_Nonnull ptr, RustBuffer workout, double ftp_w, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_EXPORT_FIT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_EXPORT_FIT
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_export_fit(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -495,6 +505,11 @@ double uniffi_velo_ffi_fn_method_velohandle_ftp(void*_Nonnull ptr, RustCallStatu
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_GET_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_GET_RIDE
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_get_ride(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_HUD_METRICS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_HUD_METRICS
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_hud_metrics(void*_Nonnull ptr, uint32_t series_points, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_IMPORT_BIKE_FROM_IMAGES
@@ -517,6 +532,11 @@ void uniffi_velo_ffi_fn_method_velohandle_init_renderer(void*_Nonnull ptr, uint6
 int8_t uniffi_velo_ffi_fn_method_velohandle_is_ride_recording(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAPS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAPS
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_laps(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_last_ride_summary(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -537,6 +557,11 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_list_rides(void*_Nonnull ptr, Ru
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_list_routes(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_MARK_LAP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_MARK_LAP
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_mark_lap(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_PACKS_DIR
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_PACKS_DIR
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_packs_dir(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -552,9 +577,19 @@ RustBuffer uniffi_velo_ffi_fn_method_velohandle_recent_logs(void*_Nonnull ptr, u
 void uniffi_velo_ffi_fn_method_velohandle_render_frame(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_REPLAY_CAMERA_POSES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_REPLAY_CAMERA_POSES
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_replay_camera_poses(void*_Nonnull ptr, RustBuffer clip, double fps, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RESIZE_RENDERER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RESIZE_RENDERER
 void uniffi_velo_ffi_fn_method_velohandle_resize_renderer(void*_Nonnull ptr, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RESYNC_AUDIO_SEGMENT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RESYNC_AUDIO_SEGMENT
+void uniffi_velo_ffi_fn_method_velohandle_resync_audio_segment(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RESYNC_SEGMENT_MUSIC
@@ -562,14 +597,34 @@ void uniffi_velo_ffi_fn_method_velohandle_resize_renderer(void*_Nonnull ptr, uin
 void uniffi_velo_ffi_fn_method_velohandle_resync_segment_music(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RIDE_METRICS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RIDE_METRICS
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_ride_metrics(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RIDE_STATE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_RIDE_STATE
 RustBuffer uniffi_velo_ffi_fn_method_velohandle_ride_state(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_route_elevation_profile(void*_Nonnull ptr, uint32_t points, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE_FOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE_FOR
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_route_elevation_profile_for(void*_Nonnull ptr, RustBuffer route_id, uint32_t points, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 int8_t uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SAMPLE_WORKOUT_DTO
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SAMPLE_WORKOUT_DTO
+RustBuffer uniffi_velo_ffi_fn_method_velohandle_sample_workout_dto(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SEGMENT_MUSIC_ENABLED
@@ -592,6 +647,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_active_route(void*_Nonnull ptr, Ru
 void uniffi_velo_ffi_fn_method_velohandle_set_audio_director(void*_Nonnull ptr, uint64_t director, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ERG_BIAS_PCT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_ERG_BIAS_PCT
+void uniffi_velo_ffi_fn_method_velohandle_set_erg_bias_pct(void*_Nonnull ptr, double pct, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_FTP
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_FTP
 void uniffi_velo_ffi_fn_method_velohandle_set_ftp(void*_Nonnull ptr, double ftp_w, RustCallStatus *_Nonnull out_status
@@ -605,6 +665,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_grade(void*_Nonnull ptr, double gr
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
 void uniffi_velo_ffi_fn_method_velohandle_set_hud_draw_enabled(void*_Nonnull ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_REPLAY_CAMERA_POSE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_REPLAY_CAMERA_POSE
+void uniffi_velo_ffi_fn_method_velohandle_set_replay_camera_pose(void*_Nonnull ptr, RustBuffer pose, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_RIDE_MODE
@@ -630,6 +695,11 @@ void uniffi_velo_ffi_fn_method_velohandle_set_steering_enabled(void*_Nonnull ptr
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_TARGET_POWER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SET_TARGET_POWER
 void uniffi_velo_ffi_fn_method_velohandle_set_target_power(void*_Nonnull ptr, double watts, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SKIP_WORKOUT_INTERVAL
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_SKIP_WORKOUT_INTERVAL
+void uniffi_velo_ffi_fn_method_velohandle_skip_workout_interval(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_FN_METHOD_VELOHANDLE_START_RIDE
@@ -1125,6 +1195,18 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_delete_ride(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ERG_BIAS_PCT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ERG_BIAS_PCT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_erg_bias_pct(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ESTIMATE_WORKOUT_TSS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ESTIMATE_WORKOUT_TSS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_estimate_workout_tss(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_EXPORT_FIT
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_EXPORT_FIT
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_export_fit(void
@@ -1146,6 +1228,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_ftp(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_GET_RIDE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_GET_RIDE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_get_ride(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_HUD_METRICS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_HUD_METRICS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_hud_metrics(void
     
 );
 #endif
@@ -1173,6 +1261,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_is_ride_recording(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAPS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAPS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_laps(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_LAST_RIDE_SUMMARY
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_last_ride_summary(void
@@ -1197,6 +1291,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_list_routes(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_MARK_LAP
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_MARK_LAP
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_mark_lap(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_PACKS_DIR
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_PACKS_DIR
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_packs_dir(void
@@ -1215,9 +1315,21 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_render_frame(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_REPLAY_CAMERA_POSES
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_REPLAY_CAMERA_POSES
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_replay_camera_poses(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RESIZE_RENDERER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RESIZE_RENDERER
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_resize_renderer(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RESYNC_AUDIO_SEGMENT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RESYNC_AUDIO_SEGMENT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_resync_audio_segment(void
     
 );
 #endif
@@ -1227,15 +1339,39 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_resync_segment_music(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RIDE_METRICS
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RIDE_METRICS
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_ride_metrics(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RIDE_STATE
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_RIDE_STATE
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_ride_state(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_elevation_profile(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE_FOR
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_ELEVATION_PROFILE_FOR
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_elevation_profile_for(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_ROUTE_TILES_3D_ENABLED
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SAMPLE_WORKOUT_DTO
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SAMPLE_WORKOUT_DTO
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_sample_workout_dto(void
     
 );
 #endif
@@ -1263,6 +1399,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_audio_director(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ERG_BIAS_PCT
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_ERG_BIAS_PCT
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_erg_bias_pct(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_FTP
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_FTP
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_ftp(void
@@ -1278,6 +1420,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_grade(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_HUD_DRAW_ENABLED
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_hud_draw_enabled(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_REPLAY_CAMERA_POSE
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_REPLAY_CAMERA_POSE
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_replay_camera_pose(void
     
 );
 #endif
@@ -1308,6 +1456,12 @@ uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_steering_enabled(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_TARGET_POWER
 #define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SET_TARGET_POWER
 uint16_t uniffi_velo_ffi_checksum_method_velohandle_set_target_power(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SKIP_WORKOUT_INTERVAL
+#define UNIFFI_FFIDEF_UNIFFI_VELO_FFI_CHECKSUM_METHOD_VELOHANDLE_SKIP_WORKOUT_INTERVAL
+uint16_t uniffi_velo_ffi_checksum_method_velohandle_skip_workout_interval(void
     
 );
 #endif

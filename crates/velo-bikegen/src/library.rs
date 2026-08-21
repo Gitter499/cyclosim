@@ -33,6 +33,8 @@ pub enum BikeImportError {
 pub struct BikeSummary {
     pub bike_id: String,
     pub name: String,
+    /// Frame color sampled from the source photos at import (sRGB bytes).
+    pub accent_rgb: Option<[u8; 3]>,
 }
 
 /// Default user bike library: `~/Documents/VeloSim/bikes/`.
@@ -63,6 +65,7 @@ pub fn list_bikes(bikes_dir: &Path) -> Result<Vec<BikeSummary>, BikeImportError>
                 bikes.push(BikeSummary {
                     bike_id: meta.bike_id,
                     name: meta.name,
+                    accent_rgb: meta.accent_rgb,
                 });
             }
         }
@@ -128,6 +131,7 @@ pub fn import_bike_from_images(
     let gltf_path = bike_dir.join(GLTF_FILE);
     fs::write(&gltf_path, &glb)?;
 
+    let accent = crate::placeholder::sample_image_color(image_paths);
     let anchor = normalize_anchor(&glb);
     let display_name = name.unwrap_or(bike_id);
     let meta = BikeMeta {
@@ -137,6 +141,7 @@ pub fn import_bike_from_images(
         anchor,
         source_images: stored_sources,
         generator: PLACEHOLDER_GENERATOR.to_string(),
+        accent_rgb: Some(accent.map(|c| (c * 255.0).round().clamp(0.0, 255.0) as u8)),
     };
     fs::write(bike_dir.join(META_FILE), serde_json::to_vec_pretty(&meta)?)?;
 
@@ -230,6 +235,9 @@ mod tests {
         let bikes = list_bikes(&dir).unwrap();
         assert_eq!(bikes.len(), 1);
         assert_eq!(bikes[0].bike_id, "test-bike");
+        // Accent sampled from the red test photo.
+        let accent = bikes[0].accent_rgb.expect("accent stored at import");
+        assert!(accent[0] > accent[1] && accent[0] > accent[2], "expected reddish accent, got {accent:?}");
 
         let loaded = load_bike_asset(&dir, "test-bike").unwrap();
         assert_eq!(loaded.bike_id, "test-bike");

@@ -12,10 +12,46 @@ struct PreRidePanel: View {
             steeringSection
             musicSection
             rideModeSection
+            if let workout = model.armedWorkout, model.workoutLive.active {
+                workoutSection(workout)
+            }
             if model.activeRouteId != nil {
                 tilesSection
             }
             startSection
+        }
+    }
+
+    /// Colored duration-weighted interval preview of the armed workout, so the
+    /// rider sees what they're about to start right next to the Start button.
+    private func workoutSection(_ workout: WorkoutDto) -> some View {
+        let totalS = workout.intervals.reduce(0) { $0 + $1.durationS }
+        let blocks = workout.intervals.map { interval -> Double in
+            switch interval.target {
+            case let .ergWatts(watts): return model.ftp > 0 ? watts / model.ftp : 0.6
+            case let .ftpPercent(percent): return percent / 100.0
+            case .freeRide: return 0.6
+            }
+        }
+        return VeloGlassSection("Workout") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(workout.name)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text("\(Int((totalS / 60).rounded())) min · TSS \(String(format: "%.0f", model.estimatedTss(for: workout)))")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                IntervalGraphPreview(
+                    blocks: blocks,
+                    weights: workout.intervals.map(\.durationS)
+                )
+                .frame(height: 44)
+                Button("Remove workout") { model.clearWorkout() }
+                    .buttonStyle(VeloGlassSecondaryButtonStyle())
+            }
         }
     }
 

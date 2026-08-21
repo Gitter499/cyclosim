@@ -272,6 +272,8 @@ pub struct RouteInfoDto {
 pub struct BikeInfoDto {
     pub bike_id: String,
     pub name: String,
+    /// Frame color sampled from the source photos at import, packed 0xRRGGBB.
+    pub accent_rgb: Option<u32>,
 }
 
 /// Runtime API keys/tokens injected by the macOS shell (Keychain → FFI). Never persisted by Rust.
@@ -473,6 +475,9 @@ fn map_bike_summary(summary: BikeSummary) -> BikeInfoDto {
     BikeInfoDto {
         bike_id: summary.bike_id,
         name: summary.name,
+        accent_rgb: summary
+            .accent_rgb
+            .map(|[r, g, b]| ((r as u32) << 16) | ((g as u32) << 8) | b as u32),
     }
 }
 

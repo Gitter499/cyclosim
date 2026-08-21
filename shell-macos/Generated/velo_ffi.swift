@@ -746,6 +746,13 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func deleteRide(id: String) throws  -> Bool
     
+    func ergBiasPct()  -> Double
+    
+    /**
+     * Estimated TSS for a workout plan at the given FTP (library badges).
+     */
+    func estimateWorkoutTss(workout: WorkoutDto, ftpW: Double)  -> Double
+    
     func exportFit() throws  -> Data
     
     /**
@@ -757,6 +764,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func getRide(id: String) throws  -> RideRecordDto?
     
+    /**
+     * Live rolling-power + lap state for the in-ride HUD (P2-B).
+     */
+    func hudMetrics(seriesPoints: UInt32)  -> HudMetricsDto
+    
     func importBikeFromImages(imagePaths: [String], bikeId: String, name: String?) throws 
     
     func importGpxRoute(gpxPath: String, routeId: String, name: String?) throws 
@@ -764,6 +776,8 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func initRenderer(metalLayerPtr: UInt64, width: UInt32, height: UInt32) throws 
     
     func isRideRecording()  -> Bool
+    
+    func laps()  -> [LapDto]
     
     func lastRideSummary()  -> RideSummaryDto?
     
@@ -773,19 +787,59 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     
     func listRoutes() throws  -> [RouteInfoDto]
     
+    /**
+     * Close the current lap and return it (HUD lap button).
+     */
+    func markLap()  -> LapDto
+    
     func packsDir()  -> String
     
     func recentLogs(limit: UInt32)  -> [String]
     
     func renderFrame() throws 
     
+    /**
+     * Sample the cinematic replay camera for a highlight clip at `fps`.
+     *
+     * Requires a loaded route and a recorded ride (samples are retained
+     * after `stop`). The shell replays these poses through
+     * `set_replay_camera_pose` + `capture_framebuffer_rgba` and feeds the
+     * frames to its H.264 encoder.
+     */
+    func replayCameraPoses(clip: HighlightClipRequestDto, fps: Double) throws  -> [CameraPoseDto]
+    
     func resizeRenderer(width: UInt32, height: UInt32) throws 
+    
+    /**
+     * Retry the current interval's audio callback (post-enable/auth, #29).
+     */
+    func resyncAudioSegment() 
     
     func resyncSegmentMusic() 
     
+    /**
+     * NP / IF / TSS / elevation gain over the recorded ride (post-ride sheet).
+     */
+    func rideMetrics()  -> RideMetricsDto
+    
     func rideState()  -> RideStateDto
     
+    /**
+     * Downsampled elevation profile of the loaded route (HUD elevation bar).
+     */
+    func routeElevationProfile(points: UInt32)  -> [ElevationPointDto]
+    
+    /**
+     * Elevation profile for any installed route pack (Activities sparklines).
+     */
+    func routeElevationProfileFor(routeId: String, points: UInt32)  -> [ElevationPointDto]
+    
     func routeTiles3dEnabled()  -> Bool
+    
+    /**
+     * The built-in 2x20 threshold template as a DTO (library metadata).
+     */
+    func sampleWorkoutDto()  -> WorkoutDto
     
     func segmentMusicEnabled()  -> Bool
     
@@ -798,6 +852,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
      */
     func setAudioDirector(director: AudioDirectorCallback) 
     
+    /**
+     * Nudge workout ERG targets (HUD bias buttons); clamped 50-150%.
+     */
+    func setErgBiasPct(pct: Double) 
+    
     func setFtp(ftpW: Double) 
     
     func setGrade(grade: Double) 
@@ -806,6 +865,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
      * When false, live frames skip the in-canvas HUD (shell draws Swift overlay).
      */
     func setHudDrawEnabled(enabled: Bool) 
+    
+    /**
+     * Override the live chase camera with a replay pose (None restores it).
+     */
+    func setReplayCameraPose(pose: CameraPoseDto?) throws 
     
     func setRideMode(mode: RideMode) 
     
@@ -819,6 +883,11 @@ public protocol VeloHandleProtocol: AnyObject, Sendable {
     func setSteeringEnabled(enabled: Bool) 
     
     func setTargetPower(watts: Double) 
+    
+    /**
+     * Skip to the next workout interval (HUD skip button).
+     */
+    func skipWorkoutInterval() 
     
     func startRide() 
     
@@ -999,6 +1068,25 @@ open func deleteRide(id: String)throws  -> Bool  {
 })
 }
     
+open func ergBiasPct() -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_erg_bias_pct(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Estimated TSS for a workout plan at the given FTP (library badges).
+     */
+open func estimateWorkoutTss(workout: WorkoutDto, ftpW: Double) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_estimate_workout_tss(self.uniffiClonePointer(),
+        FfiConverterTypeWorkoutDto_lower(workout),
+        FfiConverterDouble.lower(ftpW),$0
+    )
+})
+}
+    
 open func exportFit()throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_export_fit(self.uniffiClonePointer(),$0
@@ -1029,6 +1117,17 @@ open func getRide(id: String)throws  -> RideRecordDto?  {
     return try  FfiConverterOptionTypeRideRecordDto.lift(try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_get_ride(self.uniffiClonePointer(),
         FfiConverterString.lower(id),$0
+    )
+})
+}
+    
+    /**
+     * Live rolling-power + lap state for the in-ride HUD (P2-B).
+     */
+open func hudMetrics(seriesPoints: UInt32) -> HudMetricsDto  {
+    return try!  FfiConverterTypeHudMetricsDto_lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_hud_metrics(self.uniffiClonePointer(),
+        FfiConverterUInt32.lower(seriesPoints),$0
     )
 })
 }
@@ -1067,6 +1166,13 @@ open func isRideRecording() -> Bool  {
 })
 }
     
+open func laps() -> [LapDto]  {
+    return try!  FfiConverterSequenceTypeLapDto.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_laps(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func lastRideSummary() -> RideSummaryDto?  {
     return try!  FfiConverterOptionTypeRideSummaryDto.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_last_ride_summary(self.uniffiClonePointer(),$0
@@ -1095,6 +1201,16 @@ open func listRoutes()throws  -> [RouteInfoDto]  {
 })
 }
     
+    /**
+     * Close the current lap and return it (HUD lap button).
+     */
+open func markLap() -> LapDto  {
+    return try!  FfiConverterTypeLapDto_lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_mark_lap(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func packsDir() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_packs_dir(self.uniffiClonePointer(),$0
@@ -1116,10 +1232,36 @@ open func renderFrame()throws   {try rustCallWithError(FfiConverterTypeVeloError
 }
 }
     
+    /**
+     * Sample the cinematic replay camera for a highlight clip at `fps`.
+     *
+     * Requires a loaded route and a recorded ride (samples are retained
+     * after `stop`). The shell replays these poses through
+     * `set_replay_camera_pose` + `capture_framebuffer_rgba` and feeds the
+     * frames to its H.264 encoder.
+     */
+open func replayCameraPoses(clip: HighlightClipRequestDto, fps: Double)throws  -> [CameraPoseDto]  {
+    return try  FfiConverterSequenceTypeCameraPoseDto.lift(try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_replay_camera_poses(self.uniffiClonePointer(),
+        FfiConverterTypeHighlightClipRequestDto_lower(clip),
+        FfiConverterDouble.lower(fps),$0
+    )
+})
+}
+    
 open func resizeRenderer(width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
     uniffi_velo_ffi_fn_method_velohandle_resize_renderer(self.uniffiClonePointer(),
         FfiConverterUInt32.lower(width),
         FfiConverterUInt32.lower(height),$0
+    )
+}
+}
+    
+    /**
+     * Retry the current interval's audio callback (post-enable/auth, #29).
+     */
+open func resyncAudioSegment()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_resync_audio_segment(self.uniffiClonePointer(),$0
     )
 }
 }
@@ -1130,6 +1272,16 @@ open func resyncSegmentMusic()  {try! rustCall() {
 }
 }
     
+    /**
+     * NP / IF / TSS / elevation gain over the recorded ride (post-ride sheet).
+     */
+open func rideMetrics() -> RideMetricsDto  {
+    return try!  FfiConverterTypeRideMetricsDto_lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_ride_metrics(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func rideState() -> RideStateDto  {
     return try!  FfiConverterTypeRideStateDto_lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_ride_state(self.uniffiClonePointer(),$0
@@ -1137,9 +1289,42 @@ open func rideState() -> RideStateDto  {
 })
 }
     
+    /**
+     * Downsampled elevation profile of the loaded route (HUD elevation bar).
+     */
+open func routeElevationProfile(points: UInt32) -> [ElevationPointDto]  {
+    return try!  FfiConverterSequenceTypeElevationPointDto.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_route_elevation_profile(self.uniffiClonePointer(),
+        FfiConverterUInt32.lower(points),$0
+    )
+})
+}
+    
+    /**
+     * Elevation profile for any installed route pack (Activities sparklines).
+     */
+open func routeElevationProfileFor(routeId: String, points: UInt32) -> [ElevationPointDto]  {
+    return try!  FfiConverterSequenceTypeElevationPointDto.lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_route_elevation_profile_for(self.uniffiClonePointer(),
+        FfiConverterString.lower(routeId),
+        FfiConverterUInt32.lower(points),$0
+    )
+})
+}
+    
 open func routeTiles3dEnabled() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_route_tiles_3d_enabled(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * The built-in 2x20 threshold template as a DTO (library metadata).
+     */
+open func sampleWorkoutDto() -> WorkoutDto  {
+    return try!  FfiConverterTypeWorkoutDto_lift(try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_sample_workout_dto(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -1175,6 +1360,16 @@ open func setAudioDirector(director: AudioDirectorCallback)  {try! rustCall() {
 }
 }
     
+    /**
+     * Nudge workout ERG targets (HUD bias buttons); clamped 50-150%.
+     */
+open func setErgBiasPct(pct: Double)  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_set_erg_bias_pct(self.uniffiClonePointer(),
+        FfiConverterDouble.lower(pct),$0
+    )
+}
+}
+    
 open func setFtp(ftpW: Double)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_ftp(self.uniffiClonePointer(),
         FfiConverterDouble.lower(ftpW),$0
@@ -1195,6 +1390,16 @@ open func setGrade(grade: Double)  {try! rustCall() {
 open func setHudDrawEnabled(enabled: Bool)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_hud_draw_enabled(self.uniffiClonePointer(),
         FfiConverterBool.lower(enabled),$0
+    )
+}
+}
+    
+    /**
+     * Override the live chase camera with a replay pose (None restores it).
+     */
+open func setReplayCameraPose(pose: CameraPoseDto?)throws   {try rustCallWithError(FfiConverterTypeVeloError_lift) {
+    uniffi_velo_ffi_fn_method_velohandle_set_replay_camera_pose(self.uniffiClonePointer(),
+        FfiConverterOptionTypeCameraPoseDto.lower(pose),$0
     )
 }
 }
@@ -1233,6 +1438,15 @@ open func setSteeringEnabled(enabled: Bool)  {try! rustCall() {
 open func setTargetPower(watts: Double)  {try! rustCall() {
     uniffi_velo_ffi_fn_method_velohandle_set_target_power(self.uniffiClonePointer(),
         FfiConverterDouble.lower(watts),$0
+    )
+}
+}
+    
+    /**
+     * Skip to the next workout interval (HUD skip button).
+     */
+open func skipWorkoutInterval()  {try! rustCall() {
+    uniffi_velo_ffi_fn_method_velohandle_skip_workout_interval(self.uniffiClonePointer(),$0
     )
 }
 }
@@ -1394,12 +1608,20 @@ public func FfiConverterTypeVeloHandle_lower(_ value: VeloHandle) -> UnsafeMutab
 public struct BikeInfoDto {
     public var bikeId: String
     public var name: String
+    /**
+     * Frame color sampled from the source photos at import, packed 0xRRGGBB.
+     */
+    public var accentRgb: UInt32?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(bikeId: String, name: String) {
+    public init(bikeId: String, name: String, 
+        /**
+         * Frame color sampled from the source photos at import, packed 0xRRGGBB.
+         */accentRgb: UInt32?) {
         self.bikeId = bikeId
         self.name = name
+        self.accentRgb = accentRgb
     }
 }
 
@@ -1416,12 +1638,16 @@ extension BikeInfoDto: Equatable, Hashable {
         if lhs.name != rhs.name {
             return false
         }
+        if lhs.accentRgb != rhs.accentRgb {
+            return false
+        }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(bikeId)
         hasher.combine(name)
+        hasher.combine(accentRgb)
     }
 }
 
@@ -1435,13 +1661,15 @@ public struct FfiConverterTypeBikeInfoDto: FfiConverterRustBuffer {
         return
             try BikeInfoDto(
                 bikeId: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf)
+                name: FfiConverterString.read(from: &buf), 
+                accentRgb: FfiConverterOptionUInt32.read(from: &buf)
         )
     }
 
     public static func write(_ value: BikeInfoDto, into buf: inout [UInt8]) {
         FfiConverterString.write(value.bikeId, into: &buf)
         FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionUInt32.write(value.accentRgb, into: &buf)
     }
 }
 
@@ -1458,6 +1686,181 @@ public func FfiConverterTypeBikeInfoDto_lift(_ buf: RustBuffer) throws -> BikeIn
 #endif
 public func FfiConverterTypeBikeInfoDto_lower(_ value: BikeInfoDto) -> RustBuffer {
     return FfiConverterTypeBikeInfoDto.lower(value)
+}
+
+
+/**
+ * Cinematic replay camera pose in the route's local ENU frame (M5).
+ */
+public struct CameraPoseDto {
+    public var eyeEast: Double
+    public var eyeUp: Double
+    public var eyeNorth: Double
+    public var lookEast: Double
+    public var lookUp: Double
+    public var lookNorth: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(eyeEast: Double, eyeUp: Double, eyeNorth: Double, lookEast: Double, lookUp: Double, lookNorth: Double) {
+        self.eyeEast = eyeEast
+        self.eyeUp = eyeUp
+        self.eyeNorth = eyeNorth
+        self.lookEast = lookEast
+        self.lookUp = lookUp
+        self.lookNorth = lookNorth
+    }
+}
+
+#if compiler(>=6)
+extension CameraPoseDto: Sendable {}
+#endif
+
+
+extension CameraPoseDto: Equatable, Hashable {
+    public static func ==(lhs: CameraPoseDto, rhs: CameraPoseDto) -> Bool {
+        if lhs.eyeEast != rhs.eyeEast {
+            return false
+        }
+        if lhs.eyeUp != rhs.eyeUp {
+            return false
+        }
+        if lhs.eyeNorth != rhs.eyeNorth {
+            return false
+        }
+        if lhs.lookEast != rhs.lookEast {
+            return false
+        }
+        if lhs.lookUp != rhs.lookUp {
+            return false
+        }
+        if lhs.lookNorth != rhs.lookNorth {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(eyeEast)
+        hasher.combine(eyeUp)
+        hasher.combine(eyeNorth)
+        hasher.combine(lookEast)
+        hasher.combine(lookUp)
+        hasher.combine(lookNorth)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCameraPoseDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CameraPoseDto {
+        return
+            try CameraPoseDto(
+                eyeEast: FfiConverterDouble.read(from: &buf), 
+                eyeUp: FfiConverterDouble.read(from: &buf), 
+                eyeNorth: FfiConverterDouble.read(from: &buf), 
+                lookEast: FfiConverterDouble.read(from: &buf), 
+                lookUp: FfiConverterDouble.read(from: &buf), 
+                lookNorth: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CameraPoseDto, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.eyeEast, into: &buf)
+        FfiConverterDouble.write(value.eyeUp, into: &buf)
+        FfiConverterDouble.write(value.eyeNorth, into: &buf)
+        FfiConverterDouble.write(value.lookEast, into: &buf)
+        FfiConverterDouble.write(value.lookUp, into: &buf)
+        FfiConverterDouble.write(value.lookNorth, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCameraPoseDto_lift(_ buf: RustBuffer) throws -> CameraPoseDto {
+    return try FfiConverterTypeCameraPoseDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCameraPoseDto_lower(_ value: CameraPoseDto) -> RustBuffer {
+    return FfiConverterTypeCameraPoseDto.lower(value)
+}
+
+
+public struct ElevationPointDto {
+    public var distanceM: Double
+    public var elevationM: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(distanceM: Double, elevationM: Double) {
+        self.distanceM = distanceM
+        self.elevationM = elevationM
+    }
+}
+
+#if compiler(>=6)
+extension ElevationPointDto: Sendable {}
+#endif
+
+
+extension ElevationPointDto: Equatable, Hashable {
+    public static func ==(lhs: ElevationPointDto, rhs: ElevationPointDto) -> Bool {
+        if lhs.distanceM != rhs.distanceM {
+            return false
+        }
+        if lhs.elevationM != rhs.elevationM {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(distanceM)
+        hasher.combine(elevationM)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeElevationPointDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ElevationPointDto {
+        return
+            try ElevationPointDto(
+                distanceM: FfiConverterDouble.read(from: &buf), 
+                elevationM: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ElevationPointDto, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.distanceM, into: &buf)
+        FfiConverterDouble.write(value.elevationM, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeElevationPointDto_lift(_ buf: RustBuffer) throws -> ElevationPointDto {
+    return try FfiConverterTypeElevationPointDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeElevationPointDto_lower(_ value: ElevationPointDto) -> RustBuffer {
+    return FfiConverterTypeElevationPointDto.lower(value)
 }
 
 
@@ -1617,6 +2020,195 @@ public func FfiConverterTypeHighlightClipRequestDto_lower(_ value: HighlightClip
 }
 
 
+/**
+ * Live HUD metrics for P2-B: rolling power graph, lap state (M7 #48).
+ */
+public struct HudMetricsDto {
+    /**
+     * Rolling ~60 s power window downsampled for the graph, oldest first.
+     */
+    public var rollingPowerSeries: [Double]
+    public var rollingAvgW: Double?
+    public var lapCount: UInt32
+    public var currentLapElapsedS: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Rolling ~60 s power window downsampled for the graph, oldest first.
+         */rollingPowerSeries: [Double], rollingAvgW: Double?, lapCount: UInt32, currentLapElapsedS: Double) {
+        self.rollingPowerSeries = rollingPowerSeries
+        self.rollingAvgW = rollingAvgW
+        self.lapCount = lapCount
+        self.currentLapElapsedS = currentLapElapsedS
+    }
+}
+
+#if compiler(>=6)
+extension HudMetricsDto: Sendable {}
+#endif
+
+
+extension HudMetricsDto: Equatable, Hashable {
+    public static func ==(lhs: HudMetricsDto, rhs: HudMetricsDto) -> Bool {
+        if lhs.rollingPowerSeries != rhs.rollingPowerSeries {
+            return false
+        }
+        if lhs.rollingAvgW != rhs.rollingAvgW {
+            return false
+        }
+        if lhs.lapCount != rhs.lapCount {
+            return false
+        }
+        if lhs.currentLapElapsedS != rhs.currentLapElapsedS {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(rollingPowerSeries)
+        hasher.combine(rollingAvgW)
+        hasher.combine(lapCount)
+        hasher.combine(currentLapElapsedS)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHudMetricsDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HudMetricsDto {
+        return
+            try HudMetricsDto(
+                rollingPowerSeries: FfiConverterSequenceDouble.read(from: &buf), 
+                rollingAvgW: FfiConverterOptionDouble.read(from: &buf), 
+                lapCount: FfiConverterUInt32.read(from: &buf), 
+                currentLapElapsedS: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HudMetricsDto, into buf: inout [UInt8]) {
+        FfiConverterSequenceDouble.write(value.rollingPowerSeries, into: &buf)
+        FfiConverterOptionDouble.write(value.rollingAvgW, into: &buf)
+        FfiConverterUInt32.write(value.lapCount, into: &buf)
+        FfiConverterDouble.write(value.currentLapElapsedS, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHudMetricsDto_lift(_ buf: RustBuffer) throws -> HudMetricsDto {
+    return try FfiConverterTypeHudMetricsDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHudMetricsDto_lower(_ value: HudMetricsDto) -> RustBuffer {
+    return FfiConverterTypeHudMetricsDto.lower(value)
+}
+
+
+public struct LapDto {
+    public var index: UInt32
+    public var startElapsedS: Double
+    public var endElapsedS: Double
+    public var distanceM: Double
+    public var avgPowerW: Double?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(index: UInt32, startElapsedS: Double, endElapsedS: Double, distanceM: Double, avgPowerW: Double?) {
+        self.index = index
+        self.startElapsedS = startElapsedS
+        self.endElapsedS = endElapsedS
+        self.distanceM = distanceM
+        self.avgPowerW = avgPowerW
+    }
+}
+
+#if compiler(>=6)
+extension LapDto: Sendable {}
+#endif
+
+
+extension LapDto: Equatable, Hashable {
+    public static func ==(lhs: LapDto, rhs: LapDto) -> Bool {
+        if lhs.index != rhs.index {
+            return false
+        }
+        if lhs.startElapsedS != rhs.startElapsedS {
+            return false
+        }
+        if lhs.endElapsedS != rhs.endElapsedS {
+            return false
+        }
+        if lhs.distanceM != rhs.distanceM {
+            return false
+        }
+        if lhs.avgPowerW != rhs.avgPowerW {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(index)
+        hasher.combine(startElapsedS)
+        hasher.combine(endElapsedS)
+        hasher.combine(distanceM)
+        hasher.combine(avgPowerW)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLapDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LapDto {
+        return
+            try LapDto(
+                index: FfiConverterUInt32.read(from: &buf), 
+                startElapsedS: FfiConverterDouble.read(from: &buf), 
+                endElapsedS: FfiConverterDouble.read(from: &buf), 
+                distanceM: FfiConverterDouble.read(from: &buf), 
+                avgPowerW: FfiConverterOptionDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LapDto, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterDouble.write(value.startElapsedS, into: &buf)
+        FfiConverterDouble.write(value.endElapsedS, into: &buf)
+        FfiConverterDouble.write(value.distanceM, into: &buf)
+        FfiConverterOptionDouble.write(value.avgPowerW, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLapDto_lift(_ buf: RustBuffer) throws -> LapDto {
+    return try FfiConverterTypeLapDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLapDto_lower(_ value: LapDto) -> RustBuffer {
+    return FfiConverterTypeLapDto.lower(value)
+}
+
+
 public struct PublishResultDto {
     public var activityUrl: String
     public var savedLocally: Bool
@@ -1700,6 +2292,95 @@ public func FfiConverterTypePublishResultDto_lift(_ buf: RustBuffer) throws -> P
 #endif
 public func FfiConverterTypePublishResultDto_lower(_ value: PublishResultDto) -> RustBuffer {
     return FfiConverterTypePublishResultDto.lower(value)
+}
+
+
+/**
+ * Post-ride training metrics (NP/IF/TSS/elevation gain) for the summary.
+ */
+public struct RideMetricsDto {
+    public var normalizedPowerW: Double?
+    public var intensityFactor: Double?
+    public var tss: Double?
+    public var elevationGainM: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(normalizedPowerW: Double?, intensityFactor: Double?, tss: Double?, elevationGainM: Double) {
+        self.normalizedPowerW = normalizedPowerW
+        self.intensityFactor = intensityFactor
+        self.tss = tss
+        self.elevationGainM = elevationGainM
+    }
+}
+
+#if compiler(>=6)
+extension RideMetricsDto: Sendable {}
+#endif
+
+
+extension RideMetricsDto: Equatable, Hashable {
+    public static func ==(lhs: RideMetricsDto, rhs: RideMetricsDto) -> Bool {
+        if lhs.normalizedPowerW != rhs.normalizedPowerW {
+            return false
+        }
+        if lhs.intensityFactor != rhs.intensityFactor {
+            return false
+        }
+        if lhs.tss != rhs.tss {
+            return false
+        }
+        if lhs.elevationGainM != rhs.elevationGainM {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(normalizedPowerW)
+        hasher.combine(intensityFactor)
+        hasher.combine(tss)
+        hasher.combine(elevationGainM)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRideMetricsDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RideMetricsDto {
+        return
+            try RideMetricsDto(
+                normalizedPowerW: FfiConverterOptionDouble.read(from: &buf), 
+                intensityFactor: FfiConverterOptionDouble.read(from: &buf), 
+                tss: FfiConverterOptionDouble.read(from: &buf), 
+                elevationGainM: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RideMetricsDto, into buf: inout [UInt8]) {
+        FfiConverterOptionDouble.write(value.normalizedPowerW, into: &buf)
+        FfiConverterOptionDouble.write(value.intensityFactor, into: &buf)
+        FfiConverterOptionDouble.write(value.tss, into: &buf)
+        FfiConverterDouble.write(value.elevationGainM, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRideMetricsDto_lift(_ buf: RustBuffer) throws -> RideMetricsDto {
+    return try FfiConverterTypeRideMetricsDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRideMetricsDto_lower(_ value: RideMetricsDto) -> RustBuffer {
+    return FfiConverterTypeRideMetricsDto.lower(value)
 }
 
 
@@ -2592,11 +3273,18 @@ public struct WorkoutLiveDto {
     public var intervalDurationS: Double
     public var workoutElapsedS: Double
     public var targetWatts: Double?
+    /**
+     * Upcoming interval name for the HUD "next" hint (None on the last).
+     */
+    public var nextIntervalName: String?
     public var finished: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(active: Bool, workoutName: String, intervalName: String, intervalElapsedS: Double, intervalDurationS: Double, workoutElapsedS: Double, targetWatts: Double?, finished: Bool) {
+    public init(active: Bool, workoutName: String, intervalName: String, intervalElapsedS: Double, intervalDurationS: Double, workoutElapsedS: Double, targetWatts: Double?, 
+        /**
+         * Upcoming interval name for the HUD "next" hint (None on the last).
+         */nextIntervalName: String?, finished: Bool) {
         self.active = active
         self.workoutName = workoutName
         self.intervalName = intervalName
@@ -2604,6 +3292,7 @@ public struct WorkoutLiveDto {
         self.intervalDurationS = intervalDurationS
         self.workoutElapsedS = workoutElapsedS
         self.targetWatts = targetWatts
+        self.nextIntervalName = nextIntervalName
         self.finished = finished
     }
 }
@@ -2636,6 +3325,9 @@ extension WorkoutLiveDto: Equatable, Hashable {
         if lhs.targetWatts != rhs.targetWatts {
             return false
         }
+        if lhs.nextIntervalName != rhs.nextIntervalName {
+            return false
+        }
         if lhs.finished != rhs.finished {
             return false
         }
@@ -2650,6 +3342,7 @@ extension WorkoutLiveDto: Equatable, Hashable {
         hasher.combine(intervalDurationS)
         hasher.combine(workoutElapsedS)
         hasher.combine(targetWatts)
+        hasher.combine(nextIntervalName)
         hasher.combine(finished)
     }
 }
@@ -2670,6 +3363,7 @@ public struct FfiConverterTypeWorkoutLiveDto: FfiConverterRustBuffer {
                 intervalDurationS: FfiConverterDouble.read(from: &buf), 
                 workoutElapsedS: FfiConverterDouble.read(from: &buf), 
                 targetWatts: FfiConverterOptionDouble.read(from: &buf), 
+                nextIntervalName: FfiConverterOptionString.read(from: &buf), 
                 finished: FfiConverterBool.read(from: &buf)
         )
     }
@@ -2682,6 +3376,7 @@ public struct FfiConverterTypeWorkoutLiveDto: FfiConverterRustBuffer {
         FfiConverterDouble.write(value.intervalDurationS, into: &buf)
         FfiConverterDouble.write(value.workoutElapsedS, into: &buf)
         FfiConverterOptionDouble.write(value.targetWatts, into: &buf)
+        FfiConverterOptionString.write(value.nextIntervalName, into: &buf)
         FfiConverterBool.write(value.finished, into: &buf)
     }
 }
@@ -3998,6 +4693,30 @@ public func FfiConverterCallbackInterfaceTrainerControlCallback_lower(_ v: Train
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = UInt32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
     typealias SwiftType = Double?
 
@@ -4070,6 +4789,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCameraPoseDto: FfiConverterRustBuffer {
+    typealias SwiftType = CameraPoseDto?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCameraPoseDto.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCameraPoseDto.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRideRecordDto: FfiConverterRustBuffer {
     typealias SwiftType = RideRecordDto?
 
@@ -4112,6 +4855,31 @@ fileprivate struct FfiConverterOptionTypeRideSummaryDto: FfiConverterRustBuffer 
         case 1: return try FfiConverterTypeRideSummaryDto.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceDouble: FfiConverterRustBuffer {
+    typealias SwiftType = [Double]
+
+    public static func write(_ value: [Double], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterDouble.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Double] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Double]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterDouble.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -4168,6 +4936,56 @@ fileprivate struct FfiConverterSequenceTypeBikeInfoDto: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCameraPoseDto: FfiConverterRustBuffer {
+    typealias SwiftType = [CameraPoseDto]
+
+    public static func write(_ value: [CameraPoseDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCameraPoseDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CameraPoseDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CameraPoseDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCameraPoseDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeElevationPointDto: FfiConverterRustBuffer {
+    typealias SwiftType = [ElevationPointDto]
+
+    public static func write(_ value: [ElevationPointDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeElevationPointDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ElevationPointDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ElevationPointDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeElevationPointDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHighlightClipRequestDto: FfiConverterRustBuffer {
     typealias SwiftType = [HighlightClipRequestDto]
 
@@ -4185,6 +5003,31 @@ fileprivate struct FfiConverterSequenceTypeHighlightClipRequestDto: FfiConverter
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHighlightClipRequestDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLapDto: FfiConverterRustBuffer {
+    typealias SwiftType = [LapDto]
+
+    public static func write(_ value: [LapDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLapDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LapDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LapDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLapDto.read(from: &buf))
         }
         return seq
     }
@@ -4369,6 +5212,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_delete_ride() != 23288) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_erg_bias_pct() != 30466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_estimate_workout_tss() != 25130) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_export_fit() != 6205) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4379,6 +5228,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_get_ride() != 8523) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_hud_metrics() != 18043) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_import_bike_from_images() != 15967) {
@@ -4393,6 +5245,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_is_ride_recording() != 50832) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_laps() != 65108) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_last_ride_summary() != 18506) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4405,6 +5260,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_list_routes() != 28207) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_mark_lap() != 8321) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_packs_dir() != 20204) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4414,16 +5272,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_render_frame() != 52114) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_replay_camera_poses() != 63466) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_resize_renderer() != 29586) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_resync_audio_segment() != 17177) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_resync_segment_music() != 46855) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_ride_metrics() != 21745) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_ride_state() != 21549) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_route_elevation_profile() != 19267) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_route_elevation_profile_for() != 48807) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_route_tiles_3d_enabled() != 60041) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_sample_workout_dto() != 60179) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_segment_music_enabled() != 12547) {
@@ -4438,6 +5314,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_velo_ffi_checksum_method_velohandle_set_audio_director() != 50804) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_erg_bias_pct() != 63915) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_ftp() != 51893) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4445,6 +5324,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_hud_draw_enabled() != 30357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_set_replay_camera_pose() != 60825) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_ride_mode() != 33821) {
@@ -4460,6 +5342,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_set_target_power() != 18399) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_velo_ffi_checksum_method_velohandle_skip_workout_interval() != 11040) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_velo_ffi_checksum_method_velohandle_start_ride() != 61337) {
