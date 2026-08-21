@@ -109,6 +109,9 @@ pub fn bake_and_load_terrain(
             .load_terrain_pack(&dir)
             .map_err(|e| e.to_string())
     });
+    if load.is_ok() {
+        renderer.load_scenery_for_route(route);
+    }
     let _ = std::fs::remove_dir_all(&dir);
     load
 }

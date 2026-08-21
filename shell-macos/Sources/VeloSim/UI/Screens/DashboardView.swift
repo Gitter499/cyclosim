@@ -316,6 +316,8 @@ struct DashboardView: View {
                 Text(label)
                     .font(Typo.label())
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             Text(value)
                 .font(.subheadline.weight(.semibold))
