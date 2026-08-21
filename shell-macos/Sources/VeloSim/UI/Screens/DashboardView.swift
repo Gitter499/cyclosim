@@ -196,7 +196,8 @@ struct DashboardView: View {
                                 title: workout,
                                 subtitle: "Pinned workout",
                                 systemImage: "bolt.fill",
-                                tint: .orange
+                                tint: .orange,
+                                workoutPreview: pinnedWorkoutDefinition(named: workout)
                             ) {
                                 model.beginPinnedWorkout()
                             }
@@ -211,11 +212,18 @@ struct DashboardView: View {
         model.availableRoutes.first(where: { $0.routeId == routeId })?.name ?? routeId
     }
 
+    /// The pinned workout's definition when we can resolve it (sample library).
+    private func pinnedWorkoutDefinition(named name: String) -> WorkoutDto? {
+        let sample = model.sampleWorkout
+        return sample.name == name ? sample : nil
+    }
+
     private func pinnedRow(
         title: String,
         subtitle: String,
         systemImage: String,
         tint: Color,
+        workoutPreview: WorkoutDto? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -228,6 +236,22 @@ struct DashboardView: View {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
+                    if let preview = workoutPreview {
+                        IntervalGraphPreview(
+                            blocks: preview.intervals.map { interval in
+                                switch interval.target {
+                                case let .ergWatts(watts):
+                                    return model.ftp > 0 ? watts / model.ftp : 0.6
+                                case let .ftpPercent(percent):
+                                    return percent / 100.0
+                                case .freeRide:
+                                    return 0.6
+                                }
+                            },
+                            weights: preview.intervals.map(\.durationS)
+                        )
+                        .frame(width: 150, height: 14)
+                    }
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)

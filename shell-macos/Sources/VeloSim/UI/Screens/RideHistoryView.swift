@@ -10,11 +10,26 @@ struct RideHistoryView: View {
         NavigationStack {
             Group {
                 if model.rideHistory.isEmpty {
-                    ContentUnavailableView(
-                        "No rides yet",
-                        systemImage: "clock",
-                        description: Text("Start from Activities.")
-                    )
+                    VStack(spacing: 14) {
+                        Image(systemName: "figure.outdoor.cycle")
+                            .font(.system(size: 40, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 88, height: 88)
+                            .background(Color.blue.gradient, in: Circle())
+                            .accessibilityHidden(true)
+                        Text("No rides yet")
+                            .font(.title3.bold())
+                        Text("Finish your first ride and it shows up here with distance, power, and publish status.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 300)
+                        Button("Go to Activities") {
+                            model.shellDestination = .activities
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
