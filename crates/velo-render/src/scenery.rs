@@ -1,15 +1,16 @@
-//! Tier A roadside scenery: crossed-billboard trees along the route corridor.
+//! Tier A roadside scenery: crossed-billboard trees, bushes, and rocks
+//! along the route corridor.
 //!
-//! Deterministic (seeded by tree index) so eval renders stay byte-stable.
-//! Geometry is world-space `SceneVertex` triangles drawn with the existing
-//! colored-vertex pipeline; crossed planes read from every camera angle the
-//! same way the placeholder rider does.
+//! Deterministic (seeded by placement index) so eval renders stay
+//! byte-stable. Geometry is world-space `SceneVertex` triangles drawn with
+//! the existing colored-vertex pipeline; crossed planes read from every
+//! camera angle the same way the placeholder rider does.
 
 use velo_core::RouteModel;
 
 use crate::scene::SceneVertex;
 
-/// Build tree geometry along both sides of the route.
+/// Build scenery geometry along both sides of the route.
 pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
     let mut verts = Vec::new();
     let total = route.total_distance_m();
@@ -23,19 +24,47 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
         // Perpendicular to travel; alternate sides.
         let (px, pz) = (dz / len, -dx / len);
         let side = if i % 2 == 0 { 1.0 } else { -1.0 };
-        // Deterministic 0..1 jitter from the tree index.
+        // Deterministic 0..1 jitter from the placement index.
         let j = (i.wrapping_mul(2_654_435_761) >> 8) as f64 / (1u64 << 24) as f64;
-        // Clear of the road band + shoulder (3 m + 1.5 m).
-        let lateral = (8.0 + j * 9.0) * side;
 
-        push_tree(
-            &mut verts,
-            (east + px * lateral) as f32,
-            up as f32,
-            (north + pz * lateral) as f32,
-            2.8 + j as f32 * 2.2,
-            i,
-        );
+        // Mostly trees, with the occasional bush (nearer the road) and
+        // rock so the corridor doesn't read as one repeated asset.
+        match i % 7 {
+            3 => {
+                let lateral = (5.5 + j * 2.0) * side;
+                push_bush(
+                    &mut verts,
+                    (east + px * lateral) as f32,
+                    up as f32,
+                    (north + pz * lateral) as f32,
+                    0.6 + j as f32 * 0.5,
+                    i,
+                );
+            }
+            5 => {
+                let lateral = (6.0 + j * 8.0) * side;
+                push_rock(
+                    &mut verts,
+                    (east + px * lateral) as f32,
+                    up as f32,
+                    (north + pz * lateral) as f32,
+                    0.4 + j as f32 * 0.4,
+                    i,
+                );
+            }
+            _ => {
+                // Clear of the road band + shoulder (3 m + fringe).
+                let lateral = (8.0 + j * 9.0) * side;
+                push_tree(
+                    &mut verts,
+                    (east + px * lateral) as f32,
+                    up as f32,
+                    (north + pz * lateral) as f32,
+                    2.8 + j as f32 * 2.2,
+                    i,
+                );
+            }
+        }
         i += 1;
         d += 30.0 + j * 22.0;
     }
@@ -83,6 +112,61 @@ fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32
         [x, y + h, z],
         canopy,
     );
+}
+
+/// Low crossed dome of foliage; slightly yellower than the tree canopy.
+fn push_bush(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32) {
+    let g = 0.34 + (seed % 4) as f32 * 0.04;
+    let leaf = [0.18, g, 0.12];
+    let w = h * 1.3;
+    // Crossed squat trapezoids (narrow top) read as a rounded shrub.
+    trapezoid(v, x, y, z, w, h, 0.55, leaf, true);
+    trapezoid(v, x, y, z, w, h, 0.55, leaf, false);
+}
+
+/// Squat gray crossed boulder.
+fn push_rock(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32) {
+    let shade = 0.42 + (seed % 3) as f32 * 0.06;
+    let stone = [shade, shade, shade * 1.04];
+    let w = h * 1.4;
+    trapezoid(v, x, y, z, w, h, 0.45, stone, true);
+    trapezoid(v, x, y, z, w, h, 0.45, stone, false);
+}
+
+/// One vertical trapezoid (bottom width `w`, top width `w * top_frac`)
+/// centered at (x, z), in the XZ or ZX plane.
+#[allow(clippy::too_many_arguments)]
+fn trapezoid(
+    v: &mut Vec<SceneVertex>,
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+    h: f32,
+    top_frac: f32,
+    color: [f32; 3],
+    x_plane: bool,
+) {
+    let t = w * top_frac;
+    if x_plane {
+        quad(
+            v,
+            [x - w, y, z],
+            [x + w, y, z],
+            [x + t, y + h, z],
+            [x - t, y + h, z],
+            color,
+        );
+    } else {
+        quad(
+            v,
+            [x, y, z - w],
+            [x, y, z + w],
+            [x, y + h, z + t],
+            [x, y + h, z - t],
+            color,
+        );
+    }
 }
 
 fn tri(v: &mut Vec<SceneVertex>, a: [f32; 3], b: [f32; 3], c: [f32; 3], color: [f32; 3]) {

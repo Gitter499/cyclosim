@@ -127,5 +127,9 @@ public final class HUDCoordinator {
         model.lapCount = 0
         model.currentLapElapsedS = 0
         model.ergBiasPct = 100.0
+        // Route context too — a later route-less ride must not show the
+        // previous route's elevation profile.
+        model.elevationProfile = []
+        model.routeTotalM = 0
     }
 }
