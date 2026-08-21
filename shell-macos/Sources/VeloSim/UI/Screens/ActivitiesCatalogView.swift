@@ -271,13 +271,16 @@ private struct RouteCatalogRow: View {
             RouteElevationSparkline(samples: samples)
                 .frame(width: 64, height: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
                 Text("\(Int(route.totalDistanceM / 1000)) km")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2.weight(.medium))
                     .monospacedDigit()
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
             }
 
             Spacer()
