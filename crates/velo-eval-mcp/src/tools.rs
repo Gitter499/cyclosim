@@ -169,6 +169,23 @@ fn render_ride_sequence(args: &Value) -> Result<ToolOutput, String> {
     let mut images = Vec::with_capacity(frame_count);
     let mut checkpoints = Vec::with_capacity(frame_count);
     let mut renderer = frames::headless_renderer(width, height)?;
+    // Honor the same scene options as render_frame (they were silently
+    // ignored here — every sequence frame rendered the fallback grid).
+    if args.get("show_bike").and_then(Value::as_bool).unwrap_or(false) {
+        frames::load_placeholder_bike(&mut renderer)?;
+    }
+    if args.get("with_terrain").and_then(Value::as_bool).unwrap_or(false) {
+        let probe = scenario::run_scenario(&ScenarioParams {
+            duration_s: 0.0,
+            ..params.clone()
+        })?;
+        let route = probe
+            .app
+            .route
+            .as_ref()
+            .ok_or("with_terrain requires a route")?;
+        frames::bake_and_load_terrain(&mut renderer, route)?;
+    }
     for i in 0..frame_count {
         let frac = (i + 1) as f64 / frame_count as f64;
         let mut p = params.clone();
@@ -535,7 +552,9 @@ pub fn registry() -> Vec<ToolDef> {
             input_schema: scenario_schema(json!({
                 "frames": {"type": "integer", "description": "number of frames, 1-12 (default 4)"},
                 "width": {"type": "integer"},
-                "height": {"type": "integer"}
+                "height": {"type": "integer"},
+                "show_bike": {"type": "boolean", "description": "draw the placeholder bike (default false)"},
+                "with_terrain": {"type": "boolean", "description": "bake + render synthetic Tier A terrain for the route (default false)"}
             })),
             run: render_ride_sequence,
         },
