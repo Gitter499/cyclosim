@@ -103,6 +103,16 @@ struct RideSummarySheet: View {
                 statRow("Elevation gain", String(format: "%.0f m", metrics.elevationGainM))
             }
 
+            if !summary.highlightClips.isEmpty {
+                Divider()
+                Text("Highlights")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(Array(summary.highlightClips.enumerated()), id: \.offset) { _, clip in
+                    highlightRow(clip)
+                }
+            }
+
             if let publishResult {
                 Divider()
                 Text(RideSummaryFormatting.activityLinkLabel(for: publishResult))
@@ -186,6 +196,38 @@ struct RideSummarySheet: View {
         .padding(Tok.s3)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: Tok.rTile))
         .accessibilityElement(children: .combine)
+    }
+
+    /// One detected highlight moment: tinted icon chip, label, when + length.
+    private func highlightRow(_ clip: HighlightClipRequestDto) -> some View {
+        let (icon, tint) = highlightStyle(for: clip.label)
+        return HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 6))
+                .accessibilityHidden(true)
+            Text(clip.label)
+                .font(.callout.weight(.medium))
+            Spacer()
+            Text("at \(HUDDurationFormat.hms(seconds: clip.startElapsedS)) · \(Int(clip.durationS))s")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func highlightStyle(for label: String) -> (icon: String, tint: Color) {
+        let lower = label.lowercased()
+        if lower.contains("surge") || lower.contains("power") {
+            return ("bolt.fill", .orange)
+        }
+        if lower.contains("finish") || lower.contains("sprint") {
+            return ("flag.checkered", .green)
+        }
+        return ("sparkles", .purple)
     }
 
     private func statRow(_ label: String, _ value: String) -> some View {

@@ -62,7 +62,7 @@ enum ScreenshotMode {
                 // In the app this sits over the window; give the capture the
                 // same backing or dark-scheme text lands on default white.
                 .background(Color(nsColor: .windowBackgroundColor)),
-            size: CGSize(width: 640, height: 640), to: dir, name: "ride-summary"
+            size: CGSize(width: 640, height: 760), to: dir, name: "ride-summary"
         )
 
         capture(
