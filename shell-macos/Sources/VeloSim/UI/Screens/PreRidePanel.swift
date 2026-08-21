@@ -130,13 +130,15 @@ struct PreRidePanel: View {
             }
             .pickerStyle(.segmented)
 
+            // No step: on macOS a stepped slider draws every tick across the
+            // row (r18 review). Snap in the setter instead.
             if model.rideMode == .erg {
                 HStack {
                     Text("Target")
                     Slider(value: Binding(
                         get: { model.targetPower },
-                        set: { model.applyTargetPower($0) }
-                    ), in: 80...400, step: 5)
+                        set: { model.applyTargetPower(($0 / 5).rounded() * 5) }
+                    ), in: 80...400)
                     Text("\(Int(model.targetPower)) W")
                         .monospacedDigit()
                         .frame(width: 56, alignment: .trailing)
@@ -148,8 +150,8 @@ struct PreRidePanel: View {
                     Text("Grade")
                     Slider(value: Binding(
                         get: { model.simGrade },
-                        set: { model.applySimGrade($0) }
-                    ), in: -0.08...0.12, step: 0.005)
+                        set: { model.applySimGrade(($0 / 0.005).rounded() * 0.005) }
+                    ), in: -0.08...0.12)
                     Text(String(format: "%.1f%%", model.simGrade * 100))
                         .monospacedDigit()
                         .frame(width: 56, alignment: .trailing)
