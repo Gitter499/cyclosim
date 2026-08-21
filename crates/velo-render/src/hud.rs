@@ -497,24 +497,35 @@ impl HudRenderer {
                     let frac = (e - min_e) / range;
                     bar_y + bar_h - pad - (3.0 + frac * usable_h)
                 };
+                // Progress wraps with the course (rides lap past the end),
+                // matching RouteModel::wrapped_distance semantics.
+                let route_distance = if hud.distance_m > total {
+                    hud.distance_m.rem_euclid(total)
+                } else {
+                    hud.distance_m
+                };
+                let p = (route_distance / total).clamp(0.0, 1.0) as f32;
+
                 // Columns overlap slightly so the profile reads as one
-                // continuous silhouette, not an equalizer.
+                // continuous silhouette, not an equalizer. The ridden part
+                // shades brighter so progress reads at a glance.
                 for (i, &e) in hud.elevation_profile.iter().enumerate() {
                     let x0 = bar_x + pad + i as f32 * col_w;
+                    let ridden = i as f32 <= p * (n - 1) as f32;
+                    let alpha = if ridden { 0.42 } else { 0.20 };
                     self.quad(
                         x0,
                         col_top(e),
                         x0 + col_w + 0.5,
                         bar_y + bar_h - pad,
                         0.0,
-                        [1.0, 1.0, 1.0, 0.20],
+                        [1.0, 1.0, 1.0, alpha],
                         w,
                         h,
                     );
                 }
 
                 // Rider position dot (radius = half-size → SDF circle).
-                let p = (hud.distance_m / total).clamp(0.0, 1.0) as f32;
                 let idx = ((p * (n - 1) as f32).round() as usize).min(n - 1);
                 let cx = bar_x + pad + p * (bar_w - pad * 2.0);
                 let cy = col_top(hud.elevation_profile[idx]);
