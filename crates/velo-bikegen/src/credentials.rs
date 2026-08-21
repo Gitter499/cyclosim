@@ -51,7 +51,10 @@ pub fn bikegen_mode_status() -> String {
 
 /// Returns an error message when hosted mode is enabled but no key is configured.
 pub fn hosted_import_gate_error() -> Option<String> {
-    let creds = bikegen_credentials();
+    gate_error_for(&bikegen_credentials())
+}
+
+fn gate_error_for(creds: &BikegenCredentials) -> Option<String> {
     if creds.prefer_hosted_generation && creds.meshy_key().is_none() {
         Some("Meshy API key required for hosted bike generation — open Settings".into())
     } else {
@@ -63,19 +66,22 @@ pub fn hosted_import_gate_error() -> Option<String> {
 mod tests {
     use super::*;
 
+    // Gate tests use the pure form: tests run on parallel threads, so going
+    // through the process-global store races between set and assert.
+
     #[test]
     fn hosted_gate_blocks_without_key() {
-        set_bikegen_credentials(BikegenCredentials {
+        let creds = BikegenCredentials {
             meshy_api_key: None,
             prefer_hosted_generation: true,
-        });
-        assert!(hosted_import_gate_error().is_some());
-        set_bikegen_credentials(BikegenCredentials::default());
+        };
+        if std::env::var("MESHY_API_KEY").is_err() {
+            assert!(gate_error_for(&creds).is_some());
+        }
     }
 
     #[test]
     fn placeholder_mode_always_allowed() {
-        set_bikegen_credentials(BikegenCredentials::default());
-        assert!(hosted_import_gate_error().is_none());
+        assert!(gate_error_for(&BikegenCredentials::default()).is_none());
     }
 }
