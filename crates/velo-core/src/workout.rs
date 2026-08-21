@@ -132,6 +132,14 @@ impl WorkoutEngine {
         self.workout.intervals.get(self.state.interval_index)
     }
 
+    /// Peek at the upcoming interval (HUD "next" hint); None on the last one.
+    pub fn next_interval(&self) -> Option<&WorkoutInterval> {
+        if self.state.finished {
+            return None;
+        }
+        self.workout.intervals.get(self.state.interval_index + 1)
+    }
+
     /// Resolve the active interval's target to watts (None for free ride).
     pub fn target_watts(&self) -> Option<Watts> {
         let interval = self.current_interval()?;

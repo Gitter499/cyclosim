@@ -148,7 +148,7 @@ enum ScreenshotMode {
             intervalRemainingS: 512,
             intervalProgress: 0.57,
             blockName: "Threshold 1",
-            nextBlockName: nil
+            nextBlockName: "Recover"
         )
     }
 

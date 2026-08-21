@@ -52,6 +52,8 @@ pub struct HudSnapshot {
     /// Rider FTP for power-zone tinting (None → neutral zone color).
     pub ftp_w: Option<f64>,
     pub attribution: Option<String>,
+    /// Upcoming interval name for the workout bar's "next" hint.
+    pub workout_next_interval: Option<String>,
     /// Downsampled route elevations for the top elevation bar (empty → hidden).
     pub elevation_profile: Vec<f32>,
     /// Route length backing the elevation bar's rider-position dot.
@@ -628,8 +630,18 @@ impl HudRenderer {
                 })
                 .unwrap_or_default();
 
-            let (ni, _) = self.shape(Role::Small, &name, TEXT_PRIMARY, w, h);
+            let (ni, name_w) = self.shape(Role::Small, &name, TEXT_PRIMARY, w, h);
             self.place(ni, bar_x + PAD_PX, bar_y + 8.0);
+            if let Some(next) = hud.workout_next_interval.clone() {
+                let (nx, _) = self.shape(
+                    Role::Small,
+                    &format!("next · {next}"),
+                    TEXT_SECONDARY,
+                    w,
+                    h,
+                );
+                self.place(nx, bar_x + PAD_PX + name_w + 14.0, bar_y + 8.0);
+            }
             let (ti, ti_w) = self.shape(Role::Small, &target, TEXT_PRIMARY, w, h);
             let (ri, ri_w) = self.shape(Role::Small, &remaining, TEXT_SECONDARY, w, h);
             self.place(ri, bar_x + bar_w - PAD_PX - ri_w, bar_y + 8.0);
