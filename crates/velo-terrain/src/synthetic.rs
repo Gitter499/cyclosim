@@ -67,7 +67,6 @@ fn sample_route_elevation(route: &RouteModel, east: f64, north: f64, fallback: f
     best_elev
 }
 
-/// Procedural earth-tone texture (RGBA8).
 /// Elevation-, slope-, and route-aware terrain texture (Tier A placeholder
 /// until splats): grass gradient with noise, rocky steeps, high-altitude
 /// lightening, and an asphalt road band following the route corridor.
@@ -270,27 +269,6 @@ pub fn terrain_texture(
     (rgba, w as u32, h as u32)
 }
 
-pub fn procedural_texture(cols: usize, rows: usize) -> Vec<u8> {
-    let w = cols.max(4);
-    let h = rows.max(4);
-    let mut rgba = vec![0u8; w * h * 4];
-    for row in 0..h {
-        for col in 0..w {
-            let u = col as f32 / w as f32;
-            let v = row as f32 / h as f32;
-            let noise = ((u * 12.7 + v * 8.3).sin() * 0.5 + 0.5) * 20.0;
-            let r = (90.0 + noise + v * 30.0) as u8;
-            let g = (120.0 + noise * 0.8 + u * 20.0) as u8;
-            let b = (50.0 + noise * 0.5) as u8;
-            let i = (row * w + col) * 4;
-            rgba[i] = r;
-            rgba[i + 1] = g;
-            rgba[i + 2] = b;
-            rgba[i + 3] = 255;
-        }
-    }
-    rgba
-}
 
 #[cfg(test)]
 mod tests {

@@ -359,6 +359,8 @@ fn fetch_bytes_in_memory(
     Err(SessionError::Offline)
 }
 
+/// Strip query strings (API keys, session tokens) before logging a URL.
+#[cfg(feature = "network")]
 fn redact_url(url: &str) -> String {
     url.split('?').next().unwrap_or(url).to_string()
 }
