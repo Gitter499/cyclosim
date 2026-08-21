@@ -16,6 +16,9 @@ struct SettingsStatusBadge: View {
     var body: some View {
         Text(label)
             .font(.caption2.weight(.medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: 200)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(tint.opacity(0.22))
@@ -72,14 +75,16 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Form {
                 profileSection
                 connectionsSection
                 integrationsSection
                 rideDefaultsSection
                 advancedSection
             }
-            .listStyle(.inset)
+            // Grouped form: inset rounded sections instead of full-width
+            // hairline rows (r13 screenshot review: 1100 px sliders + ticks).
+            .formStyle(.grouped)
             .navigationTitle("Settings")
             .toolbar {
                 if !embeddedInTab {
@@ -112,15 +117,18 @@ struct SettingsView: View {
                     AppSettingsStore.riderName = $0
                 }
             ))
+            // No step: on macOS a stepped slider draws every tick — 150 ticks
+            // across the row. Snap in the setter instead.
             HStack {
                 Text("Weight")
                 Slider(value: Binding(
                     get: { model.riderWeightKg },
                     set: {
-                        model.riderWeightKg = $0
-                        AppSettingsStore.riderWeightKg = $0
+                        let snapped = ($0 * 2).rounded() / 2
+                        model.riderWeightKg = snapped
+                        AppSettingsStore.riderWeightKg = snapped
                     }
-                ), in: 45...120, step: 0.5)
+                ), in: 45...120)
                 Text(String(format: "%.1f kg", model.riderWeightKg))
                     .monospacedDigit()
                     .frame(width: 64, alignment: .trailing)
@@ -129,8 +137,8 @@ struct SettingsView: View {
                 Text("FTP")
                 Slider(value: Binding(
                     get: { model.ftp },
-                    set: { model.applyFtp($0) }
-                ), in: 100...400, step: 5)
+                    set: { model.applyFtp(($0 / 5).rounded() * 5) }
+                ), in: 100...400)
                 Text("\(Int(model.ftp)) W")
                     .monospacedDigit()
                     .frame(width: 56, alignment: .trailing)
@@ -143,6 +151,7 @@ struct SettingsView: View {
             connectionRow(
                 title: "Strava",
                 systemImage: "figure.outdoor.cycle",
+                iconTint: .orange,
                 status: stravaStatusLabel,
                 kind: stravaStatusKind
             ) {
@@ -152,6 +161,7 @@ struct SettingsView: View {
             connectionRow(
                 title: "Apple Music",
                 systemImage: "music.note",
+                iconTint: .pink,
                 status: model.musicStatus,
                 kind: model.musicDirector.authorized ? .ok : .missing
             ) {
@@ -161,6 +171,7 @@ struct SettingsView: View {
             connectionRow(
                 title: "Trainer",
                 systemImage: "dot.radiowaves.left.and.right",
+                iconTint: .blue,
                 status: bleBadgeLabel,
                 kind: bleBadgeKind
             ) {
@@ -174,11 +185,16 @@ struct SettingsView: View {
             connectionRow(
                 title: "3D Tiles & bikegen keys",
                 systemImage: "key",
-                status: model.tilesProviderStatus.isEmpty ? "Configure" : model.tilesProviderStatus,
+                iconTint: .yellow,
+                status: tilesShortStatus,
                 kind: SettingsApplyLogic.googleKeyConfigured() ? .ok : .neutral
             ) {
                 showIntegrationsWizard = true
             }
+            Text(model.tilesProviderStatus)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -240,13 +256,21 @@ struct SettingsView: View {
     private func connectionRow(
         title: String,
         systemImage: String,
+        iconTint: Color,
         status: String,
         kind: SettingsStatusKind,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack {
-                Label(title, systemImage: systemImage)
+            HStack(spacing: 10) {
+                // iOS-Settings-style tinted icon chip.
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(iconTint.gradient, in: RoundedRectangle(cornerRadius: 6))
+                    .accessibilityHidden(true)
+                Text(title)
                 Spacer()
                 SettingsStatusBadge(label: status, kind: kind)
                 Image(systemName: "chevron.right")
@@ -255,6 +279,17 @@ struct SettingsView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// Short pill text — the full provider sentence renders as a caption row.
+    /// Prefix matches only: the dev-tileset sentence *contains* "Google"
+    /// ("add Google key…"), which round-14 review caught mislabeling the pill.
+    private var tilesShortStatus: String {
+        let full = model.tilesProviderStatus
+        if full.hasPrefix("Google") { return "Google tiles" }
+        if full.hasPrefix("Cesium ion (") { return "Cesium ion" }
+        if full.isEmpty { return "Configure" }
+        return "Dev tileset"
     }
 
     private var stravaStatusLabel: String {
