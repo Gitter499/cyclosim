@@ -169,24 +169,48 @@ struct QuickStartRow: View {
     @ObservedObject var model: VeloSimModel
 
     var body: some View {
-        VeloGlassContainer(spacing: Tok.s3) {
-            HStack(spacing: Tok.s3) {
-                veloGlassProminentButton("Just Ride", systemImage: "bicycle") {
-                    model.beginJustRide()
-                }
-                veloGlassButton("Workout", systemImage: "list.bullet.rectangle") {
-                    model.shellDestination = .activities
-                    model.activitiesTab = .workouts
-                }
-                veloGlassButton("FTP Test", systemImage: "gauge.high") {
-                    model.showFTPTestPicker = true
-                }
-                veloGlassButton("Route", systemImage: "map") {
-                    model.shellDestination = .activities
-                    model.activitiesTab = .routes
-                }
+        HStack(spacing: Tok.s3) {
+            quickAction("Just Ride", systemImage: "bicycle", tint: .green) {
+                model.beginJustRide()
+            }
+            quickAction("Workout", systemImage: "list.bullet.rectangle", tint: .purple) {
+                model.shellDestination = .activities
+                model.activitiesTab = .workouts
+            }
+            quickAction("FTP Test", systemImage: "gauge.high", tint: .orange) {
+                model.showFTPTestPicker = true
+            }
+            quickAction("Route", systemImage: "map", tint: .blue) {
+                model.shellDestination = .activities
+                model.activitiesTab = .routes
             }
         }
+    }
+
+    /// One colorful quick-action tile: tinted icon chip + label on a soft
+    /// tint wash (same language as the lifetime/summary tiles).
+    private func quickAction(
+        _ label: String, systemImage: String, tint: Color, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 26, height: 26)
+                    .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7))
+                    .accessibilityHidden(true)
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -326,21 +350,42 @@ struct RouteElevationSparkline: View {
 
     var body: some View {
         GeometryReader { geo in
-            Path { path in
-                let w = geo.size.width
-                let h = geo.size.height
-                let step = w / CGFloat(max(samples.count - 1, 1))
-                for (i, y) in samples.enumerated() {
-                    let x = CGFloat(i) * step
-                    let py = h * (1 - y)
-                    if i == 0 { path.move(to: CGPoint(x: x, y: py)) }
-                    else { path.addLine(to: CGPoint(x: x, y: py)) }
-                }
+            ZStack {
+                // Soft terrain fill under the profile line.
+                fillPath(in: geo.size)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor.opacity(0.32),
+                                Color.accentColor.opacity(0.02),
+                            ],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                linePath(in: geo.size)
+                    .stroke(Color.accentColor, lineWidth: 1.5)
             }
-            .stroke(Color.accentColor, lineWidth: 1.5)
         }
         // Decorative: route rows carry name/distance as text.
         .accessibilityHidden(true)
+    }
+
+    private func linePath(in size: CGSize) -> Path {
+        Path { path in
+            let step = size.width / CGFloat(max(samples.count - 1, 1))
+            for (i, y) in samples.enumerated() {
+                let point = CGPoint(x: CGFloat(i) * step, y: size.height * (1 - y))
+                if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+        }
+    }
+
+    private func fillPath(in size: CGSize) -> Path {
+        var path = linePath(in: size)
+        path.addLine(to: CGPoint(x: size.width, y: size.height))
+        path.addLine(to: CGPoint(x: 0, y: size.height))
+        path.closeSubpath()
+        return path
     }
 }
 

@@ -62,7 +62,7 @@ enum ScreenshotMode {
                 // In the app this sits over the window; give the capture the
                 // same backing or dark-scheme text lands on default white.
                 .background(Color(nsColor: .windowBackgroundColor)),
-            size: CGSize(width: 640, height: 640), to: dir, name: "ride-summary"
+            size: CGSize(width: 640, height: 760), to: dir, name: "ride-summary"
         )
 
         capture(
@@ -76,6 +76,24 @@ enum ScreenshotMode {
                 ),
             size: CGSize(width: 1280, height: 720), to: dir, name: "ride-hud"
         )
+
+        // Minimal mode hides the secondary chrome — capture it too so the
+        // pared-down layout stays reviewed. The overlay reads the shell-level
+        // flag, not HUDModel.minimalMode (r16: both captures came out
+        // byte-identical with the wrong flag set).
+        model.hudMinimalMode = true
+        capture(
+            RideHUDOverlay(model: model)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 0.33, green: 0.55, blue: 0.83),
+                                 Color(red: 0.30, green: 0.42, blue: 0.28)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                ),
+            size: CGSize(width: 1280, height: 720), to: dir, name: "ride-hud-minimal"
+        )
+        model.hudMinimalMode = false
         return true
     }
 
