@@ -850,8 +850,13 @@ final class VeloSimModel: ObservableObject {
     }
 
     /// Load the route's elevation profile into the HUD model (once per route).
+    /// No route → keep whatever is there: overwriting with empty blanked the
+    /// bar the moment the overlay appeared in screenshot mode (r21 review —
+    /// the SwiftUI elevation bar had never rendered in a capture). Stale
+    /// profiles between rides are cleared by HUDCoordinator.reset().
     func refreshElevationProfile() {
         let profile = handle.routeElevationProfile(points: 120)
+        guard !profile.isEmpty else { return }
         hudModel.elevationProfile = profile.map(\.elevationM)
         hudModel.routeTotalM = profile.last?.distanceM ?? 0
     }
