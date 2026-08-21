@@ -28,13 +28,15 @@ the box via **BLE (FTMS)** in the pre-ride panel.
 
 1. **Home** — rider card, Next Ride hero (hover it), colorful quick-start
    tiles, pinned route/workout with interval-shape preview, lifetime stats.
-2. **Just Ride** — instant free ride on open terrain: chase camera, glass
-   HUD (3 s power, zone-tinted card, sparkline), pause menu (Esc/Space).
-   Toggle minimal HUD mode for the pared-down pill layout.
+2. **Just Ride** — instant free ride on open terrain: sunlit sky, chase
+   camera, glass HUD (3 s power, zone-tinted card, sparkline), pause menu
+   (Esc/Space). Toggle minimal HUD mode for the pared-down pill layout.
 3. **Activities → Routes** — import any GPX (or use an installed pack);
    terrain-filled sparklines with distance chips, pre-ride readiness rail,
-   Start ride. Note the road band and elevation bar following the real
-   profile.
+   Start ride. Note the marked road band, roadside trees/bushes/rocks, and
+   the elevation bar following the real profile — the ridden part shades
+   brighter behind the position dot, and rides loop the course past the
+   end.
 4. **Activities → Workouts** — start the 2x20 Threshold: the pre-ride rail
    previews the armed workout (duration-weighted zone bars, TSS) next to
    Start; in-ride, the workout bar shows target/countdown/progress and the
@@ -58,6 +60,7 @@ the box via **BLE (FTMS)** in the pre-ride panel.
 ## Screenshot mode (CI / review)
 
 `swift run VeloSim --screenshots /tmp/shots` renders Home, Activities,
-Settings, History, the in-ride HUD (full and minimal), and the ride
-summary to PNGs headlessly and exits — the same path CI uses for visual
-review.
+Settings, History, the workout builder, the in-ride HUD (full and
+minimal), and the ride summary to PNGs headlessly and exits — the same
+path CI uses for visual review. The Rust scene renders headlessly via
+`cargo run -p velo-eval-mcp -- call render_frame` (see `list-tools`).
