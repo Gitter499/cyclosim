@@ -1,6 +1,7 @@
 //! wgpu renderer — terrain mesh or flat ground plane, chase camera, HUD overlay.
 
 mod bike;
+mod scenery;
 mod capture;
 mod hud;
 mod scene;
@@ -58,6 +59,8 @@ pub struct Renderer {
     grid_pipeline: wgpu::RenderPipeline,
     fill_pipeline: wgpu::RenderPipeline,
     sky_pipeline: wgpu::RenderPipeline,
+    /// Roadside tree geometry (world space), drawn with fill_pipeline.
+    scenery_buffer: Option<(wgpu::Buffer, u32)>,
     scene_bind_layout: wgpu::BindGroupLayout,
     scene_bind_group: wgpu::BindGroup,
     scene_uniforms: wgpu::Buffer,
@@ -393,6 +396,7 @@ impl Renderer {
             grid_pipeline,
             fill_pipeline,
             sky_pipeline,
+            scenery_buffer: None,
             scene_bind_layout: bind_layout,
             scene_bind_group,
             scene_uniforms,
@@ -463,6 +467,28 @@ impl Renderer {
         );
         self.terrain = Some(terrain);
         Ok(())
+    }
+
+    /// Build roadside trees for the route (Tier A scenery color).
+    pub fn load_scenery_for_route(&mut self, route: &velo_core::RouteModel) {
+        use wgpu::util::DeviceExt;
+        let verts = scenery::tree_vertices_for_route(route);
+        if verts.is_empty() {
+            self.scenery_buffer = None;
+            return;
+        }
+        let buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("scenery-vertices"),
+                contents: bytemuck::cast_slice(&verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+        self.scenery_buffer = Some((buffer, verts.len() as u32));
+    }
+
+    pub fn clear_scenery(&mut self) {
+        self.scenery_buffer = None;
     }
 
     pub fn clear_terrain(&mut self) {
@@ -644,6 +670,15 @@ impl Renderer {
 
             if let Some(tiles) = &self.tiles {
                 tiles.draw(&mut pass, &self.scene_bind_group);
+            }
+
+            if let Some((buf, count)) = &self.scenery_buffer {
+                if self.terrain.is_some() || self.tiles.is_some() {
+                    pass.set_bind_group(0, &self.scene_bind_group, &[]);
+                    pass.set_vertex_buffer(0, buf.slice(..));
+                    pass.set_pipeline(&self.fill_pipeline);
+                    pass.draw(0..*count, 0..1);
+                }
             }
 
             if let Some(bike) = &self.bike {
@@ -852,6 +887,15 @@ impl Renderer {
 
             if let Some(tiles) = &self.tiles {
                 tiles.draw(&mut pass, &self.scene_bind_group);
+            }
+
+            if let Some((buf, count)) = &self.scenery_buffer {
+                if self.terrain.is_some() || self.tiles.is_some() {
+                    pass.set_bind_group(0, &self.scene_bind_group, &[]);
+                    pass.set_vertex_buffer(0, buf.slice(..));
+                    pass.set_pipeline(&self.fill_pipeline);
+                    pass.draw(0..*count, 0..1);
+                }
             }
 
             if let Some(bike) = &self.bike {

@@ -57,18 +57,19 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: Tok.s1) {
                     Text(route == nil ? "JUST RIDE" : "NEXT RIDE")
                         .font(Typo.label())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.7))
                     Text(route?.name ?? "Free ride on open terrain")
                         .font(.title2.bold())
+                        .foregroundStyle(.white)
                     if let route {
                         Text("\(Int(route.totalDistanceM / 1000)) km")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.8))
                             .monospacedDigit()
                     } else {
                         Text("No route loaded — ERG, SIM, and free mode all work here.")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.8))
                     }
                 }
                 Spacer()
@@ -80,11 +81,30 @@ struct DashboardView: View {
                 }
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 36))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.white)
             }
             .padding(Tok.s4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: Tok.rCard))
+            .background {
+                // Ride-sky gradient with a bike-glyph watermark — the one
+                // deliberately colorful card on the page.
+                ZStack(alignment: .trailing) {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.10, green: 0.28, blue: 0.50),
+                            Color(red: 0.06, green: 0.36, blue: 0.33),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "figure.outdoor.cycle")
+                        .font(.system(size: 96, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.08))
+                        .padding(.trailing, Tok.s6)
+                        .accessibilityHidden(true)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Tok.rCard))
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
@@ -266,25 +286,47 @@ struct DashboardView: View {
             let totalDist = model.rideHistory.reduce(0.0) { $0 + $1.distanceM }
             let totalTime = model.rideHistory.reduce(0.0) { $0 + $1.elapsedS }
             HStack(spacing: Tok.s4) {
-                lifetimeTile("Distance", RideSummaryFormatting.formatDistance(totalDist))
-                lifetimeTile("Time", RideSummaryFormatting.formatElapsed(totalTime))
-                lifetimeTile("Rides", "\(model.rideHistory.count)")
+                lifetimeTile(
+                    "Distance", RideSummaryFormatting.formatDistance(totalDist),
+                    systemImage: "point.topleft.down.to.point.bottomright.curvepath",
+                    tint: .blue
+                )
+                lifetimeTile(
+                    "Time", RideSummaryFormatting.formatElapsed(totalTime),
+                    systemImage: "clock.fill",
+                    tint: .teal
+                )
+                lifetimeTile(
+                    "Rides", "\(model.rideHistory.count)",
+                    systemImage: "bicycle",
+                    tint: .orange
+                )
             }
         }
     }
 
-    private func lifetimeTile(_ label: String, _ value: String) -> some View {
+    private func lifetimeTile(
+        _ label: String, _ value: String, systemImage: String, tint: Color
+    ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(Typo.label())
-                .foregroundStyle(.secondary)
+            HStack(spacing: Tok.s1) {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                    .foregroundStyle(tint)
+                Text(label)
+                    .font(Typo.label())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Tok.s3)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: Tok.rTile))
+        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: Tok.rTile))
+        .accessibilityElement(children: .combine)
     }
 }
 

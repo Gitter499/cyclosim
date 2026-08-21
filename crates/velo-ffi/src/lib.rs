@@ -703,8 +703,12 @@ impl VeloHandle {
             },
         )?;
         inner.app.load_route(model);
+        let route_for_scenery = inner.app.route.clone();
         if let Some(renderer) = inner.renderer.as_mut() {
             let _ = renderer.load_terrain_pack(&pack_dir);
+            if let Some(route) = &route_for_scenery {
+                renderer.load_scenery_for_route(route);
+            }
         }
         Ok(())
     }
@@ -723,6 +727,9 @@ impl VeloHandle {
         let distance_m = inner.app.ride.distance_m;
         if let Some(renderer) = inner.renderer.as_mut() {
             let _ = renderer.load_terrain_pack(&pack_dir);
+            if let Some(route) = &route_for_tiles {
+                renderer.load_scenery_for_route(route);
+            }
             renderer.set_tiles_mode(tiles_on);
             if tiles_on {
                 if let Some(route) = &route_for_tiles {
@@ -739,6 +746,7 @@ impl VeloHandle {
         inner.tiles_3d_enabled = false;
         if let Some(renderer) = inner.renderer.as_mut() {
             renderer.clear_terrain();
+            renderer.clear_scenery();
             renderer.set_tiles_mode(false);
         }
     }
