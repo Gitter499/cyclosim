@@ -224,16 +224,35 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         (jersey[1] * 1.08 + 0.05_f32).min(1.0),
         (jersey[2] * 1.02 + 0.03_f32).min(1.0),
     ];
+    // Waist narrower than shoulders so the back reads as a person, not a
+    // plank (silhouette first — game-graphics skill §1).
     {
         let base = all_positions.len() as u16;
         all_positions.extend_from_slice(&[
-            [-0.10, saddle_y + 0.02, -0.17],
-            [-0.10, saddle_y + 0.02, 0.17],
-            [0.10, saddle_y + 0.60, 0.17],
-            [0.10, saddle_y + 0.60, -0.17],
+            [-0.10, saddle_y + 0.02, -0.11],
+            [-0.10, saddle_y + 0.02, 0.11],
+            [0.10, saddle_y + 0.55, 0.19],
+            [0.10, saddle_y + 0.55, -0.19],
         ]);
         colors.extend_from_slice(&[jersey_shade, jersey_shade, jersey_lit, jersey_lit]);
         indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+    // Arms: from the shoulders down-forward to the bar ends. Shaded — they
+    // face away from the sun from the chase view.
+    for zs in [-1.0_f32, 1.0] {
+        let (sz, bz) = (0.16 * zs, 0.20 * zs);
+        push_quad(
+            &mut all_positions,
+            &mut colors,
+            &mut indices,
+            [
+                [0.08, saddle_y + 0.50, sz - 0.04 * zs],
+                [0.08, saddle_y + 0.50, sz + 0.04 * zs],
+                [0.34, handlebar_y + 0.02, bz + 0.035 * zs],
+                [0.34, handlebar_y + 0.02, bz - 0.035 * zs],
+            ],
+            jersey_shade,
+        );
     }
     // Rider torso, side profile: saddle to bars in the frame plane.
     push_quad(
@@ -248,19 +267,37 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         ],
         jersey,
     );
-    // Helmet above the shoulders, spanning z.
-    push_quad(
-        &mut all_positions,
-        &mut colors,
-        &mut indices,
-        [
-            [0.10, saddle_y + 0.62, -0.07],
-            [0.10, saddle_y + 0.62, 0.07],
-            [0.15, saddle_y + 0.80, 0.07],
-            [0.15, saddle_y + 0.80, -0.07],
-        ],
-        helmet,
-    );
+    // Head: a round helmet disc in the YZ plane (billboard toward the chase
+    // cam) — the old flat quad read as a floating chip, not a head.
+    {
+        let (hx, hy, hr) = (0.12_f32, saddle_y + 0.60, 0.095_f32);
+        let center = all_positions.len() as u16;
+        all_positions.push([hx, hy, 0.0]);
+        colors.push(helmet);
+        let rim_start = all_positions.len() as u16;
+        for i in 0..8 {
+            let angle = (i as f32) * std::f32::consts::TAU / 8.0;
+            all_positions.push([hx, hy + hr * angle.sin(), hr * angle.cos()]);
+            colors.push(helmet);
+        }
+        for i in 0..8u16 {
+            let next = (i + 1) % 8;
+            indices.extend([center, rim_start + i, rim_start + next]);
+        }
+        // Side-profile helmet sliver so the head survives a profile view.
+        push_quad(
+            &mut all_positions,
+            &mut colors,
+            &mut indices,
+            [
+                [hx - hr, hy - hr * 0.4, 0.0],
+                [hx + hr, hy - hr * 0.4, 0.0],
+                [hx + hr * 0.8, hy + hr, 0.0],
+                [hx - hr * 0.6, hy + hr, 0.0],
+            ],
+            helmet,
+        );
+    }
     // Astern wheel strips: thin vertical quads in the YZ plane at each hub, so
     // the wheels read as tire profiles from behind instead of vanishing.
     for cx in [-0.50_f32, 0.50] {

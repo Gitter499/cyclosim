@@ -64,18 +64,20 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
                 // Clear of the road band + shoulder (3 m + fringe).
                 let lateral = (8.0 + j * 9.0) * side;
                 let (e, n) = (east + px * lateral, north + pz * lateral);
+                // Real-tree scale (8-14 m): at 2.8-5 m they vanished to a
+                // few pixels past 80 m and the corridor read as empty.
                 push_tree(
                     &mut verts,
                     e as f32,
                     ground_y(e, n),
                     n as f32,
-                    2.8 + j as f32 * 2.2,
+                    8.0 + j as f32 * 6.0,
                     i,
                 );
             }
         }
         i += 1;
-        d += 30.0 + j * 22.0;
+        d += 21.0 + j * 15.0;
     }
     verts
 }
@@ -94,7 +96,7 @@ fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32
     let d1 = [c, s];
     let d2 = [-s, c];
 
-    let tw = 0.16;
+    let tw = 0.08 + h * 0.02;
     let th = h * 0.35;
     for d in [d1, d2] {
         quad(
