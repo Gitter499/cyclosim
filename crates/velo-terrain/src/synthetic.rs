@@ -245,7 +245,7 @@ pub fn terrain_texture(
                         // at speed (game-graphics skill §3 Road).
                         let on_center = dist < line_w / 2.0 && (arc % 12.0) < 6.0;
                         if on_edge {
-                            let paint = 199.0 + noise * 8.0;
+                            let paint = 182.0 + noise * 8.0;
                             r = paint;
                             g = paint;
                             b = paint - 8.0;
@@ -257,20 +257,31 @@ pub fn terrain_texture(
                         }
                     }
                 } else {
-                    // Fake-AO gutter seam right at the road edge, then a
-                    // short dirt blend into grass (skill §3 Road).
                     let over = dist - ROAD_HALF_WIDTH_M;
-                    if over < 0.3 {
-                        let gutter = asphalt * 0.68;
-                        r = gutter;
-                        g = gutter;
-                        b = gutter + 3.0;
+                    if texel_m <= 0.8 {
+                        // Fake-AO gutter seam right at the road edge, then a
+                        // short dirt blend into grass (skill §3 Road).
+                        if over < 0.22 {
+                            let gutter = asphalt * 0.68;
+                            r = gutter;
+                            g = gutter;
+                            b = gutter + 3.0;
+                        } else {
+                            let t =
+                                ((over - 0.22) / (ROAD_EDGE_M - 0.22)).clamp(0.0, 1.0) as f32;
+                            let (sr, sg, sb) = (118.0, 100.0, 72.0);
+                            r = sr + (r - sr) * t;
+                            g = sg + (g - sg) * t;
+                            b = sb + (b - sb) * t;
+                        }
                     } else {
-                        let t = ((over - 0.3) / (ROAD_EDGE_M - 0.3)).clamp(0.0, 1.0) as f32;
-                        let (sr, sg, sb) = (118.0, 100.0, 72.0);
-                        r = sr + (r - sr) * t;
-                        g = sg + (g - sg) * t;
-                        b = sb + (b - sb) * t;
+                        // Coarse texels can't resolve gutter/dirt — they
+                        // bilinear-smear into a mustard halo over the verge.
+                        // Just ease asphalt into grass instead.
+                        let t = (over / ROAD_EDGE_M).clamp(0.0, 1.0) as f32;
+                        r = asphalt + (r - asphalt) * t;
+                        g = asphalt + (g - asphalt) * t;
+                        b = asphalt + 4.0 + (b - asphalt - 4.0) * t;
                     }
                 }
             }
