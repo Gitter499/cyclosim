@@ -9,6 +9,37 @@ use velo_terrain::TerrainPack;
 pub struct TerrainGpuVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
+    pub normal: [f32; 3],
+}
+
+/// Smoothed per-vertex normals: accumulate face normals over the index list.
+/// Terrain is a soft continuous surface, so smooth shading is the right call
+/// (game-graphics skill §2 — flat facets are for hard-edged props).
+fn smooth_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<[f32; 3]> {
+    let mut acc = vec![Vec3::ZERO; positions.len()];
+    for tri in indices.chunks_exact(3) {
+        let (a, b, c) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+        let pa = Vec3::from_array(positions[a]);
+        let pb = Vec3::from_array(positions[b]);
+        let pc = Vec3::from_array(positions[c]);
+        let n = (pb - pa).cross(pc - pa);
+        acc[a] += n;
+        acc[b] += n;
+        acc[c] += n;
+    }
+    acc.into_iter()
+        .map(|n| {
+            let mut n = if n.length_squared() > 1e-12 {
+                n.normalize()
+            } else {
+                Vec3::Y
+            };
+            if n.y < 0.0 {
+                n = -n;
+            }
+            n.to_array()
+        })
+        .collect()
 }
 
 pub struct TerrainScene {
@@ -30,13 +61,17 @@ impl TerrainScene {
         scene_bind_layout: &wgpu::BindGroupLayout,
         pack: &TerrainPack,
     ) -> Self {
+        let positions: Vec<[f32; 3]> = pack.mesh.vertices.iter().map(|v| v.position).collect();
+        let normals = smooth_normals(&positions, &pack.mesh.indices);
         let vertices: Vec<TerrainGpuVertex> = pack
             .mesh
             .vertices
             .iter()
-            .map(|v| TerrainGpuVertex {
+            .zip(normals)
+            .map(|(v, normal)| TerrainGpuVertex {
                 position: v.position,
                 uv: v.uv,
+                normal,
             })
             .collect();
 
@@ -147,7 +182,7 @@ impl TerrainScene {
         let vertex_layout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<TerrainGpuVertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3],
         };
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {

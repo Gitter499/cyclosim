@@ -213,19 +213,25 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     );
 
     // Rider torso, astern-facing: a forward-leaning quad spanning z so the
-    // chase camera sees shoulders instead of a paper edge.
-    push_quad(
-        &mut all_positions,
-        &mut colors,
-        &mut indices,
-        [
+    // chase camera sees shoulders instead of a paper edge. Two-tone: cool
+    // shaded waist grading to sun-lit shoulders (game-graphics skill §3).
+    let jersey_shade = [jersey[0] * 0.68, jersey[1] * 0.66, jersey[2] * 0.75];
+    let jersey_lit = [
+        (jersey[0] * 1.12 + 0.06_f32).min(1.0),
+        (jersey[1] * 1.08 + 0.05_f32).min(1.0),
+        (jersey[2] * 1.02 + 0.03_f32).min(1.0),
+    ];
+    {
+        let base = all_positions.len() as u16;
+        all_positions.extend_from_slice(&[
             [-0.10, saddle_y + 0.02, -0.17],
             [-0.10, saddle_y + 0.02, 0.17],
             [0.10, saddle_y + 0.60, 0.17],
             [0.10, saddle_y + 0.60, -0.17],
-        ],
-        jersey,
-    );
+        ]);
+        colors.extend_from_slice(&[jersey_shade, jersey_shade, jersey_lit, jersey_lit]);
+        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
     // Rider torso, side profile: saddle to bars in the frame plane.
     push_quad(
         &mut all_positions,
@@ -287,6 +293,38 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
             let next = (i + 1) % 8;
             indices.extend([center, rim_start + i, rim_start + next]);
         }
+    }
+
+    // Contact blob shadow spanning both wheels: a flat dark capsule-ish
+    // octagon strip at ground level grounds the rider (skill §3 — the
+    // single biggest believability win at chase distance).
+    {
+        let shadow = [0.13_f32, 0.13, 0.14];
+        let (x0, x1, half_w, yy) = (-0.62_f32, 0.62_f32, 0.20_f32, 0.012_f32);
+        let base = all_positions.len() as u16;
+        all_positions.extend_from_slice(&[
+            [x0 + 0.15, yy, -half_w],
+            [x1 - 0.15, yy, -half_w],
+            [x1, yy, 0.0],
+            [x1 - 0.15, yy, half_w],
+            [x0 + 0.15, yy, half_w],
+            [x0, yy, 0.0],
+        ]);
+        colors.extend(std::iter::repeat(shadow).take(6));
+        indices.extend([
+            base,
+            base + 1,
+            base + 2,
+            base,
+            base + 2,
+            base + 3,
+            base,
+            base + 3,
+            base + 4,
+            base,
+            base + 4,
+            base + 5,
+        ]);
     }
 
     // Rider legs: two dark vertical quads from saddle height down toward the
