@@ -219,10 +219,12 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     // chase camera sees shoulders instead of a paper edge. Two-tone: cool
     // shaded waist grading to sun-lit shoulders (game-graphics skill §3).
     let jersey_shade = [jersey[0] * 0.68, jersey[1] * 0.66, jersey[2] * 0.75];
+    // Extra lift on the lit tone: the grayscale check (skill §1.2) showed
+    // the jersey's value sitting too close to the road's midtone.
     let jersey_lit = [
-        (jersey[0] * 1.12 + 0.06_f32).min(1.0),
-        (jersey[1] * 1.08 + 0.05_f32).min(1.0),
-        (jersey[2] * 1.02 + 0.03_f32).min(1.0),
+        (jersey[0] * 1.22 + 0.10_f32).min(1.0),
+        (jersey[1] * 1.16 + 0.08_f32).min(1.0),
+        (jersey[2] * 1.08 + 0.05_f32).min(1.0),
     ];
     // Waist narrower than shoulders so the back reads as a person, not a
     // plank (silhouette first — game-graphics skill §1).
@@ -370,9 +372,9 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     // Rider legs: two dark vertical quads from saddle height down toward the
     // cranks, spanning z on either side of the frame plane.
     let shorts = [
-        frame_color[0] * 0.35,
-        frame_color[1] * 0.35,
-        frame_color[2] * 0.35,
+        frame_color[0] * 0.22,
+        frame_color[1] * 0.22,
+        frame_color[2] * 0.22,
     ];
     for zc in [-0.10_f32, 0.10] {
         push_quad(
