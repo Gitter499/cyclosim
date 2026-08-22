@@ -89,10 +89,13 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         (frame_color[1] * 1.25 + 0.10).min(1.0),
         (frame_color[2] * 1.25 + 0.10).min(1.0),
     ];
+    // Lightest value on the model so the head silhouette reads at chase
+    // distance (game-graphics skill §3 Rider) — a near-white shell with a
+    // hint of the frame tint.
     let helmet = [
-        frame_color[0] * 0.6,
-        frame_color[1] * 0.6,
-        frame_color[2] * 0.6,
+        (frame_color[0] * 0.20 + 0.74_f32).min(1.0),
+        (frame_color[1] * 0.20 + 0.74_f32).min(1.0),
+        (frame_color[2] * 0.20 + 0.76_f32).min(1.0),
     ];
 
     // Wheel centers at ±0.5 m on X; frame spans between. Total wheelbase ≈ 1.0 m before normalization.
