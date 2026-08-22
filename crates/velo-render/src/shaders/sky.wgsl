@@ -49,14 +49,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sun_color = vec3<f32>(1.0, 0.97, 0.86);
     col = mix(col, sun_color, clamp(disc + glow, 0.0, 1.0));
 
-    // Soft cumulus band: two octaves of value noise, flattened vertically so
-    // clouds read as distant stratus. Static (deterministic renders).
+    // Cumulus band: three octaves of value noise — the third adds the
+    // cauliflower edge detail. Static (deterministic renders).
     let p = vec2<f32>(in.ndc.x * 1.72, in.ndc.y) * vec2<f32>(2.2, 6.0);
-    let n = vnoise(p) * 0.62 + vnoise(p * 2.7 + vec2<f32>(13.1, 7.7)) * 0.38;
+    let n = vnoise(p) * 0.55
+        + vnoise(p * 2.7 + vec2<f32>(13.1, 7.7)) * 0.30
+        + vnoise(p * 6.1 + vec2<f32>(4.7, 21.3)) * 0.15;
     // Only in the upper sky, denser toward the top, never over the horizon.
     let band = smoothstep(0.12, 0.55, in.ndc.y);
-    let cloud = smoothstep(0.58, 0.78, n) * band * 0.75;
+    let cloud = smoothstep(0.56, 0.76, n) * band * 0.85;
     col = mix(col, vec3<f32>(0.99, 0.99, 1.0), cloud);
+    // Dense cores pick up a cool underside tone: seen from below, the
+    // belly of a puff is shaded while its rim stays lit (skill §2 —
+    // two-tone even in the sky).
+    let belly = smoothstep(0.72, 0.88, n) * band * 0.38;
+    col = mix(col, vec3<f32>(0.84, 0.87, 0.93), belly);
     return vec4<f32>(col, 1.0);
 }
 
