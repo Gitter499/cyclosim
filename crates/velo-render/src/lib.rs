@@ -480,7 +480,8 @@ impl Renderer {
     /// Build roadside trees for the route (Tier A scenery color).
     pub fn load_scenery_for_route(&mut self, route: &velo_core::RouteModel) {
         use wgpu::util::DeviceExt;
-        let verts = scenery::tree_vertices_for_route(route);
+        let mut verts = scenery::tree_vertices_for_route(route);
+        verts.extend(scenery::ridge_vertices_for_route(route));
         if verts.is_empty() {
             self.scenery_buffer = None;
             return;
