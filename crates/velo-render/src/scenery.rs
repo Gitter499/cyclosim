@@ -95,6 +95,73 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
     verts
 }
 
+/// Near-field ground detail: small grass tufts and flower speckles beside
+/// the road. The terrain texture's texels are coarsest right where the
+/// camera looks (near field), so billboards carry the detail instead
+/// (game-graphics skill §3). Deterministic like everything else.
+pub fn tuft_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
+    let mut verts = Vec::new();
+    let total = route.total_distance_m();
+    let mut i: u32 = 0;
+    let mut d = 6.0;
+    while d < total {
+        let j = (i.wrapping_mul(2_654_435_761) >> 8) as f64 / (1u64 << 24) as f64;
+        let j2 = (i.wrapping_mul(0x9E37_79B9) >> 8) as f64 / (1u64 << 24) as f64;
+        let (east, up, north) = route.position_enu_at(d);
+        let (ea, _, na) = route.position_enu_at((d + 5.0).min(total));
+        let (dx, dz) = (ea - east, na - north);
+        let len = (dx * dx + dz * dz).sqrt().max(1e-3);
+        let (px, pz) = (dz / len, -dx / len);
+        let side = if i % 2 == 0 { 1.0 } else { -1.0 };
+        let lateral = (4.0 + j2 * 5.0) * side;
+        let (e, n) = (east + px * lateral, north + pz * lateral);
+        let y = (up + (e * 0.02).sin() * (n * 0.015).cos() * 2.0) as f32;
+        let (x, z) = (e as f32, n as f32);
+        if i % 9 == 3 {
+            // Flower cluster: three tiny bright quads just above the grass.
+            let warm = i % 18 == 3;
+            let col = if warm {
+                [0.92, 0.72, 0.18]
+            } else {
+                [0.88, 0.88, 0.82]
+            };
+            for (ox, oz) in [(0.0_f32, 0.0_f32), (0.28, 0.14), (-0.2, 0.24)] {
+                let s = 0.07;
+                quad(
+                    &mut verts,
+                    [x + ox - s, y + 0.16, z + oz - s],
+                    [x + ox + s, y + 0.16, z + oz + s],
+                    [x + ox + s, y + 0.30, z + oz + s],
+                    [x + ox - s, y + 0.30, z + oz - s],
+                    col,
+                );
+            }
+        } else {
+            // Grass tuft: crossed triangles, darker than the ground so it
+            // reads as a speckle, height/tone jittered.
+            let h = 0.28 + j as f32 * 0.30;
+            let w = h * 0.55;
+            let g = 0.13 + (i % 4) as f32 * 0.02;
+            let col = [0.06, g, 0.05];
+            let tip = [0.12, g + 0.08, 0.08];
+            for (dx1, dz1) in [(1.0_f32, 0.35_f32), (-0.35, 1.0)] {
+                tri_grad(
+                    &mut verts,
+                    [x - w * dx1, y, z - w * dz1],
+                    [x + w * dx1, y, z + w * dz1],
+                    [x, y + h, z],
+                    col,
+                    col,
+                    tip,
+                );
+            }
+        }
+        i += 1;
+        d += 3.2 + j * 4.0;
+    }
+    verts
+}
+
 /// Distant layered ridge silhouettes flanking the route (Firewatch-style
 /// value layering, game-graphics skill §1): two haze-softened walls per side
 /// that follow the valley's elevation profile. At 800-1500 m the shared
