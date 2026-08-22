@@ -64,7 +64,23 @@ hand; nearly every demo-sprint cycle caught a defect this way:
   `VELOSHOT:<name>.png:<base64>` log lines. Decode, review the PNGs, and
   byte-compare against the previous round — identical bytes when you
   expected a change means your change didn't render (that's how a
-  never-rendering elevation bar was caught).
+  never-rendering elevation bar was caught). Note: these captures compose
+  the SwiftUI HUD over a gradient placeholder — the wgpu scene doesn't
+  render in headless screenshot mode, so judge scene work with the Rust
+  loop above.
+
+## Scene look
+
+The 3D world follows [.claude/skills/game-graphics/SKILL.md](.claude/skills/game-graphics/SKILL.md)
+(stylized low-poly: hemisphere lighting, baked two-tone billboards, blob
+shadows, shared atmosphere tail in all five WGSL shaders). Graphics passes
+1–4 (PRs #99, #101, #103, #105) added: terrain sun/sky lighting, real-scale
+trees with altitude-driven species, layered ridge silhouettes flanking the
+route, texel-aware road markings/shoulder, grass tufts + flowers, and the
+two-tone rider. Scene vertex colors are **linear** and the target is sRGB —
+distant objects also pick up the haze mix, so anything past ~1 km needs
+very dark base colors to keep a readable silhouette. Verify every scene
+change with `render_frame` on `flat` + `rolling` + `alpine_climb`.
 
 ## Git workflow
 

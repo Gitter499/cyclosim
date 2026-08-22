@@ -254,6 +254,14 @@ pub fn terrain_texture(
                             r = paint;
                             g = paint;
                             b = paint + 3.0;
+                        } else if (dist - 1.2).abs() < 0.45 {
+                            // Wheel-track sheen: traffic polishes two faint
+                            // lighter bands into the lane (skill §3 Road —
+                            // the cheap stand-in for a specular strip).
+                            let sheen = asphalt * 1.07 + 2.0;
+                            r = sheen;
+                            g = sheen;
+                            b = sheen + 4.0;
                         }
                     }
                 } else {
