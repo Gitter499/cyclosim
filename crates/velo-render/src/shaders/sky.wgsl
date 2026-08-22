@@ -31,6 +31,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let k = pow(t, 1.5);
     var col = mix(horizon, zenith, k);
 
+    // Sun-tinted scattering: the horizon warms toward the sun's side
+    // (game-graphics skill §3 Sky, after Inigo Quilez's fog article).
+    let sun_side = clamp(1.0 - abs(in.ndc.x + 0.38) * 0.7, 0.0, 1.0);
+    let warm = pow(sun_side, 3.0) * (1.0 - t) * 0.30;
+    col = mix(col, vec3<f32>(0.98, 0.90, 0.78), warm);
+
     // Soft sun disc + wide glow, high left of center. Screen-anchored (this
     // pass has no camera uniforms) — placeholder-tier skybox; the glow stays
     // well above the horizon so the fog-haze seam is untouched. The x scale
