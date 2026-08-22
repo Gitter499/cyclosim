@@ -1070,3 +1070,37 @@ fn create_depth(
 pub fn headless_ok() -> bool {
     true
 }
+
+#[cfg(test)]
+mod shader_tests {
+    use super::Renderer;
+
+    /// Every WGSL file must validate — the tiles/terrain pipelines are
+    /// created lazily, so a bad edit there would dodge the eval renders.
+    #[test]
+    fn all_shaders_validate() {
+        let Ok(renderer) = Renderer::headless(64, 64) else {
+            eprintln!("no adapter; skipping shader validation");
+            return;
+        };
+        for (name, src) in [
+            ("scene", include_str!("shaders/scene.wgsl")),
+            ("terrain", include_str!("shaders/terrain.wgsl")),
+            ("tiles", include_str!("shaders/tiles.wgsl")),
+            ("sky", include_str!("shaders/sky.wgsl")),
+            ("bike", include_str!("shaders/bike.wgsl")),
+        ] {
+            renderer
+                .device
+                .push_error_scope(wgpu::ErrorFilter::Validation);
+            let _ = renderer
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some(name),
+                    source: wgpu::ShaderSource::Wgsl(src.into()),
+                });
+            let err = pollster::block_on(renderer.device.pop_error_scope());
+            assert!(err.is_none(), "{name}.wgsl failed validation: {err:?}");
+        }
+    }
+}
