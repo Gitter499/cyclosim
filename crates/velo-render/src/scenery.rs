@@ -14,6 +14,16 @@ use crate::scene::SceneVertex;
 pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
     let mut verts = Vec::new();
     let total = route.total_distance_m();
+    // Elevation span for altitude-driven species/palette shifts: valleys mix
+    // round-crowned deciduous trees, high climbs go pure conifer with cooler
+    // foliage — so an alpine route reads different from a flat one.
+    let (mut min_elev, mut max_elev) = (f64::MAX, f64::MIN);
+    for p in &route.points {
+        min_elev = min_elev.min(p.elevation_m);
+        max_elev = max_elev.max(p.elevation_m);
+    }
+    let elev_range = (max_elev - min_elev).max(1.0);
+    let origin_elev = route.meta.origin.elevation_m;
     let mut i: u32 = 0;
     let mut d = 15.0;
     while d < total {
@@ -66,6 +76,8 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
                 let (e, n) = (east + px * lateral, north + pz * lateral);
                 // Real-tree scale (8-14 m): at 2.8-5 m they vanished to a
                 // few pixels past 80 m and the corridor read as empty.
+                let alt01 =
+                    (((up + origin_elev) - min_elev) / elev_range).clamp(0.0, 1.0) as f32;
                 push_tree(
                     &mut verts,
                     e as f32,
@@ -73,6 +85,7 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
                     n as f32,
                     8.0 + j as f32 * 6.0,
                     i,
+                    alt01,
                 );
             }
         }
@@ -82,13 +95,80 @@ pub fn tree_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
     verts
 }
 
-fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32) {
+/// Distant layered ridge silhouettes flanking the route (Firewatch-style
+/// value layering, game-graphics skill §1): two haze-softened walls per side
+/// that follow the valley's elevation profile. At 800-1500 m the shared
+/// atmosphere fog renders them as pale blue-green cutouts, so the world no
+/// longer ends at the terrain corridor's edge.
+pub fn ridge_vertices_for_route(route: &RouteModel) -> Vec<SceneVertex> {
+    let mut verts = Vec::new();
+    let total = route.total_distance_m();
+    const STEP: f64 = 250.0;
+    // (lateral offset m, base height, peak amplitude, bottom color, top color)
+    // Close enough that fog leaves a readable silhouette (0.5-0.7 haze, not
+    // 0.85+), with dark forested bases so value structure survives the mix.
+    // Colors are linear (sRGB target brightens them ~1 stop) and the haze
+    // mix floors anything past ~1 km near-white, so bases must be very dark
+    // and layers close enough (in-view depth 550-1100 m) to keep a readable
+    // two-value silhouette under the sky.
+    let layers: [(f64, f32, f32, [f32; 3], [f32; 3]); 2] = [
+        (420.0, 55.0, 110.0, [0.10, 0.18, 0.12], [0.20, 0.30, 0.22]),
+        (900.0, 150.0, 220.0, [0.14, 0.20, 0.26], [0.22, 0.31, 0.38]),
+    ];
+    for (li, (lat, base, amp, cb, ct)) in layers.iter().enumerate() {
+        for side in [-1.0_f64, 1.0] {
+            // Ridge crest polyline; extrapolated past both ends so the
+            // valley doesn't stop abruptly at the start/finish.
+            let mut pts: Vec<([f32; 3], f32)> = Vec::new();
+            let n = (total / STEP) as i64;
+            for k in -4..=(n + 4) {
+                let d = (k as f64 * STEP).clamp(0.0, total);
+                let (e, up, nn) = route.position_enu_at(d);
+                let (e2, _, n2) = route.position_enu_at((d + 10.0).min(total).max(10.0));
+                let (dx, dz) = (e2 - e, n2 - nn);
+                let len = (dx * dx + dz * dz).sqrt().max(1e-3);
+                let (px, pz) = (dz / len, -dx / len);
+                let over = k as f64 * STEP - d; // nonzero only beyond the ends
+                let (fx, fz) = (dx / len, dz / len);
+                let ex = e + px * lat * side + fx * over;
+                let ez = nn + pz * lat * side + fz * over;
+                let seed = ((k + 64) as u32)
+                    .wrapping_add((li as u32) << 9)
+                    .wrapping_add(((side > 0.0) as u32) << 17);
+                let h1 = (seed.wrapping_mul(2_654_435_761) >> 8) as f32 / (1u32 << 24) as f32;
+                // Two sine octaves + hash: distinct peaks and saddles instead
+                // of a mesa-flat crest.
+                let wave = ((k as f32) * 0.9 + li as f32 * 1.3).sin() * 0.5 + 0.5;
+                let wave2 = ((k as f32) * 2.3 + li as f32 * 0.7).sin() * 0.5 + 0.5;
+                let top = up as f32
+                    + base
+                    + amp * (0.22 + 0.78 * (0.40 * wave + 0.30 * wave2 + 0.30 * h1));
+                pts.push(([ex as f32, up as f32 - 120.0, ez as f32], top));
+            }
+            for w in pts.windows(2) {
+                let (b0, t0) = (w[0].0, w[0].1);
+                let (b1, t1) = (w[1].0, w[1].1);
+                tri_grad(&mut verts, b0, b1, [b1[0], t1, b1[2]], *cb, *cb, *ct);
+                tri_grad(&mut verts, b0, [b1[0], t1, b1[2]], [b0[0], t0, b0[2]], *cb, *ct, *ct);
+            }
+        }
+    }
+    verts
+}
+
+fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32, alt01: f32) {
     // Bark desaturated dark; canopy two-tone — cool-shaded base grading to a
     // warm sun-lit apex, baked into vertex colors (game-graphics skill §3).
     let bark = [0.32, 0.26, 0.20];
     let g = 0.30 + (seed % 5) as f32 * 0.04;
-    let shade = [0.09, g * 0.72, 0.14];
-    let lit = [0.30, (g * 1.30 + 0.12).min(0.66), 0.22];
+    // Foliage cools and darkens with altitude (subalpine conifers).
+    let cool = alt01 * 0.6;
+    let shade = [0.09 * (1.0 - cool), g * (0.72 - 0.18 * cool), 0.14 + 0.05 * cool];
+    let lit = [
+        0.30 * (1.0 - cool * 0.7),
+        (g * (1.30 - 0.25 * cool) + 0.12).min(0.66),
+        0.22 + 0.04 * cool,
+    ];
 
     // Seeded yaw so rows don't read as copy-paste axis-aligned billboards.
     let yaw = (seed % 8) as f32 * 0.3927; // π/8 steps
@@ -96,8 +176,12 @@ fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32
     let d1 = [c, s];
     let d2 = [-s, c];
 
+    // Valleys mix in round-crowned deciduous trees; conifers own the climbs.
+    let deciduous = alt01 < 0.45 && seed % 3 == 0;
+    let h = if deciduous { h * 0.80 } else { h };
+
     let tw = 0.08 + h * 0.02;
-    let th = h * 0.35;
+    let th = if deciduous { h * 0.42 } else { h * 0.35 };
     for d in [d1, d2] {
         quad(
             v,
@@ -108,18 +192,47 @@ fn push_tree(v: &mut Vec<SceneVertex>, x: f32, y: f32, z: f32, h: f32, seed: u32
             bark,
         );
     }
-    // Canopy: crossed triangles, shade at the skirt → lit at the apex.
-    let cw = h * 0.40;
-    for d in [d1, d2] {
-        tri_grad(
-            v,
-            [x - cw * d[0], y + th, z - cw * d[1]],
-            [x + cw * d[0], y + th, z + cw * d[1]],
-            [x, y + h, z],
-            shade,
-            shade,
-            lit,
-        );
+    if deciduous {
+        // Round crown: crossed diamond billboards (narrow → wide → narrow),
+        // warmer than conifer foliage.
+        let shade = [0.14, g * 0.80, 0.10];
+        let lit = [0.36, (g * 1.35 + 0.14).min(0.68), 0.18];
+        let cw = h * 0.34;
+        let mid_y = y + th + (h - th) * 0.45;
+        for d in [d1, d2] {
+            tri_grad(
+                v,
+                [x - cw * d[0], mid_y, z - cw * d[1]],
+                [x + cw * d[0], mid_y, z + cw * d[1]],
+                [x, y + th * 0.9, z],
+                shade,
+                shade,
+                shade,
+            );
+            tri_grad(
+                v,
+                [x - cw * d[0], mid_y, z - cw * d[1]],
+                [x + cw * d[0], mid_y, z + cw * d[1]],
+                [x, y + h, z],
+                shade,
+                shade,
+                lit,
+            );
+        }
+    } else {
+        // Canopy: crossed triangles, shade at the skirt → lit at the apex.
+        let cw = h * 0.40;
+        for d in [d1, d2] {
+            tri_grad(
+                v,
+                [x - cw * d[0], y + th, z - cw * d[1]],
+                [x + cw * d[0], y + th, z + cw * d[1]],
+                [x, y + h, z],
+                shade,
+                shade,
+                lit,
+            );
+        }
     }
 
     // Contact blob shadow, offset away from the sun (grounds the tree).
