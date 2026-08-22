@@ -125,6 +125,17 @@ pub fn bake_and_load_terrain(
 
 /// Load the procedural placeholder bike so frames have a visible rider.
 pub fn load_placeholder_bike(renderer: &mut Renderer) -> Result<(), String> {
+    load_placeholder_bike_posed(renderer, 1.1)
+}
+
+/// Same, with an explicit crank angle so sequence frames pedal. Assumes a
+/// ~5.3 m development (gear rollout) to map distance to crank rotation.
+pub fn crank_angle_for_distance(distance_m: f64) -> f32 {
+    const DEVELOPMENT_M: f64 = 5.3;
+    ((distance_m % DEVELOPMENT_M) / DEVELOPMENT_M * std::f64::consts::TAU) as f32
+}
+
+pub fn load_placeholder_bike_posed(renderer: &mut Renderer, crank_rad: f32) -> Result<(), String> {
     let tmp = std::env::temp_dir();
     let pid = std::process::id();
 
@@ -140,7 +151,7 @@ pub fn load_placeholder_bike(renderer: &mut Renderer) -> Result<(), String> {
     };
     std::fs::write(&tint_path, encode_png(&tint)?).map_err(|e| e.to_string())?;
 
-    let glb = velo_bikegen::placeholder::generate_placeholder_glb(&[&tint_path])
+    let glb = velo_bikegen::placeholder::generate_placeholder_glb_posed(&[&tint_path], crank_rad)
         .map_err(|e| e.to_string());
     let _ = std::fs::remove_file(&tint_path);
 
