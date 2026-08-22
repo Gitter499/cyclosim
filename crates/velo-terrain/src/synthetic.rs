@@ -240,22 +240,38 @@ pub fn terrain_texture(
                         let line_w = 0.6;
                         let edge_c = ROAD_HALF_WIDTH_M - 0.45;
                         let on_edge = (dist - edge_c).abs() < line_w / 2.0;
-                        // Dashed centerline: 6 m painted, 6 m gap.
+                        // Dashed centerline: 6 m painted, 6 m gap. Kept
+                        // low-contrast (≈1.25x asphalt) so it doesn't strobe
+                        // at speed (game-graphics skill §3 Road).
                         let on_center = dist < line_w / 2.0 && (arc % 12.0) < 6.0;
-                        if on_edge || on_center {
-                            let paint = 205.0 + noise * 8.0;
+                        if on_edge {
+                            let paint = 199.0 + noise * 8.0;
                             r = paint;
                             g = paint;
                             b = paint - 8.0;
+                        } else if on_center {
+                            let paint = asphalt * 1.25 + 14.0;
+                            r = paint;
+                            g = paint;
+                            b = paint + 3.0;
                         }
                     }
                 } else {
-                    // Dirt shoulder blend.
-                    let t = ((dist - ROAD_HALF_WIDTH_M) / ROAD_EDGE_M).clamp(0.0, 1.0) as f32;
-                    let (sr, sg, sb) = (124.0, 104.0, 74.0);
-                    r = sr + (r - sr) * t;
-                    g = sg + (g - sg) * t;
-                    b = sb + (b - sb) * t;
+                    // Fake-AO gutter seam right at the road edge, then a
+                    // short dirt blend into grass (skill §3 Road).
+                    let over = dist - ROAD_HALF_WIDTH_M;
+                    if over < 0.3 {
+                        let gutter = asphalt * 0.68;
+                        r = gutter;
+                        g = gutter;
+                        b = gutter + 3.0;
+                    } else {
+                        let t = ((over - 0.3) / (ROAD_EDGE_M - 0.3)).clamp(0.0, 1.0) as f32;
+                        let (sr, sg, sb) = (118.0, 100.0, 72.0);
+                        r = sr + (r - sr) * t;
+                        g = sg + (g - sg) * t;
+                        b = sb + (b - sb) * t;
+                    }
                 }
             }
 

@@ -31,6 +31,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let k = pow(t, 1.5);
     var col = mix(horizon, zenith, k);
 
+    // Sun-tinted scattering: the horizon warms toward the sun's side
+    // (game-graphics skill §3 Sky, after Inigo Quilez's fog article).
+    let sun_side = clamp(1.0 - abs(in.ndc.x + 0.38) * 0.7, 0.0, 1.0);
+    let warm = pow(sun_side, 3.0) * (1.0 - t) * 0.30;
+    col = mix(col, vec3<f32>(0.98, 0.90, 0.78), warm);
+
     // Soft sun disc + wide glow, high left of center. Screen-anchored (this
     // pass has no camera uniforms) — placeholder-tier skybox; the glow stays
     // well above the horizon so the fog-haze seam is untouched. The x scale
@@ -42,5 +48,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let glow = smoothstep(0.55, 0.0, d) * 0.16;
     let sun_color = vec3<f32>(1.0, 0.97, 0.86);
     col = mix(col, sun_color, clamp(disc + glow, 0.0, 1.0));
+
+    // Soft cumulus band: two octaves of value noise, flattened vertically so
+    // clouds read as distant stratus. Static (deterministic renders).
+    let p = vec2<f32>(in.ndc.x * 1.72, in.ndc.y) * vec2<f32>(2.2, 6.0);
+    let n = vnoise(p) * 0.62 + vnoise(p * 2.7 + vec2<f32>(13.1, 7.7)) * 0.38;
+    // Only in the upper sky, denser toward the top, never over the horizon.
+    let band = smoothstep(0.12, 0.55, in.ndc.y);
+    let cloud = smoothstep(0.58, 0.78, n) * band * 0.75;
+    col = mix(col, vec3<f32>(0.99, 0.99, 1.0), cloud);
     return vec4<f32>(col, 1.0);
+}
+
+// Value noise: hash-based, no time input — renders stay byte-stable.
+fn hash2(p: vec2<f32>) -> f32 {
+    let h = dot(p, vec2<f32>(127.1, 311.7));
+    return fract(sin(h) * 43758.5453123);
+}
+
+fn vnoise(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    let f = fract(p);
+    let u = f * f * (3.0 - 2.0 * f);
+    let a = hash2(i);
+    let b = hash2(i + vec2<f32>(1.0, 0.0));
+    let c = hash2(i + vec2<f32>(0.0, 1.0));
+    let d = hash2(i + vec2<f32>(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
