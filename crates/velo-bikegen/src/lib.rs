@@ -3,6 +3,7 @@
 pub mod asset;
 pub mod credentials;
 pub mod library;
+pub mod obj;
 pub mod placeholder;
 
 pub use asset::{AnchorTransform, BikeAsset, BikeMeta};

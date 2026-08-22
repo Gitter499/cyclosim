@@ -81,6 +81,10 @@ pub fn default_placeholder_anchor() -> AnchorTransform {
     }
 }
 
+/// Vendored CC0 low-poly bicycle (Quaternius "LowPoly Public Transport",
+/// see assets/LICENSE-quaternius.md). Converted at build time by obj.rs.
+const BIKE_OBJ: &str = include_str!("../assets/quaternius_bicycle.obj");
+
 fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     let wheel_dark = [0.10, 0.10, 0.12];
     // Jersey reads brighter than the frame so the rider pops from the chase cam.
@@ -98,78 +102,13 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         (frame_color[2] * 0.20 + 0.76_f32).min(1.0),
     ];
 
-    // Wheel centers at ±0.5 m on X; frame spans between. Total wheelbase ≈ 1.0 m before normalization.
-    let wheel_r = 0.35_f32;
-    let wheel_y = wheel_r;
-    let positions: Vec<[f32; 3]> = vec![
-        // Top tube (quad as two triangles)
-        [-0.15, wheel_y + 0.35, 0.0],
-        [0.35, wheel_y + 0.42, 0.0],
-        [0.35, wheel_y + 0.38, 0.0],
-        [-0.15, wheel_y + 0.31, 0.0],
-        // Down tube
-        [-0.45, wheel_y + 0.05, 0.0],
-        [0.35, wheel_y + 0.40, 0.0],
-        [0.32, wheel_y + 0.36, 0.0],
-        [-0.42, wheel_y + 0.08, 0.0],
-        // Seat tube
-        [-0.12, wheel_y + 0.05, 0.0],
-        [-0.08, wheel_y + 0.38, 0.0],
-        [-0.12, wheel_y + 0.34, 0.0],
-        [-0.16, wheel_y + 0.05, 0.0],
-        // Rear wheel (octagon)
-        wheel_vertex(-0.50, wheel_y, wheel_r, 0),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 1),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 2),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 3),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 4),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 5),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 6),
-        wheel_vertex(-0.50, wheel_y, wheel_r, 7),
-        // Front wheel (octagon)
-        wheel_vertex(0.50, wheel_y, wheel_r, 0),
-        wheel_vertex(0.50, wheel_y, wheel_r, 1),
-        wheel_vertex(0.50, wheel_y, wheel_r, 2),
-        wheel_vertex(0.50, wheel_y, wheel_r, 3),
-        wheel_vertex(0.50, wheel_y, wheel_r, 4),
-        wheel_vertex(0.50, wheel_y, wheel_r, 5),
-        wheel_vertex(0.50, wheel_y, wheel_r, 6),
-        wheel_vertex(0.50, wheel_y, wheel_r, 7),
-    ];
-
-    let mut indices: Vec<u16> = Vec::new();
-    // Frame quads
-    for base in [0u16, 4, 8] {
-        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
-    }
-    // Wheels (fan from center — duplicate center verts per wheel for simplicity)
-    let rear_center = positions.len() as u16;
-    let front_center = rear_center + 1;
-    let rear_start = 12u16;
-    let front_start = 20u16;
-    for i in 0..8 {
-        let next = (i + 1) % 8;
-        indices.extend([
-            rear_center,
-            rear_start + i as u16,
-            rear_start + next as u16,
-        ]);
-        indices.extend([
-            front_center,
-            front_start + i as u16,
-            front_start + next as u16,
-        ]);
-    }
-
-    let mut all_positions = positions;
-    all_positions.push([-0.50, wheel_y, 0.0]);
-    all_positions.push([0.50, wheel_y, 0.0]);
-
-    // Per-vertex colors: frame tubes in the tint, wheels dark.
-    let mut colors: Vec<[f32; 3]> = Vec::with_capacity(all_positions.len());
-    colors.extend(std::iter::repeat(frame_color).take(12)); // frame quads
-    colors.extend(std::iter::repeat(wheel_dark).take(16)); // wheel rims
-    colors.extend(std::iter::repeat(wheel_dark).take(2)); // wheel centers
+    // Real bike geometry: the vendored CC0 low-poly bicycle, tinted per part
+    // and face-shaded at conversion. Replaces the old hand-built tube/octagon
+    // silhouette entirely.
+    let bike = crate::obj::bike_mesh_from_obj(BIKE_OBJ, frame_color);
+    let mut all_positions = bike.positions;
+    let mut colors = bike.colors;
+    let mut indices: Vec<u16> = (0..all_positions.len() as u16).collect();
 
     let push_quad = |positions: &mut Vec<[f32; 3]>,
                          colors: &mut Vec<[f32; 3]>,
@@ -182,38 +121,11 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
     };
 
-    // The frame and wheels are planar (z = 0), which makes the bike invisible
-    // dead-astern — exactly the chase camera's view. Everything below spans z
-    // (or sits in a YZ plane) so the silhouette reads from behind too.
-    let handlebar_y = wheel_y + 0.48;
-    let saddle_y = wheel_y + 0.44;
-
-    // Handlebar: narrow bar across the travel axis at the front.
-    push_quad(
-        &mut all_positions,
-        &mut colors,
-        &mut indices,
-        [
-            [0.33, handlebar_y, -0.22],
-            [0.37, handlebar_y, -0.22],
-            [0.37, handlebar_y, 0.22],
-            [0.33, handlebar_y, 0.22],
-        ],
-        wheel_dark,
-    );
-    // Saddle: short and wider than the frame plane, at the rear.
-    push_quad(
-        &mut all_positions,
-        &mut colors,
-        &mut indices,
-        [
-            [-0.17, saddle_y, -0.08],
-            [-0.05, saddle_y, -0.08],
-            [-0.05, saddle_y, 0.08],
-            [-0.17, saddle_y, 0.08],
-        ],
-        wheel_dark,
-    );
+    // Rider anchors measured from the converted mesh: saddle top ≈
+    // (-0.25, 0.71), grips ≈ (0.45, 0.80).
+    let handlebar_y = 0.78_f32;
+    let saddle_y = 0.72_f32;
+    let _ = wheel_dark;
 
     // Rider torso, astern-facing: a forward-leaning quad spanning z so the
     // chase camera sees shoulders instead of a paper edge. Two-tone: cool
@@ -231,10 +143,10 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
     {
         let base = all_positions.len() as u16;
         all_positions.extend_from_slice(&[
-            [-0.10, saddle_y + 0.02, -0.11],
-            [-0.10, saddle_y + 0.02, 0.11],
-            [0.10, saddle_y + 0.55, 0.19],
-            [0.10, saddle_y + 0.55, -0.19],
+            [-0.20, saddle_y + 0.02, -0.11],
+            [-0.20, saddle_y + 0.02, 0.11],
+            [0.02, saddle_y + 0.55, 0.19],
+            [0.02, saddle_y + 0.55, -0.19],
         ]);
         colors.extend_from_slice(&[jersey_shade, jersey_shade, jersey_lit, jersey_lit]);
         indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
@@ -248,10 +160,10 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
             &mut colors,
             &mut indices,
             [
-                [0.08, saddle_y + 0.50, sz - 0.04 * zs],
-                [0.08, saddle_y + 0.50, sz + 0.04 * zs],
-                [0.34, handlebar_y + 0.02, bz + 0.035 * zs],
-                [0.34, handlebar_y + 0.02, bz - 0.035 * zs],
+                [0.00, saddle_y + 0.48, sz - 0.04 * zs],
+                [0.00, saddle_y + 0.48, sz + 0.04 * zs],
+                [0.42, handlebar_y + 0.02, bz + 0.035 * zs],
+                [0.42, handlebar_y + 0.02, bz - 0.035 * zs],
             ],
             jersey_shade,
         );
@@ -262,17 +174,17 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         &mut colors,
         &mut indices,
         [
-            [-0.12, saddle_y, 0.0],
-            [0.33, handlebar_y, 0.0],
-            [0.33, handlebar_y + 0.18, 0.0],
-            [-0.12, saddle_y + 0.35, 0.0],
+            [-0.20, saddle_y, 0.0],
+            [0.40, handlebar_y, 0.0],
+            [0.40, handlebar_y + 0.18, 0.0],
+            [-0.20, saddle_y + 0.35, 0.0],
         ],
         jersey,
     );
     // Head: a round helmet disc in the YZ plane (billboard toward the chase
     // cam) — the old flat quad read as a floating chip, not a head.
     {
-        let (hx, hy, hr) = (0.12_f32, saddle_y + 0.60, 0.095_f32);
+        let (hx, hy, hr) = (0.05_f32, saddle_y + 0.60, 0.095_f32);
         let center = all_positions.len() as u16;
         all_positions.push([hx, hy, 0.0]);
         colors.push(helmet);
@@ -300,42 +212,8 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
             helmet,
         );
     }
-    // Astern wheel strips: thin vertical quads in the YZ plane at each hub, so
-    // the wheels read as tire profiles from behind instead of vanishing.
-    for cx in [-0.50_f32, 0.50] {
-        push_quad(
-            &mut all_positions,
-            &mut colors,
-            &mut indices,
-            [
-                [cx, 0.0, -0.03],
-                [cx, 0.0, 0.03],
-                [cx, 2.0 * wheel_r, 0.03],
-                [cx, 2.0 * wheel_r, -0.03],
-            ],
-            wheel_dark,
-        );
-    }
-
-    // Crossed wheel discs (YZ plane) at each hub — the tree-billboard trick.
-    // At chase distance the strips above are sub-pixel; a full rotated disc
-    // keeps the wheels visible from dead astern (r19 eval: bike read as a
-    // torso slab on a stick).
-    for cx in [-0.50_f32, 0.50] {
-        let center = all_positions.len() as u16;
-        all_positions.push([cx, wheel_y, 0.0]);
-        colors.push(wheel_dark);
-        let rim_start = all_positions.len() as u16;
-        for i in 0..8 {
-            let angle = (i as f32) * std::f32::consts::TAU / 8.0;
-            all_positions.push([cx, wheel_y + wheel_r * angle.sin(), wheel_r * angle.cos()]);
-            colors.push(wheel_dark);
-        }
-        for i in 0..8u16 {
-            let next = (i + 1) % 8;
-            indices.extend([center, rim_start + i, rim_start + next]);
-        }
-    }
+    // The real mesh's wheels are full 3D cylinders — no astern billboard
+    // tricks needed any more.
 
     // Contact blob shadow spanning both wheels: a flat dark capsule-ish
     // octagon strip at ground level grounds the rider (skill §3 — the
@@ -382,10 +260,10 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
             &mut colors,
             &mut indices,
             [
-                [-0.13, wheel_y + 0.05, zc - 0.05],
-                [-0.13, wheel_y + 0.05, zc + 0.05],
-                [-0.08, saddle_y + 0.04, zc + 0.05],
-                [-0.08, saddle_y + 0.04, zc - 0.05],
+                [-0.14, 0.34, zc - 0.05],
+                [-0.14, 0.34, zc + 0.05],
+                [-0.19, saddle_y + 0.02, zc + 0.05],
+                [-0.19, saddle_y + 0.02, zc - 0.05],
             ],
             shorts,
         );
@@ -393,11 +271,6 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
 
     let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; all_positions.len()];
     build_colored_glb(&all_positions, &uvs, &indices, &colors)
-}
-
-fn wheel_vertex(cx: f32, cy: f32, r: f32, i: usize) -> [f32; 3] {
-    let angle = (i as f32) * std::f32::consts::TAU / 8.0;
-    [cx + r * angle.cos(), cy + r * angle.sin(), 0.0]
 }
 
 fn build_colored_glb(
