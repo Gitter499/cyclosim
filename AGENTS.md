@@ -16,7 +16,7 @@ Native offline cycling simulator. Portable Rust core, thin macOS Swift shell.
 | **M3c** — Bike model import | ✅ | [#8](https://github.com/Gitter499/cyclosim/issues/8) |
 | **M5** — Workouts + shell + clips | ✅ | [#10](https://github.com/Gitter499/cyclosim/issues/10) — builder, Liquid Glass, highlight clips, `.zwo` import, cinematic replay camera |
 | **M6** — Apple Music + AirPods | ✅ | [#11](https://github.com/Gitter499/cyclosim/issues/11) — segment MusicKit, keyboard/AirPods steering |
-| **M7** — Zwift parity UI | 🚧 | [#35](https://github.com/Gitter499/cyclosim/issues/35) — P2-A shell ✅; HUD P2-B open [#48](https://github.com/Gitter499/cyclosim/issues/48) · [roadmap](VeloSim-Roadmap.md) |
+| **M7** — Zwift parity UI | ✅ | [#35](https://github.com/Gitter499/cyclosim/issues/35) — P2-A shell, HUD parity [#48](https://github.com/Gitter499/cyclosim/issues/48), Activities depth [#49](https://github.com/Gitter499/cyclosim/issues/49), demo-sprint polish (PRs #51–#96) · [roadmap](VeloSim-Roadmap.md) |
 
 See [VeloSim-Technical-Plan.md](VeloSim-Technical-Plan.md) for architecture and [VeloSim-Roadmap.md](VeloSim-Roadmap.md) for product/integration plan.
 
@@ -47,6 +47,24 @@ cargo test              # Rust workspace
 just lint               # Apple-symbol check
 just build && just run  # Full app (Xcode Swift + Metal)
 ```
+
+## Visual eval loops (use them — they catch real bugs)
+
+Two closed feedback loops let agents *see* their changes without a Mac at
+hand; nearly every demo-sprint cycle caught a defect this way:
+
+- **Rust scene/HUD** — render real wgpu frames headlessly:
+  `cargo run --release -p velo-eval-mcp -- call render_frame --args '{...}' --save-dir DIR`
+  (`list-tools` shows all 10 tools; scenario args are flat JSON, route enum
+  `none|flat|rolling|alpine_climb`, `with_terrain`/`show_bike` for the full
+  scene). Always drive the CLI after Rust edits — a long-lived MCP server
+  binary goes stale.
+- **SwiftUI shell** — CI is the compiler *and* the screenshot rig: the macOS
+  job runs `swift run VeloSim --screenshots` and emits every screen as
+  `VELOSHOT:<name>.png:<base64>` log lines. Decode, review the PNGs, and
+  byte-compare against the previous round — identical bytes when you
+  expected a change means your change didn't render (that's how a
+  never-rendering elevation bar was caught).
 
 ## Git workflow
 
