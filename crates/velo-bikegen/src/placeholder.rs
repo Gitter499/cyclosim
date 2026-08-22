@@ -65,11 +65,22 @@ fn try_read_image_color(path: &Path) -> Option<[f32; 3]> {
 
 /// Build a simple bike-shaped placeholder GLB tinted from source image metadata.
 pub fn generate_placeholder_glb(image_paths: &[impl AsRef<Path>]) -> Result<Vec<u8>, PlaceholderError> {
+    // Default crank pose: one foot forward-down — reads as mid-stroke.
+    generate_placeholder_glb_posed(image_paths, 1.1)
+}
+
+/// Like [`generate_placeholder_glb`] but with an explicit crank angle
+/// (radians; 0 = left pedal at top). Sequence renders vary this with
+/// distance so the legs visibly pedal frame to frame.
+pub fn generate_placeholder_glb_posed(
+    image_paths: &[impl AsRef<Path>],
+    crank_rad: f32,
+) -> Result<Vec<u8>, PlaceholderError> {
     if image_paths.is_empty() {
         return Err(PlaceholderError::NoImages);
     }
     let color = sample_image_color(image_paths);
-    Ok(build_bike_placeholder_glb(color))
+    Ok(build_bike_placeholder_glb(color, crank_rad))
 }
 
 /// Normalize placeholder anchor: scale to target wheelbase, sit on ground at origin.
@@ -85,7 +96,7 @@ pub fn default_placeholder_anchor() -> AnchorTransform {
 /// see assets/LICENSE-quaternius.md). Converted at build time by obj.rs.
 const BIKE_OBJ: &str = include_str!("../assets/quaternius_bicycle.obj");
 
-fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
+fn build_bike_placeholder_glb(frame_color: [f32; 3], crank_rad: f32) -> Vec<u8> {
     let wheel_dark = [0.10, 0.10, 0.12];
     // Jersey reads brighter than the frame so the rider pops from the chase cam.
     let jersey = [
@@ -254,14 +265,18 @@ fn build_bike_placeholder_glb(frame_color: [f32; 3]) -> Vec<u8> {
         frame_color[1] * 0.22,
         frame_color[2] * 0.22,
     ];
-    for zc in [-0.10_f32, 0.10] {
+    // Legs run hip → foot, feet on opposite crank phases so the pose reads
+    // as mid-pedal-stroke; crank_rad varies across sequence frames.
+    for (zc, phase) in [(-0.10_f32, 0.0_f32), (0.10, std::f32::consts::PI)] {
+        let a = crank_rad + phase;
+        let (foot_x, foot_y) = (0.04 + 0.11 * a.sin(), 0.30 - 0.11 * a.cos());
         push_quad(
             &mut all_positions,
             &mut colors,
             &mut indices,
             [
-                [-0.14, 0.34, zc - 0.05],
-                [-0.14, 0.34, zc + 0.05],
+                [foot_x, foot_y, zc - 0.05],
+                [foot_x, foot_y, zc + 0.05],
                 [-0.19, saddle_y + 0.02, zc + 0.05],
                 [-0.19, saddle_y + 0.02, zc - 0.05],
             ],
@@ -388,7 +403,7 @@ mod tests {
 
     #[test]
     fn placeholder_glb_decodes() {
-        let glb = build_bike_placeholder_glb([0.2, 0.5, 0.8]);
+        let glb = build_bike_placeholder_glb([0.2, 0.5, 0.8], 1.1);
         assert!(glb.starts_with(b"glTF"));
         let mesh = decode_gltf_bytes(&glb, "placeholder").unwrap();
         assert!(mesh.vertices.len() > 3);

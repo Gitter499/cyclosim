@@ -135,7 +135,12 @@ fn render_frame(args: &Value) -> Result<ToolOutput, String> {
     let run = scenario::run_scenario(&params)?;
     let mut renderer = frames::headless_renderer(width, height)?;
     if args.get("show_bike").and_then(Value::as_bool).unwrap_or(false) {
-        frames::load_placeholder_bike(&mut renderer)?;
+        // Crank pose follows ridden distance, so different checkpoints
+        // (and sequence frames) catch the legs mid-stroke differently.
+        frames::load_placeholder_bike_posed(
+            &mut renderer,
+            frames::crank_angle_for_distance(run.app.ride.distance_m),
+        )?;
     }
     if args.get("with_terrain").and_then(Value::as_bool).unwrap_or(false) {
         let route = run.app.route.as_ref().ok_or("with_terrain requires a route")?;
@@ -186,11 +191,20 @@ fn render_ride_sequence(args: &Value) -> Result<ToolOutput, String> {
             .ok_or("with_terrain requires a route")?;
         frames::bake_and_load_terrain(&mut renderer, route)?;
     }
+    let show_bike = args.get("show_bike").and_then(Value::as_bool).unwrap_or(false);
     for i in 0..frame_count {
         let frac = (i + 1) as f64 / frame_count as f64;
         let mut p = params.clone();
         p.duration_s = params.duration_s * frac;
         let run = scenario::run_scenario(&p)?;
+        if show_bike {
+            // Re-pose the crank for this frame's distance — the legs pedal
+            // across the sequence.
+            frames::load_placeholder_bike_posed(
+                &mut renderer,
+                frames::crank_angle_for_distance(run.app.ride.distance_m),
+            )?;
+        }
         let hud = frames::hud_from_app(&run.app, mode_label(&params));
         let follow = frames::follow_from_app(&run.app);
         let png = frames::capture_png(&mut renderer, &hud, run.app.ride.distance_m, follow, run.app.steer_yaw_rad())?;
